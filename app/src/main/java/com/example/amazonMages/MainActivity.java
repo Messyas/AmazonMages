@@ -11,6 +11,8 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.SeekBar;
+import com.example.amazonMages.audio.GameAudioManager;
 
 import com.example.amazonMages.save.GameSaveRepository;
 import com.example.amazonMages.save.PlayerPositionEntity;
@@ -22,6 +24,7 @@ import java.util.Date;
 /** Classic main menu with three independent save slots. */
 public class MainActivity extends Activity {
     private Game game;
+    private GameAudioManager audio;
     private GameSaveRepository menuRepository;
     private boolean resumed;
     private AlertDialog pauseDialog;
@@ -29,6 +32,7 @@ public class MainActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         menuRepository = new GameSaveRepository(this, 1);
+        audio = new GameAudioManager(this);
         showMainMenu();
     }
 
@@ -60,9 +64,46 @@ public class MainActivity extends Activity {
     private void showMainMenu() {
         LinearLayout root = menu("AMAZON MAGES");
         button(root, "Jogar", v -> showSlots(false));
+        button(root, "Áudio", v -> showAudioSettings());
         button(root, "Gerenciar jogatinas", v -> showSlots(true));
         button(root, "Sair", v -> finish());
         setContentView(root);
+    }
+
+    private void showAudioSettings() {
+        LinearLayout root = menu("CONFIGURAÇÕES DE ÁUDIO");
+        addVolumeSlider(root, "Música", audio.musicVolume(), true);
+        addVolumeSlider(root, "Efeitos sonoros", audio.effectsVolume(), false);
+        button(root, "Voltar", v -> {
+            audio.play("menu");
+            if (game == null) showMainMenu();
+            else showPauseMenu();
+        });
+        setContentView(root);
+    }
+
+    private void addVolumeSlider(LinearLayout root, String label, float value, boolean music) {
+        TextView text = new TextView(this);
+        text.setTextColor(Color.WHITE);
+        text.setText(label + ": " + Math.round(value * 100) + "%");
+        root.addView(text);
+        SeekBar slider = new SeekBar(this);
+        slider.setMax(100);
+        slider.setProgress(Math.round(value * 100));
+        root.addView(slider);
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                if (!fromUser) return;
+                float level = progress / 100f;
+                if (music) audio.setMusicVolume(level);
+                else audio.setEffectsVolume(level);
+                text.setText(label + ": " + progress + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {
+                if (!music) audio.play("menu");
+            }
+        });
     }
 
     private void showSlots(boolean managing) {
@@ -103,6 +144,7 @@ public class MainActivity extends Activity {
 
     private void startGame(int slotId) {
         game = new Game(this, slotId);
+        game.setAudioManager(audio);
         FrameLayout root = new FrameLayout(this);
         root.addView(game, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
@@ -128,6 +170,7 @@ public class MainActivity extends Activity {
         game.pause();
         LinearLayout panel = menu("JOGO PAUSADO");
         button(panel, "Continuar", v -> pauseDialog.dismiss());
+        button(panel, "Configurações de áudio", v -> showPauseAudioSettings());
         button(panel, "Salvar progresso", v -> {
             if (game != null) {
                 game.saveNow();
@@ -150,6 +193,22 @@ public class MainActivity extends Activity {
         pauseDialog.show();
     }
 
+    private void showPauseAudioSettings() {
+        LinearLayout panel = menu("ÁUDIO");
+        addVolumeSlider(panel, "Música", audio.musicVolume(), true);
+        addVolumeSlider(panel, "Efeitos sonoros", audio.effectsVolume(), false);
+        button(panel, "Voltar", v -> {
+            if (pauseDialog != null) pauseDialog.dismiss();
+            showPauseMenu();
+        });
+        if (pauseDialog != null) {
+            pauseDialog.setOnDismissListener(null);
+            pauseDialog.dismiss();
+        }
+        pauseDialog = new AlertDialog.Builder(this).setView(panel).create();
+        pauseDialog.show();
+    }
+
     private void returnToMenu() {
         if (pauseDialog != null) {
             pauseDialog.setOnDismissListener(null);
@@ -167,12 +226,14 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
+        if (audio != null) audio.resume();
         if (game != null && pauseDialog == null) game.resume();
     }
 
     @Override protected void onPause() {
         resumed = false;
         if (game != null) game.pause();
+        if (audio != null) audio.pause();
         super.onPause();
     }
 
@@ -183,6 +244,7 @@ public class MainActivity extends Activity {
             game = null;
         }
         menuRepository.close();
+        if (audio != null) audio.release();
         super.onDestroy();
     }
 
