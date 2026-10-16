@@ -1,0 +1,313 @@
+package com.example.amazonMages.save;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+
+import androidx.room.Room;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/** Single-threaded persistence: loading and saves execute in submission order. */
+public class GameSaveRepository {
+    private static final String TAG = "GameSaveRepository";
+    private final int slotId;
+    private volatile boolean closed;
+    private final GameDatabase database;
+    // All menu/game instances share submission order, including saves followed by reopening a slot.
+    private static final ExecutorService IO = Executors.newSingleThreadExecutor();
+    private final Handler main = new Handler(Looper.getMainLooper());
+
+    public int getSlotId() { return slotId; }
+
+    public interface LoadCallback {
+        void onLoaded(PlayerPositionEntity position);
+    }
+
+    public GameSaveRepository(Context context, int slotId) {
+        this(context, slotId, "amazon_mages_saves.db");
+    }
+
+    GameSaveRepository(Context context, int slotId, String databaseName) {
+        this.slotId = slotId;
+        database = Room.databaseBuilder(context.getApplicationContext(),
+            GameDatabase.class, databaseName)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build();
+    }
+
+    public interface SnapshotCallback {
+        void onLoaded(PlayerPositionEntity position, PlayerStatsEntity stats,
+            List<QuestProgressEntity> quests, List<InventoryItemEntity> inventory,
+            List<EquipmentEntity> equipment, List<WorldPickupEntity> pickups);
+    }
+
+    /** A failed read must never become a new game that overwrites an existing save. */
+    public void loadSnapshot(SnapshotCallback callback, Runnable failed) {
+        submit(() -> {
+            try {
+                database.runInTransaction(() -> {
+                    PlayerPositionEntity position = database.playerPositionDao().load(slotId);
+                    PlayerStatsEntity stats = database.playerStatsDao().load(slotId);
+                    List<QuestProgressEntity> quests = database.questProgressDao().loadForSlot(slotId);
+                    List<InventoryItemEntity> inventory = database.inventoryItemDao().loadForSlot(slotId);
+                    List<EquipmentEntity> equipment = database.worldStateDao().equipment(slotId);
+                    List<WorldPickupEntity> pickups = database.worldStateDao().pickups(slotId);
+                    postIfOpen(() -> callback.onLoaded(position, stats, quests, inventory, equipment, pickups));
+                });
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load save; gameplay remains disabled", e);
+                postIfOpen(failed);
+            }
+        });
+    }
+
+    public static final androidx.room.migration.Migration MIGRATION_1_2 =
+        new androidx.room.migration.Migration(1, 2) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("ALTER TABLE player_positions ADD COLUMN health INTEGER NOT NULL DEFAULT 5");
+            }
+        };
+
+    public static final androidx.room.migration.Migration MIGRATION_2_3 =
+        new androidx.room.migration.Migration(2, 3) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS quest_progress (slotId INTEGER NOT NULL, questId TEXT NOT NULL, state TEXT NOT NULL, progress INTEGER NOT NULL, PRIMARY KEY(slotId, questId))");
+            }
+        };
+
+    public static final androidx.room.migration.Migration MIGRATION_3_4 =
+        new androidx.room.migration.Migration(3, 4) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS player_stats (slotId INTEGER NOT NULL, level INTEGER NOT NULL, experience INTEGER NOT NULL, attributePoints INTEGER NOT NULL, skillPoints INTEGER NOT NULL, vigor INTEGER NOT NULL, mente INTEGER NOT NULL, resistencia INTEGER NOT NULL, inteligencia INTEGER NOT NULL, destreza INTEGER NOT NULL, arcano INTEGER NOT NULL, forca INTEGER NOT NULL, mana REAL NOT NULL, maxMana REAL NOT NULL, PRIMARY KEY(slotId))");
+            }
+        };
+
+    public static final androidx.room.migration.Migration MIGRATION_4_5 =
+        new androidx.room.migration.Migration(4, 5) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS inventory_items (slotId INTEGER NOT NULL, itemId TEXT NOT NULL, quantity INTEGER NOT NULL, PRIMARY KEY(slotId, itemId))");
+            }
+        };
+
+    /** Normalize both historical ALTER TABLE saves and fresh v2-v5 databases. */
+    public static final androidx.room.migration.Migration MIGRATION_5_6 =
+        new androidx.room.migration.Migration(5, 6) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE player_positions_v6 (slotId INTEGER NOT NULL, x REAL NOT NULL, y REAL NOT NULL, updatedAt INTEGER NOT NULL, health INTEGER NOT NULL DEFAULT 5, PRIMARY KEY(slotId))");
+                db.execSQL("INSERT INTO player_positions_v6 (slotId, x, y, updatedAt, health) SELECT slotId, x, y, updatedAt, health FROM player_positions");
+                db.execSQL("DROP TABLE player_positions");
+                db.execSQL("ALTER TABLE player_positions_v6 RENAME TO player_positions");
+            }
+        };
+
+    public static final androidx.room.migration.Migration MIGRATION_6_7 =
+        new androidx.room.migration.Migration(6, 7) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE equipment (slotId INTEGER NOT NULL, weaponSlot INTEGER NOT NULL, itemId TEXT NOT NULL, selected INTEGER NOT NULL, PRIMARY KEY(slotId, weaponSlot))");
+                db.execSQL("CREATE TABLE world_pickups (slotId INTEGER NOT NULL, pickupId INTEGER NOT NULL, itemId TEXT NOT NULL, quantity INTEGER NOT NULL, x REAL NOT NULL, y REAL NOT NULL, remainingTicks INTEGER NOT NULL, PRIMARY KEY(slotId, pickupId))");
+            }
+        };
+
+    public interface InventoryLoadCallback {
+        void onLoaded(List<InventoryItemEntity> items);
+    }
+
+    public void loadInventory(InventoryLoadCallback callback) {
+        submit(() -> {
+            List<InventoryItemEntity> rows;
+            try { rows = database.inventoryItemDao().loadForSlot(slotId); }
+            catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load inventory", e);
+                rows = new ArrayList<>();
+            }
+            List<InventoryItemEntity> result = rows;
+            postIfOpen(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void saveInventory(List<InventoryItemEntity> snapshot) {
+        final List<InventoryItemEntity> rows = new ArrayList<>(snapshot);
+        submit(() -> {
+            try {
+                database.runInTransaction(() -> {
+                    database.inventoryItemDao().deleteForSlot(slotId);
+                    database.inventoryItemDao().upsertAll(rows);
+                });
+            } catch (RuntimeException e) { Log.e(TAG, "Unable to save inventory", e); }
+        });
+    }
+
+    public interface StatsLoadCallback { void onLoaded(PlayerStatsEntity stats); }
+
+    public void loadStats(StatsLoadCallback callback) {
+        submit(() -> {
+            PlayerStatsEntity row = null;
+            try { row = database.playerStatsDao().load(slotId); }
+            catch (RuntimeException e) { Log.e(TAG, "Unable to load stats", e); }
+            PlayerStatsEntity result = row;
+            postIfOpen(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void saveStats(PlayerStatsEntity stats) {
+        submit(() -> {
+            try { database.playerStatsDao().save(stats); }
+            catch (RuntimeException e) { Log.e(TAG, "Unable to save stats", e); }
+        });
+    }
+
+    public interface QuestLoadCallback {
+        void onLoaded(List<QuestProgressEntity> progress);
+    }
+
+    public void loadQuests(QuestLoadCallback callback) {
+        submit(() -> {
+            List<QuestProgressEntity> rows;
+            try {
+                rows = database.questProgressDao().loadForSlot(slotId);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load quests", e);
+                rows = new ArrayList<>();
+            }
+            List<QuestProgressEntity> result = rows;
+            postIfOpen(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void saveQuests(List<QuestProgressEntity> snapshot) {
+        final List<QuestProgressEntity> rows = new ArrayList<>(snapshot);
+        submit(() -> {
+            try {
+                database.questProgressDao().upsertAll(rows);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to save quests", e);
+            }
+        });
+    }
+
+    public interface SlotsCallback {
+        void onLoaded(java.util.List<PlayerPositionEntity> slots);
+    }
+
+    public void loadSlots(SlotsCallback callback) {
+        submit(() -> {
+            java.util.List<PlayerPositionEntity> slots;
+            try {
+                slots = database.playerPositionDao().loadAll();
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load slots", e);
+                slots = new java.util.ArrayList<>();
+            }
+            java.util.List<PlayerPositionEntity> result = slots;
+            postIfOpen(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void deleteSlot(int id, Runnable done) {
+        submit(() -> {
+            try {
+                deleteSlotData(database, id);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to delete slot", e);
+            }
+            postIfOpen(done);
+        });
+    }
+
+    public void loadPosition(LoadCallback callback) {
+        submit(() -> {
+            PlayerPositionEntity position = null;
+            try {
+                position = database.playerPositionDao().load(slotId);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load player position", e);
+            }
+            PlayerPositionEntity result = position;
+            postIfOpen(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void savePosition(double x, double y, int health) {
+        if (!Double.isFinite(x) || !Double.isFinite(y)) return;
+        PlayerPositionEntity snapshot =
+            new PlayerPositionEntity(slotId, x, y, health, System.currentTimeMillis());
+        submit(() -> {
+            try {
+                database.playerPositionDao().save(snapshot);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to save player position", e);
+            }
+        });
+    }
+
+    /** All mutable arguments are snapshots owned by this queued operation. */
+    public void saveSnapshot(PlayerPositionEntity position, PlayerStatsEntity stats,
+            List<QuestProgressEntity> quests, List<InventoryItemEntity> inventory,
+            List<EquipmentEntity> equipment, List<WorldPickupEntity> pickups) {
+        if (!Double.isFinite(position.x) || !Double.isFinite(position.y)) return;
+        submit(() -> {
+            try { writeSnapshot(database, position, stats, quests, inventory, equipment, pickups); }
+            catch (RuntimeException e) { Log.e(TAG, "Unable to save snapshot", e); }
+        });
+    }
+
+    static void writeSnapshot(GameDatabase db, PlayerPositionEntity position,
+            PlayerStatsEntity stats, List<QuestProgressEntity> quests,
+            List<InventoryItemEntity> inventory) {
+        writeSnapshot(db, position, stats, quests, inventory, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+    }
+
+    static void writeSnapshot(GameDatabase db, PlayerPositionEntity position,
+            PlayerStatsEntity stats, List<QuestProgressEntity> quests,
+            List<InventoryItemEntity> inventory, List<EquipmentEntity> equipment,
+            List<WorldPickupEntity> pickups) {
+        db.runInTransaction(() -> {
+            db.playerPositionDao().save(position);
+            db.playerStatsDao().save(stats);
+            db.questProgressDao().deleteForSlot(position.slotId);
+            db.questProgressDao().upsertAll(quests);
+            db.inventoryItemDao().deleteForSlot(position.slotId);
+            db.inventoryItemDao().upsertAll(inventory);
+            db.worldStateDao().deleteEquipment(position.slotId);
+            db.worldStateDao().saveEquipment(equipment);
+            db.worldStateDao().deletePickups(position.slotId);
+            db.worldStateDao().savePickups(pickups);
+        });
+    }
+
+    static void deleteSlotData(GameDatabase db, int id) {
+        db.runInTransaction(() -> {
+            db.questProgressDao().deleteForSlot(id);
+            db.playerStatsDao().deleteForSlot(id);
+            db.inventoryItemDao().deleteForSlot(id);
+            db.worldStateDao().deleteEquipment(id);
+            db.worldStateDao().deletePickups(id);
+            db.playerPositionDao().delete(id);
+        });
+    }
+
+    /** Reject late work and callbacks once this session has been disposed. */
+    private synchronized void submit(Runnable operation) {
+        if (!closed) IO.execute(operation);
+    }
+
+    private void postIfOpen(Runnable callback) {
+        main.post(() -> { if (!closed) callback.run(); });
+    }
+
+    /** Flushes queued saves before closing the database; does not block the UI thread. */
+    public void close() { close(null); }
+
+    /** Optional disposal completion; unlike load callbacks this is intentionally delivered after close. */
+    public synchronized void close(Runnable done) {
+        if (!closed) {
+            closed = true;
+            IO.execute(database::close);
+        }
+        if (done != null) IO.execute(() -> main.post(done));
+    }
+}

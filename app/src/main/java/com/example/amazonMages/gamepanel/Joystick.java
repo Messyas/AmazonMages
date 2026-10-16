@@ -6,13 +6,13 @@ import android.graphics.Paint;
 
 public class Joystick {
 
-    private final int outerCircleCenterPositionX;
-    private final int outerCircleCenterPositionY;
+    private int outerCircleCenterPositionX;
+    private int outerCircleCenterPositionY;
     private int innerCircleCenterPositionX;
     private int innerCircleCenterPositionY;
 
-    private final int outerCircleRadius;
-    private final int innerCircleRadius;
+    private int outerCircleRadius;
+    private int innerCircleRadius;
 
     private final Paint innerCirclePaint;
     private final Paint outerCirclePaint;
@@ -40,6 +40,14 @@ public class Joystick {
         innerCirclePaint = new Paint();
         innerCirclePaint.setColor(Color.BLACK);
         innerCirclePaint.setStyle(Paint.Style.FILL_AND_STROKE);
+    }
+
+    public void layout(int width,int height) {
+        outerCircleCenterPositionX=(int)(width*.18f);
+        outerCircleCenterPositionY=(int)(height*.78f);
+        outerCircleRadius=Math.max(1,(int)(Math.min(width,height)*.13f));
+        innerCircleRadius=(int)(outerCircleRadius*.57f);
+        resetActuator(); isPressed=false; updateInnerCirclePosition();
     }
 
     public void draw(Canvas canvas) {

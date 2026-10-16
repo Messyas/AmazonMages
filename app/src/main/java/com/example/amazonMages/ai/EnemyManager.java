@@ -1,0 +1,234 @@
+package com.example.amazonMages.ai;
+
+import android.content.Context;
+import android.graphics.Canvas;
+import com.example.amazonMages.GameDisplay;
+import com.example.amazonMages.ecs.Entity;
+import com.example.amazonMages.ecs.ProjectileComponent;
+import com.example.amazonMages.ecs.ProjectileWorld;
+import com.example.amazonMages.combat.DamageEvent;
+import com.example.amazonMages.combat.DamageType;
+import com.example.amazonMages.gameobject.Circle;
+import com.example.amazonMages.gameobject.Enemy;
+import com.example.amazonMages.gameobject.Player;
+import com.example.amazonMages.gameobject.Spell;
+import com.example.amazonMages.map.Tilemap;
+import java.util.Random;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+/** Owns enemy population, AI scheduling, attack coordination and projectile collisions. */
+public final class EnemyManager {
+    private static final int MAX_ENEMIES = 36;
+    private static final double DESPAWN_DISTANCE = 1900;
+    private static final double ACTIVE_DISTANCE = 800;
+    private static final double MID_DISTANCE = 1250;
+    private static final int MID_UPDATE_TICKS = 6;
+    private static final int FAR_UPDATE_TICKS = 60;
+    private final com.example.amazonMages.ecs.EnemyRegistry enemies = new com.example.amazonMages.ecs.EnemyRegistry();
+    private final SpawnDirector spawns = new SpawnDirector(new SpawnDirector.Region(
+        com.example.amazonMages.map.MapLayout.ACID_SWAMP,36,180,300,1400,EnemyTemplates.ACID_GHOST));
+    private final com.example.amazonMages.ecs.HostileProjectileWorld projectiles = new com.example.amazonMages.ecs.HostileProjectileWorld();
+    private final List<Entity> impacts = new ArrayList<>();
+    private final AttackDirector attacks = new AttackDirector();
+    private final Context context;
+    private final Player player;
+    private final Tilemap tilemap;
+    private final Random random = new Random();
+    public interface KillListener { void onEnemyDefeated(String eventId); }
+    public interface DropListener { void onDefeat(EnemyTemplate template, double x, double y); }
+    private DropListener dropListener;
+    public void setDropListener(DropListener listener) { dropListener = listener; }
+    public interface DetailedKillListener { void onEnemyDefeated(String eventId, long entityId); }
+    private DetailedKillListener detailedKillListener;
+    public void setDetailedKillListener(DetailedKillListener listener) { detailedKillListener=listener; }
+    private KillListener killListener;
+    public void setKillListener(KillListener listener) { killListener = listener; }
+    private void reportDefeat(Enemy enemy) {
+        long entityId=enemies.claimDefeat(enemy);
+        if(entityId==0)return;
+        EnemyTemplate template = enemy.getTemplate();
+        String event = template == null ? "enemy.acid_ghost.defeated" : template.defeatEvent;
+        if (dropListener != null) dropListener.onDefeat(template, enemy.getPositionX(), enemy.getPositionY());
+        if (killListener != null) killListener.onEnemyDefeated(event);
+        if (detailedKillListener != null) detailedKillListener.onEnemyDefeated(event,entityId);
+    }
+
+    /** Bosses are explicit encounters, never added by the ambient spawn loop. */
+    public Enemy spawnEncounter(EnemyTemplate template, double x, double y) {
+        if (enemies.size() >= MAX_ENEMIES + 2 || template == null || !template.isBossEncounter() ||
+            !Double.isFinite(x) || !Double.isFinite(y)) return null;
+        for (Enemy enemy : enemies) {
+            if (!enemy.isDead() && enemy.getTemplate() != null &&
+                enemy.getTemplate().id.equals(template.id)) return null;
+        }
+        Enemy enemy = new Enemy(context, player, template, x, y);
+        enemies.add(enemy);
+        return enemy;
+    }
+
+    public Enemy activeBoss() {
+        for (Enemy enemy : enemies) {
+            if (!enemy.isDead() && enemy.getTemplate() != null &&
+                enemy.getTemplate().isBossEncounter()) return enemy;
+        }
+        return null;
+    }
+    private int tick;
+    private int spawnTicks;
+
+    public EnemyManager(Context context, Player player, Tilemap tilemap) {
+        this.context = context.getApplicationContext();
+        this.player = player;
+        this.tilemap = tilemap;
+    }
+
+    public void update() {
+        if (tick >= Integer.MAX_VALUE - 1) tick = 0;
+        tick++;
+        attacks.beginTick(tick);
+        EnemyTemplate ambient=spawns.update(enemies.size(),random);
+        if (ambient!=null) {
+            double[] spawn=tilemap.randomRegionSpawn(player.getPositionX(),player.getPositionY(),random,
+                spawns.region.tileType,spawns.region.minDistance,spawns.region.maxDistance);
+            if(spawn!=null) enemies.add(new Enemy(context,player,ambient,spawn[0],spawn[1],EnemyPersonality.random(random)));
+        }
+
+        // Social ghosts select nearby unfused ghosts of the same species.
+        for (Enemy enemy : enemies) {
+            Enemy target = null;
+            if (enemy.getPersonality() == EnemyPersonality.SOCIAL && !enemy.isFused() && !enemy.isDead() && enemy.getRank() == EnemyRank.NORMAL) {
+                double best = 320;
+                for (Enemy other : enemies) {
+                    if (enemy == other || other.isFused() || other.isDead() || other.getRank() != EnemyRank.NORMAL) continue;
+                    double distance = Math.hypot(enemy.getPositionX() - other.getPositionX(),
+                        enemy.getPositionY() - other.getPositionY());
+                    if (distance < best) { best = distance; target = other; }
+                }
+            }
+            enemy.setGroupTarget(target);
+        }
+
+        Iterator<Enemy> iterator = enemies.iterator();
+        while (iterator.hasNext()) {
+            Enemy enemy = iterator.next();
+            double distance = Math.hypot(
+                enemy.getPositionX() - player.getPositionX(),
+                enemy.getPositionY() - player.getPositionY());
+            if (enemy.finishedDeath() || spawns.shouldDespawn(distance,enemy.getTemplate()!=null && enemy.getTemplate().isBossEncounter())) {
+                iterator.remove();
+                continue;
+            }
+            int period = spawns.updatePeriod(distance);
+            if ((tick + enemy.getUpdateOffset()) % period == 0) enemy.update(period);
+        }
+
+        // Fuse nearby unfused ghosts once; the survivor keeps both remaining HP.
+        for (int i = 0; i < enemies.size(); i++) {
+            Enemy first = enemies.get(i);
+            if (first.isFused() || first.isDead() || first.getRank() != EnemyRank.NORMAL || first.getPersonality() != EnemyPersonality.SOCIAL) continue;
+            for (int j = i + 1; j < enemies.size(); j++) {
+                Enemy second = enemies.get(j);
+                if (second.isFused() || second.isDead() || second.getRank() != EnemyRank.NORMAL) continue;
+                if (Math.hypot(first.getPositionX() - second.getPositionX(),
+                        first.getPositionY() - second.getPositionY()) < 52) {
+                    first.fuseWith(second);
+                    enemies.remove(j);
+                    break;
+                }
+            }
+        }
+
+        // Rotating priority prevents the same ghost from monopolizing the firing budget.
+        int size = enemies.size();
+        int start = attacks.firstCandidate(size);
+        if (attacks.canFire(tick, projectiles.count())) {
+            for (int offset = 0; offset < size; offset++) {
+                int index = (start + offset) % size;
+                Enemy enemy = enemies.get(index);
+                if (enemy.isDead()) continue;
+                EnemyProjectile shot = enemy.fireProjectile();
+                if (shot != null) {
+                    projectiles.spawn(shot);
+                    attacks.recordShot(tick, index, size);
+                    break;
+                }
+            }
+        }
+
+        projectiles.update(player);
+    }
+
+    /** ECS projectile collision; each projectile can hit only one enemy. */
+    public void collideWithPlayerProjectiles(ProjectileWorld world) {
+        for (Enemy enemy : enemies) {
+            if (enemy.isDead()) continue;
+            world.overlappingInto(enemy.getPositionX(),enemy.getPositionY(),enemy.getRadius(),impacts);
+            for (Entity projectile : impacts) {
+                if (enemy.isDead()) break;
+                if (!world.consume(projectile.id())) continue;
+                enemy.receiveHit(projectile.get(ProjectileComponent.class).spell.getHit());
+                if (enemy.isDead()) {
+                    reportDefeat(enemy);
+                    break;
+                }
+            }
+        }
+    }
+
+    public void collideWithPlayerSpells(List<Spell> spells) {
+        Iterator<Enemy> enemyIterator = enemies.iterator();
+        while (enemyIterator.hasNext()) {
+            Enemy enemy = enemyIterator.next();
+            if (enemy.isDead()) continue;
+            Iterator<Spell> shotIterator = spells.iterator();
+            while (shotIterator.hasNext()) {
+                Spell spell = shotIterator.next();
+                if (Circle.isColliding(spell, enemy)) {
+                    shotIterator.remove();
+                    enemy.receiveHit(spell.getHit());
+                    if (enemy.isDead()) { reportDefeat(enemy); break; }
+                }
+            }
+        }
+    }
+
+    /** Area impacts used by the intrinsic coconut storm. */
+    public void coconutImpact(double x, double y, double radius) {
+        coconutImpact(x, y, radius, 1.0);
+    }
+
+    public void coconutImpact(double x, double y, double radius, double damageMultiplier) {
+        for (Enemy enemy : enemies) {
+            if (enemy.isDead()) continue;
+            double distance = Math.hypot(enemy.getPositionX() - x, enemy.getPositionY() - y);
+            if (distance < radius + enemy.getRadius()) {
+                enemy.receiveHit(new DamageEvent(Math.max(0, damageMultiplier), 18, DamageType.PHYSICAL));
+                if (enemy.isDead()) reportDefeat(enemy);
+            }
+        }
+    }
+
+    public void draw(Canvas canvas, GameDisplay display) {
+        for (Enemy enemy : enemies) enemy.draw(canvas, display);
+        projectiles.draw(canvas, display);
+    }
+
+    /** Debug only: removes active enemies and projectiles without kill rewards. */
+    public void clearForDebug() {
+        enemies.clear();
+        projectiles.clear();
+    }
+
+    /** Debug-only normal enemy spawn; bypasses the ambient spawn timer. */
+    public boolean spawnNormalForDebug(double x, double y) {
+        if (!Double.isFinite(x) || !Double.isFinite(y) || enemies.size() >= MAX_ENEMIES) return false;
+        enemies.add(new Enemy(context, player, EnemyConfig.acidGhost(), x, y,
+            EnemyPersonality.AGGRESSIVE));
+        return true;
+    }
+
+    public int getEnemyCount() { return enemies.size(); }
+    public int getProjectileCount() { return projectiles.count(); }
+}
