@@ -39,6 +39,8 @@ public class Player extends Circle {
     private final SpriteAnimator animator;
     private Direction facing = Direction.SOUTH;
     private Direction attackFacing = Direction.SOUTH;
+    private double attackDirectionX = 0;
+    private double attackDirectionY = 1;
     private final PlayerState playerState;
 
     public Player(Context context, Joystick joystick, double positionX, double positionY, double radius, SpriteAnimator animator) {
@@ -114,8 +116,14 @@ public class Player extends Circle {
 
     /** Aim can be set separately from movement by future combat controls. */
     public void aim(double x, double y) {
+        double length = Math.hypot(x, y);
+        if (length < 0.001 || !Double.isFinite(length)) return;
+        attackDirectionX = x / length;
+        attackDirectionY = y / length;
         attackFacing = Direction.fromVector(x, y, attackFacing);
     }
+    public double getAttackDirectionX() { return attackDirectionX; }
+    public double getAttackDirectionY() { return attackDirectionY; }
 
     public Direction getFacing() { return facing; }
     public Direction getAttackFacing() { return attackFacing; }
