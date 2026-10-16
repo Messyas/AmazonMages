@@ -21,7 +21,8 @@ public final class ProjectileWorld {
             .add(TransformComponent.class,
                 new TransformComponent(spell.getPositionX(), spell.getPositionY()))
             .add(VelocityComponent.class,
-                new VelocityComponent(spell.getVelocityX(), spell.getVelocityY()));
+                new VelocityComponent(spell.getVelocityX(), spell.getVelocityY()))
+            .add(ColliderComponent.class, new ColliderComponent(spell.getRadius()));
     }
 
     public void update() { scheduler.update(world, 1); }
