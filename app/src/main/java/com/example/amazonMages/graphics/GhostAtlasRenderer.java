@@ -7,26 +7,43 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import com.example.amazonMages.GameDisplay;
-import com.example.amazonMages.ai.EnemyState;
+import java.util.EnumMap;
 
 /**
- * Fixed grid: eight direction rows (S,SE,E,NE,N,NW,W,SW), four frame columns.
- * Works with 64x64 art (256x512 atlas) or compact 32x32 (128x256 atlas).
- * Missing optional atlases fall back to the original ghost.png.
+ * Optional PNG atlas convention:
+ * drawable-nodpi/acid_ghost_<action>.png and acid_ghost_fused_<action>.png.
+ * Each atlas: 8 direction rows in Direction enum order, N columns from
+ * GhostAnimation.frames; each cell must be square and equally sized.
+ * Existing 4x8 generic atlases and ghost.png remain compatible fallbacks.
  */
 public final class GhostAtlasRenderer {
-    private static Bitmap normal;
-    private static Bitmap fused;
-    private static Bitmap fallback;
+    private static final EnumMap<GhostAnimation, Bitmap> NORMAL =
+        new EnumMap<>(GhostAnimation.class);
+    private static final EnumMap<GhostAnimation, Bitmap> FUSED =
+        new EnumMap<>(GhostAnimation.class);
+    private static Bitmap genericNormal, genericFused, fallback;
+    private static boolean loaded;
     private static final Paint PAINT = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Rect source = new Rect();
     private final Rect destination = new Rect();
 
     public GhostAtlasRenderer(Context context) {
-        if (fallback == null) fallback = BitmapFactory.decodeResource(
-            context.getResources(), com.example.androidstudio2dgamedevelopment.R.drawable.ghost);
-        if (normal == null) normal = loadOptional(context, "acid_ghost_atlas");
-        if (fused == null) fused = loadOptional(context, "acid_ghost_fused_atlas");
+        synchronized (GhostAtlasRenderer.class) {
+            if (loaded) return;
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inScaled = false;
+            fallback = BitmapFactory.decodeResource(context.getResources(),
+                com.example.androidstudio2dgamedevelopment.R.drawable.ghost, options);
+            genericNormal = loadOptional(context, "acid_ghost_atlas");
+            genericFused = loadOptional(context, "acid_ghost_fused_atlas");
+            for (GhostAnimation action : GhostAnimation.values()) {
+                Bitmap normal = loadOptional(context, "acid_ghost_" + action.fileSuffix);
+                Bitmap merged = loadOptional(context, "acid_ghost_fused_" + action.fileSuffix);
+                if (valid(normal, action.frames)) NORMAL.put(action, normal);
+                if (valid(merged, action.frames)) FUSED.put(action, merged);
+            }
+            loaded = true;
+        }
     }
 
     private static Bitmap loadOptional(Context context, String name) {
@@ -37,9 +54,17 @@ public final class GhostAtlasRenderer {
         return BitmapFactory.decodeResource(context.getResources(), id, options);
     }
 
+    private static boolean valid(Bitmap bitmap, int columns) {
+        return bitmap != null && bitmap.getWidth() % columns == 0 &&
+            bitmap.getHeight() % 8 == 0 &&
+            bitmap.getWidth() / columns == bitmap.getHeight() / 8;
+    }
+
     public void draw(Canvas canvas, GameDisplay display, double x, double y,
-                     Direction facing, EnemyState state, boolean merged, int animationTick) {
-        Bitmap atlas = merged ? fused : normal;
+                     Direction facing, GhostAnimation action, boolean merged, int ticks) {
+        Bitmap atlas = merged ? FUSED.get(action) : NORMAL.get(action);
+        boolean generic = atlas == null;
+        if (generic) atlas = merged ? genericFused : genericNormal;
         int size = merged ? 96 : 64;
         int cx = (int) display.gameToDisplayCoordinatesX(x);
         int cy = (int) display.gameToDisplayCoordinatesY(y);
@@ -48,16 +73,27 @@ public final class GhostAtlasRenderer {
             if (fallback != null) canvas.drawBitmap(fallback, null, destination, PAINT);
             return;
         }
-        int frameWidth = atlas.getWidth() / 4;
-        int frameHeight = atlas.getHeight() / 8;
-        int column;
-        if (state == EnemyState.ALERT) column = 2;
-        else if (state == EnemyState.ATTACK || state == EnemyState.ENRAGED) column = 3;
-        else if (state == EnemyState.CHASE) column = 1;
-        else column = (animationTick / 16) % 2;
+        int columns = generic ? 4 : action.frames;
+        int width = atlas.getWidth() / columns;
+        int height = atlas.getHeight() / 8;
+        if (width <= 0 || height <= 0) return;
+        int frame;
+        if (generic) {
+            if (action == GhostAnimation.ALERT || action == GhostAnimation.SPOTTED_PLAYER ||
+                action == GhostAnimation.STARTLED || action == GhostAnimation.SPOTTED_ALLY)
+                frame = 2;
+            else if (action == GhostAnimation.ATTACK || action == GhostAnimation.ENRAGED ||
+                     action == GhostAnimation.FUSION) frame = 3;
+            else if (action == GhostAnimation.MOVE || action == GhostAnimation.CHASE ||
+                     action == GhostAnimation.FLEE || action == GhostAnimation.SOCIAL)
+                frame = 1;
+            else frame = (ticks / 16) % 2;
+        } else {
+            int index = Math.max(0, ticks) / action.ticksPerFrame;
+            frame = action.loops ? index % columns : Math.min(index, columns - 1);
+        }
         int row = facing.ordinal();
-        source.set(column * frameWidth, row * frameHeight,
-            (column + 1) * frameWidth, (row + 1) * frameHeight);
+        source.set(frame * width, row * height, (frame + 1) * width, (row + 1) * height);
         canvas.drawBitmap(atlas, source, destination, PAINT);
     }
 }
