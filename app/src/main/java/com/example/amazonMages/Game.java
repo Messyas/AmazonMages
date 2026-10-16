@@ -23,6 +23,7 @@ import com.example.amazonMages.gamepanel.Performance;
 import com.example.amazonMages.graphics.Animator;
 import com.example.amazonMages.graphics.SpriteSheet;
 import com.example.amazonMages.map.Tilemap;
+import com.example.amazonMages.save.GameSaveRepository;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -35,6 +36,9 @@ import java.util.List;
 class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     private final Tilemap tilemap;
+    private final GameSaveRepository saves;
+    private volatile boolean saveLoaded = false;
+    private int updatesSinceSave = 0;
     private int joystickPointerId = 0;
     private final Joystick joystick;
     private final Player player;
@@ -70,6 +74,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         SpriteSheet spriteSheet = new SpriteSheet(context);
         Animator animator = new Animator(spriteSheet.getPlayerSpriteArray());
         player = new Player(context, joystick, 2*500, 500, 32, animator);
+        saves = new GameSaveRepository(context);
 
 
         // Initialize display and center it around the player
@@ -85,6 +90,14 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         context.startService(musicIntent); // Inicia o serviço de música em segundo plano
 
         setFocusable(true);
+        saves.loadPosition(position -> {
+            if (position != null && Double.isFinite(position.x) && Double.isFinite(position.y)) {
+                player.restorePosition(position.x, position.y);
+                gameDisplay.update();
+            }
+            saveLoaded = true;
+            startIfReady();
+        });
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -140,7 +153,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private synchronized void startIfReady() {
-        if (!activityResumed || !getHolder().getSurface().isValid()) return;
+        if (!saveLoaded || !activityResumed || !getHolder().getSurface().isValid()) return;
         if (gameLoop.getState() == Thread.State.TERMINATED) {
             gameLoop = new GameLoop(this, getHolder());
             performance.setGameLoop(gameLoop);
@@ -253,13 +266,21 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Atualiza o gameDisplay para que seu centro seja definido para o novo centro das
         // coordenadas do jogador no jogo
         gameDisplay.update();
+        if (++updatesSinceSave >= 600) {
+            updatesSinceSave = 0;
+            saves.savePosition(player.getPositionX(), player.getPositionY());
+        }
     }
 
 
     public synchronized void pause() {
         activityResumed = false;
         gameLoop.stopLoop();
+        if (saveLoaded) saves.savePosition(player.getPositionX(), player.getPositionY());
     }
 
+    public void closeSaveRepository() {
+        saves.close();
+    }
 
 }
