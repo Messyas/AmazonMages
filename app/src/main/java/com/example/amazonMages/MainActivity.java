@@ -197,16 +197,9 @@ public class MainActivity extends Activity {
         LinearLayout panel = menu("ÁUDIO");
         addVolumeSlider(panel, "Música", audio.musicVolume(), true);
         addVolumeSlider(panel, "Efeitos sonoros", audio.effectsVolume(), false);
-        button(panel, "Voltar", v -> {
-            if (pauseDialog != null) pauseDialog.dismiss();
-            showPauseMenu();
-        });
-        if (pauseDialog != null) {
-            pauseDialog.setOnDismissListener(null);
-            pauseDialog.dismiss();
-        }
-        pauseDialog = new AlertDialog.Builder(this).setView(panel).create();
-        pauseDialog.show();
+        AlertDialog settings = new AlertDialog.Builder(this).setView(panel).create();
+        button(panel, "Voltar", v -> settings.dismiss());
+        settings.show();
     }
 
     private void returnToMenu() {
