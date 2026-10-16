@@ -27,5 +27,17 @@ public final class Inventory {
         else amounts.put(id, remaining);
         return true;
     }
+    /** Restore only known, positive item stacks; unknown IDs are ignored. */
+    public void restore(Map<String, Integer> saved) {
+        amounts.clear();
+        if (saved == null) return;
+        for (Map.Entry<String, Integer> entry : saved.entrySet()) {
+            ItemDefinition definition = registry.get(entry.getKey());
+            Integer count = entry.getValue();
+            if (definition != null && count != null && count > 0)
+                amounts.put(entry.getKey(), Math.min(count, definition.maxStack));
+        }
+    }
+
     public Map<String, Integer> snapshot() { return Collections.unmodifiableMap(new LinkedHashMap<>(amounts)); }
 }
