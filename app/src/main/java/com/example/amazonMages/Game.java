@@ -21,6 +21,9 @@ import com.example.amazonMages.ecs.PickupSystem;
 import com.example.amazonMages.items.ItemRegistry;
 import com.example.amazonMages.items.ItemDefinition;
 import com.example.amazonMages.items.Inventory;
+import com.example.amazonMages.save.InventoryItemEntity;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import com.example.amazonMages.events.GameEvent;
 import com.example.amazonMages.events.GameEventBus;
 import com.example.amazonMages.dev.DevicePerformanceMonitor;
@@ -128,6 +131,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 }
                 if ("erva".equals(item)) {
                     int accepted = inventory.add("erva", 1);
+                    saveInventory();
                     return "Ervas: " + inventory.count("erva") + " (+" + accepted + ")";
                 }
                 return "Item desconhecido: coco, cajado, erva.";
@@ -271,8 +275,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                     progression.restore(stats);
                     applyProgressionEffects();
                     if (position != null) player.setHealthPoint(position.health);
-                    saveLoaded = true;
-                    startIfReady();
+                    saves.loadInventory(rows -> {
+                        Map<String, Integer> loaded = new LinkedHashMap<>();
+                        for (InventoryItemEntity row : rows) loaded.put(row.itemId, row.quantity);
+                        inventory.restore(loaded);
+                        saveLoaded = true;
+                        startIfReady();
+                    });
                 });
             });
         });
@@ -449,7 +458,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         player.update();
         int collected = pickupSystem.collect(pickupWorld, player.getPositionX(),
             player.getPositionY(), player.getRadius(), inventory);
-        if (collected > 0) eventBus.publish(new GameEvent("item.erva.collected", 0));
+        if (collected > 0) {
+            eventBus.publish(new GameEvent("item.erva.collected", 0));
+            saveInventory();
+        }
         weapons.update();
         progression.regenerateMana();
         updateCoconutStorm();
@@ -526,6 +538,14 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         player.setMaximumHealth(progression.maximumHealth());
         progression.maxMana = progression.manaCapacity();
         progression.mana = Math.min(progression.mana, progression.maxMana);
+    }
+
+    private void saveInventory() {
+        if (!saveLoaded) return;
+        List<InventoryItemEntity> rows = new ArrayList<>();
+        for (Map.Entry<String, Integer> item : inventory.snapshot().entrySet())
+            rows.add(new InventoryItemEntity(saves.getSlotId(), item.getKey(), item.getValue()));
+        saves.saveInventory(rows);
     }
 
     private void saveQuestProgress() {
