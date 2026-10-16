@@ -7,6 +7,11 @@ import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import com.example.amazonMages.combat.WeaponLoadout;
+import com.example.amazonMages.combat.WeaponDefinition;
+import com.example.amazonMages.combat.WeaponType;
+import com.example.amazonMages.combat.DamageEvent;
+import com.example.amazonMages.dev.DevConsole;
+import com.example.amazonMages.map.MapLayout;
 import com.example.amazonMages.audio.GameAudioManager;
 import java.util.Random;
 import java.util.Arrays;
@@ -56,6 +61,77 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private GameAudioManager audio;
     public void setAudioManager(GameAudioManager manager) { this.audio = manager; }
     private void sound(String event) { if (audio != null) audio.play(event); }
+
+    /** Commands run only while the game is paused in a debuggable build. */
+    public String runDevCommand(String input) {
+        if ((getContext().getApplicationInfo().flags &
+            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0)
+            return "Console indisponível em builds de produção.";
+        return new DevConsole(new DevConsole.Commands() {
+            @Override public String position() {
+                return "x=" + (int) player.getPositionX() + " y=" + (int) player.getPositionY();
+            }
+            @Override public String teleport(double x, double y) {
+                double maxX = MapLayout.NUMBER_OF_COLUMN_TILES * MapLayout.TILE_WIDTH_PIXELS;
+                double maxY = MapLayout.NUMBER_OF_ROW_TILES * MapLayout.TILE_HEIGHT_PIXELS;
+                if (!Double.isFinite(x) || !Double.isFinite(y) ||
+                    x < 0 || y < 0 || x >= maxX || y >= maxY) return "Coordenadas fora do mapa.";
+                player.restorePosition(x, y);
+                gameDisplay.update();
+                return position();
+            }
+            @Override public String god(boolean enabled) {
+                player.setInvulnerable(enabled);
+                return "Imortalidade " + (enabled ? "ativada" : "desativada");
+            }
+            @Override public String heal() {
+                player.setHealthPoint(player.getMaximumHealth());
+                progression.mana = progression.maxMana;
+                return "Vida e mana restauradas.";
+            }
+            @Override public String give(String item) {
+                if ("coco".equals(item)) {
+                    weapons.equip(0, WeaponLoadout.COCONUT);
+                    return "Domínio dos Cocos equipado no slot 1.";
+                }
+                if ("cajado".equals(item)) {
+                    weapons.equip(1, new WeaponDefinition("Cajado de Teste",
+                        WeaponType.INTRINSIC, new DamageEvent(1, 10, DamageType.MAGIC)));
+                    return "Cajado de Teste equipado no slot 2. Use TROCA.";
+                }
+                return "Item desconhecido: coco, cajado. Inventário ainda não existe.";
+            }
+            @Override public String spawn(String species, int count) {
+                EnemyTemplate template;
+                if ("fantasma".equals(species)) template = EnemyTemplates.ACID_GHOST;
+                else if ("sentinela".equals(species)) template = EnemyTemplates.SWAMP_SENTINEL;
+                else if ("espectro".equals(species)) template = EnemyTemplates.ANCIENT_WRAITH;
+                else return "Espécie desconhecida: fantasma, sentinela, espectro.";
+                int spawned = 0;
+                for (int i = 0; i < count; i++) {
+                    double x = player.getPositionX() + 150 + (i % 4) * 75;
+                    double y = player.getPositionY() + 100 + (i / 4) * 75;
+                    boolean ok = template.isBossEncounter() ?
+                        enemyManager.spawnEncounter(template, x, y) != null :
+                        enemyManager.spawnNormalForDebug(x, y);
+                    if (ok) spawned++;
+                }
+                return "Invocados: " + spawned + "/" + count;
+            }
+            @Override public String clearEnemies() {
+                enemyManager.clearForDebug();
+                return "Inimigos e projéteis removidos sem recompensas.";
+            }
+            @Override public String level(int amount) {
+                int gained = 0;
+                while (gained < amount && progression.level < 100) {
+                    progression.gainExperience(PlayerProgression.experienceToNextLevel(progression.level));
+                    gained++;
+                }
+                return "Nível " + progression.level + " | pontos " + progression.attributePoints;
+            }
+        }).execute(input);
+    }
 
     private static final String INTRO_QUEST = "first_ghosts";
     private final DialogueManager dialogue = new DialogueManager();
