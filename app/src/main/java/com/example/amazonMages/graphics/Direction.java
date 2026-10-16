@@ -2,7 +2,7 @@ package com.example.amazonMages.graphics;
 
 /** Eight compass directions in screen coordinates (positive Y points down). */
 public enum Direction {
-    SOUTH, SOUTH_WEST, WEST, NORTH_WEST, NORTH, NORTH_EAST, EAST, SOUTH_EAST;
+    SOUTH, SOUTH_EAST, EAST, NORTH_EAST, NORTH, NORTH_WEST, WEST, SOUTH_WEST;
 
     public static Direction fromVector(double x, double y, Direction fallback) {
         if (!Double.isFinite(x) || !Double.isFinite(y) || (x == 0 && y == 0)) return fallback;
