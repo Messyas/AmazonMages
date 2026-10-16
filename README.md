@@ -100,3 +100,7 @@ Este documento apresenta uma descrição detalhada do jogo mobile para dispositi
 ---
 
 As aulas base para esta aplicacao podem ser encontradas em: https://www.youtube.com/watch?v=GIc2GRCUI8s&list=PL2EfDMM6n_LYJdzaOQ5jZZ3Dj5L4tbAuM
+
+## Desenvolvimento
+
+Consulte o [roadmap técnico](docs/architecture-roadmap.md), o [relatório de build e testes](docs/validation/2026-10-16.md) e o [roteiro Android](docs/testing-checklist.md).

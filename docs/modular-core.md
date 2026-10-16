@@ -1,3 +1,13 @@
+# Estado atual do núcleo modular
+
+A implementação atual, regras autoritativas e evidências de build estão em
+[architecture-roadmap.md](architecture-roadmap.md). Room agora está na versão 7;
+projéteis hostis, inventário visual, equipamentos e pickups persistentes estão integrados.
+Build debug, 26 testes JVM e lint foram executados. Testes Android precisam de dispositivo.
+
+As etapas abaixo são um **registro histórico anterior**; suas notas de ausência de build e
+pendências descrevem a ocasião original e não substituem o roadmap atualizado.
+
 # Núcleo modular incremental: ECS e eventos
 
 ## Escopo da primeira etapa

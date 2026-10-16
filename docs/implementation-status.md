@@ -1,44 +1,36 @@
 # Estado real da implementação
 
-Referência: branch `fix/android-performance`, outubro de 2026. Não houve build Android verificado nesta sessão.
+Atualizado em 2026-10-16 na branch `fix/android-performance`.
+O documento de referência para funcionalidades, testes e commits é
+[architecture-roadmap.md](architecture-roadmap.md).
 
-## Implementado ou integrado ao protótipo
+## Integrado ao jogo
 
-- Loop de jogo Canvas 2D, mapa, jogador, movimento, inimigos fantasmas ácidos e projéteis.
-- AI de fantasmas com personalidades, ataques coordenados e fusão; renderização de atlas com fallback.
-- Menu principal, três slots de save Room, pausa/salvamento e retorno ao menu.
-- Combate: `DamageType`, `DamageEvent`, `DamageResolver`, `CombatStats`, `StatusEffects`, `Posture`; recebimento de dano com precisão fracionária.
-- `WeaponType`, `WeaponDefinition`, `WeaponLoadout`: quatro posições, somente Domínio dos Cocos equipado inicialmente.
-- `Spell`: projétil circular de coco desenhado via Canvas, dano físico; direção de ataque separada da direção de movimento.
-- `EnemyManager.coconutImpact`: dano de área. `Game`: tempestade de 150 ticks e recarga de 1080 ticks, impactos aleatórios; HUD e áreas de toque provisórios.
+- Loop fixo Canvas 2D, mapa, jogador, fantasmas, chefes, combate e progressão existentes preservados.
+- World renderer, controlador de input multitoque, estados modais e coordenação de snapshots extraídos de Game.
+- ECS para projéteis do jogador, projéteis hostis e pickups; registro dos inimigos por adaptador sem duplicação de posição/vida.
+- Inventário no HUD, descrições/quantidades, seleção, cura, recuperação de mana e buff temporário.
+- Quatro slots equipáveis; Domínio dos Cocos inicial e cajado mágico obtido por loot.
+- Drops por tipo de inimigo, limites de pilha/chão, expiração e persistência por slot.
+- Room 7 com migrações explícitas 1→7, save transacional de seis tabelas e callbacks descartados ao encerrar sessão.
+- Spawn configurável por região; Sentinela solicitada pela missão, com registro persistente de encontro pendente/concluído.
+- Cache central de bitmaps limitado, ciclo de vida de áudio preservado, controles proporcionais à Surface.
 
-## Parcial / provisório
+## Verificado neste ambiente
 
-- HUD: botões são círculos/textos Canvas com posições relativas, joystick ainda possui posição fixa em pixels; necessita layout adaptativo.
-- Ataque: tipo de arma é representado nos dados, mas **não existe executor específico** de ataques para catalisadores e armas físicas. O ataque básico atual instancia `Spell`.
-- Tempestade: dano por pulsos e círculo indicador, **sem cocos caindo visivelmente, sombras individuais, animação de invocação ou SFX**.
-- Postura: acúmulo e regeneração existem; quebra, atordoamento e reação de inimigos ainda não.
-- Fusão e animações: lógica existe, mas os atlases específicos de fantasma ainda não foram fornecidos; fallback pode usar `ghost.png`.
-- Mira: ponteiros independentes para movimento/ataque, mas precisa de testes de multitoque e ergonomia.
+- APK debug e APK instrumentado compilados.
+- 26 testes unitários aprovados, zero falhas/erros.
+- Android Lint: zero erros, 31 avisos.
+- Testes instrumentados **não executados**: `No connected devices!`.
 
-## Não implementado
+## Limites e backlog
 
-- Inventário real, coleta, quatro equipamentos efetivamente utilizáveis, poções e seletor de consumíveis.
-- Sistema de mana, XP, níveis, atributos distribuíveis, 20 habilidades, pré-requisitos e telas de progressão.
-- Escudo frontal, colisão direcional, parry perfeito, quebra de postura/stun, bônus acionado por parry.
-- Animações e sons próprios de coco, cajados, catalisadores e especiais; áudio de impacto cômico.
-- Persistência dos novos equipamentos, progressão e cooldowns nos saves.
+- Validação de gameplay, migrações em saves reais, multitoque, densidades e desempenho físico pendente.
+- HUD legado ainda parcialmente em Game; extração incremental, sem reescrita completa.
+- Chefes pendentes reiniciam com vida cheia ao carregar; efeitos, cooldowns e projéteis são transitórios.
+- Arte final, VFX/SFX e animações próprias de armas permanecem no backlog artístico.
+- Parry/escudo direcional, stun por postura e árvore completa de 20 habilidades do design anterior
+  não fizeram parte da lista de sistemas iniciais desta implementação.
 
-## Prioridade sugerida
-
-1. Rodar build e corrigir falhas; validar regressões de save, ciclo de vida e controles.
-2. Implementar recursos visuais essenciais do coco e contrato de sprites; manter fallback.
-3. Separar `AttackExecutor` / estratégias de arma de `Game.java`, com ataques específicos para cada categoria.
-4. Introduzir mana, consumíveis e inventário persistente.
-5. Implementar escudo/parry/postura e progressão em incrementos testáveis.
-
-Nenhum item pendente deve ser marcado como pronto apenas porque aparece no documento de design.
-
-## Atualização: missões persistentes (Room v3)
-
-A base de diálogo demonstrativa e a missão `first_ghosts` estão conectadas a `Game`. O progresso/estado agora são gravados em `quest_progress` por slot, restaurados antes de iniciar o loop e removidos junto com o slot. A recompensa continua simbólica (sem inventário/desbloqueio real). Falta compilar e testar a migração e o ciclo de vida.
+Veja os detalhes e regras de compatibilidade no roadmap e no
+[relatório de validação](validation/2026-10-16.md).
