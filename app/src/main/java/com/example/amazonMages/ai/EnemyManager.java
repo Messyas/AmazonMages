@@ -54,10 +54,10 @@ public final class EnemyManager {
         // Social ghosts select nearby unfused ghosts of the same species.
         for (Enemy enemy : enemies) {
             Enemy target = null;
-            if (enemy.getPersonality() == EnemyPersonality.SOCIAL && !enemy.isFused()) {
+            if (enemy.getPersonality() == EnemyPersonality.SOCIAL && !enemy.isFused() && !enemy.isDead()) {
                 double best = 320;
                 for (Enemy other : enemies) {
-                    if (enemy == other || other.isFused()) continue;
+                    if (enemy == other || other.isFused() || other.isDead()) continue;
                     double distance = Math.hypot(enemy.getPositionX() - other.getPositionX(),
                         enemy.getPositionY() - other.getPositionY());
                     if (distance < best) { best = distance; target = other; }
@@ -72,7 +72,7 @@ public final class EnemyManager {
             double distance = Math.hypot(
                 enemy.getPositionX() - player.getPositionX(),
                 enemy.getPositionY() - player.getPositionY());
-            if (distance > DESPAWN_DISTANCE) {
+            if (enemy.finishedDeath() || distance > DESPAWN_DISTANCE) {
                 iterator.remove();
                 continue;
             }
@@ -84,10 +84,10 @@ public final class EnemyManager {
         // Fuse nearby unfused ghosts once; the survivor keeps both remaining HP.
         for (int i = 0; i < enemies.size(); i++) {
             Enemy first = enemies.get(i);
-            if (first.isFused() || first.getPersonality() != EnemyPersonality.SOCIAL) continue;
+            if (first.isFused() || first.isDead() || first.getPersonality() != EnemyPersonality.SOCIAL) continue;
             for (int j = i + 1; j < enemies.size(); j++) {
                 Enemy second = enemies.get(j);
-                if (second.isFused()) continue;
+                if (second.isFused() || second.isDead()) continue;
                 if (Math.hypot(first.getPositionX() - second.getPositionX(),
                         first.getPositionY() - second.getPositionY()) < 52) {
                     first.fuseWith(second);
@@ -104,6 +104,7 @@ public final class EnemyManager {
             for (int offset = 0; offset < size; offset++) {
                 int index = (start + offset) % size;
                 Enemy enemy = enemies.get(index);
+                if (enemy.isDead()) continue;
                 EnemyProjectile shot = enemy.fireProjectile();
                 if (shot != null) {
                     projectiles.add(shot);
@@ -129,15 +130,13 @@ public final class EnemyManager {
         Iterator<Enemy> enemyIterator = enemies.iterator();
         while (enemyIterator.hasNext()) {
             Enemy enemy = enemyIterator.next();
+            if (enemy.isDead()) continue;
             Iterator<Spell> shotIterator = spells.iterator();
             while (shotIterator.hasNext()) {
                 if (Circle.isColliding(shotIterator.next(), enemy)) {
                     shotIterator.remove();
                     enemy.takeDamage(1);
-                    if (enemy.isDead()) {
-                        enemyIterator.remove();
-                        break;
-                    }
+                    if (enemy.isDead()) break;
                 }
             }
         }
