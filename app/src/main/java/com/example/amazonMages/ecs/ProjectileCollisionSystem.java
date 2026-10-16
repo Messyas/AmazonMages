@@ -13,7 +13,7 @@ public final class ProjectileCollisionSystem {
             TransformComponent position = entity.get(TransformComponent.class);
             double combined = radius + entity.get(ColliderComponent.class).radius;
             double dx = position.x - x, dy = position.y - y;
-            if (dx * dx + dy * dy <= combined * combined) hits.add(entity);
+            if (Math.hypot(dx, dy) < combined) hits.add(entity);
         }
         return hits;
     }
