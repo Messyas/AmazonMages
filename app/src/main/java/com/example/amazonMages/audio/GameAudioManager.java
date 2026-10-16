@@ -94,6 +94,7 @@ public final class GameAudioManager {
                 AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
             focusHeld = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
         } else focusHeld = true;
+        pool.autoResume();
         updateMusic();
     }
 
