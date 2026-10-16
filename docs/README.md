@@ -11,6 +11,7 @@ Esta pasta reúne o contexto de design e o estado real do código na branch `fix
 | [Contrato dos fantasmas](ghost-animation-atlases.md) | Layout e nomenclatura dos atlases de animação |
 | [Validação](testing-checklist.md) | Compilação e testes manuais antes do merge |
 | [Diálogos e missões](dialogue-quests.md) | Eventos, estados, recompensas, cards e retratos pendentes |
+| [Atributos e progressão](player-progression.md) | XP, níveis, atributos, Room v4 e limitações atuais |
 
 ## Diretrizes
 
