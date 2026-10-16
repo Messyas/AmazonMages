@@ -58,3 +58,7 @@ O `events/GameEventBus` é síncrono e simples. No jogo, derrotas dos inimigos a
 - **Ressalva:** o novo teste geométrico considera tangência como colisão (`<=`), enquanto `Circle.isColliding` usava `<`. A equivalência exata desse caso-limite ainda precisa de ajuste e teste.
 - A migração do inventário para Room, drops persistentes e integração dos projéteis inimigos com ECS continuam pendentes.
 - Build Android e testes automatizados ainda não foram executados nesta sessão.
+
+## Correção de compatibilidade geométrica
+
+O `ProjectileCollisionSystem` agora usa `Math.hypot(dx, dy) < somaDosRaios`, equivalente à regra estrita de `Circle.isColliding`. O teste `tangentCirclesDoNotCollide` cobre tangência exata e sobreposição mínima. Alteração apenas na branch `fix/android-performance`; testes ainda não executados.
