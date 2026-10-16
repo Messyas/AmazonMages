@@ -30,3 +30,11 @@ O `events/GameEventBus` é síncrono e simples. No jogo, derrotas dos inimigos a
 - `SystemSchedulerTest` cobre ordem dos sistemas e remoção durante consulta snapshot.
 
 **Limitação importante:** `Spell` ainda contém sua própria velocidade e movimento. O `VelocityComponent` não dirige projéteis nesta etapa, evitando estado duplicado. O sistema de colisões dos inimigos continua legado e usa uma lista temporária de projéteis. Não houve compilação nem execução de testes Android.
+
+## Terceira etapa: dados autoritativos de movimento
+
+- Projéteis do jogador agora recebem `TransformComponent`, `VelocityComponent`, `ColliderComponent` e `ProjectileComponent` no momento da criação.
+- `ProjectileMovementSystem` atualiza posição com os componentes e sincroniza o objeto `Spell` apenas para desenho e colisões legadas. O método `Spell.update()` continua disponível para código legado, mas não é chamado pelo `ProjectileWorld`.
+- `ProjectileCollisionSystem` introduz consulta geométrica reutilizável sem dependências Android; o combate atual ainda chama `EnemyManager.collideWithPlayerSpells` e **não foi migrado** para esse sistema.
+- Testes unitários novos verificam consultas circulares e atualização de posição por componentes. Não foram executados.
+- Próximo passo: integrar o sistema de colisões ao combate com entidades de inimigos, garantindo eventos de dano únicos, e introduzir itens coletáveis usando os mesmos componentes.
