@@ -56,7 +56,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
      *
      * @param context O contexto da aplicação, que é passado para a Superclasse SurfaceView.
      */
-    public Game(Context context) {
+    public Game(Context context, int slotId) {
         super(context);
 
         // Get surface holder and add callback
@@ -74,7 +74,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         SpriteSheet spriteSheet = new SpriteSheet(context);
         Animator animator = new Animator(spriteSheet.getPlayerSpriteArray());
         player = new Player(context, joystick, 2*500, 500, 32, animator);
-        saves = new GameSaveRepository(context);
+        saves = new GameSaveRepository(context, slotId);
 
 
         // Initialize display and center it around the player
@@ -93,6 +93,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         saves.loadPosition(position -> {
             if (position != null && Double.isFinite(position.x) && Double.isFinite(position.y)) {
                 player.restorePosition(position.x, position.y);
+                player.setHealthPoint(position.health);
                 gameDisplay.update();
             }
             saveLoaded = true;
@@ -268,7 +269,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         gameDisplay.update();
         if (++updatesSinceSave >= 600) {
             updatesSinceSave = 0;
-            saves.savePosition(player.getPositionX(), player.getPositionY());
+            saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
         }
     }
 
