@@ -12,7 +12,7 @@ import com.example.androidstudio2dgamedevelopment.R;
 public class Spell extends Circle {
     public static final double SPEED_PIXELS_PER_SECOND = 800.0;
     private static final double MAX_SPEED = SPEED_PIXELS_PER_SECOND / GameLoop.MAX_UPS;
-    private final Bitmap spellBitmap;
+    private static Bitmap spellBitmap;
 
     public Spell(Context context, Player spellcaster) {
         super(
@@ -23,7 +23,9 @@ public class Spell extends Circle {
         );
 
         // Carrega a imagem do feitiço
-        spellBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.energyball); //mudar
+        if (spellBitmap == null) {
+            spellBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.energyball);
+        }
 
         // Define a direção do feitiço com base na posição do jogador
         velocityX = spellcaster.getDirectionX() * MAX_SPEED;
