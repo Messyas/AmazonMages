@@ -1,6 +1,7 @@
 package com.example.amazonMages.save;
 
 import androidx.room.Entity;
+import androidx.room.ColumnInfo;
 import androidx.room.PrimaryKey;
 
 @Entity(tableName = "player_positions")
@@ -10,6 +11,7 @@ public class PlayerPositionEntity {
     public double x;
     public double y;
     public long updatedAt;
+    @ColumnInfo(defaultValue = "5")
     public int health;
 
     public PlayerPositionEntity(int slotId, double x, double y, int health, long updatedAt) {
