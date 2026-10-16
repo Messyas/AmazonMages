@@ -129,18 +129,20 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceCreated(@NonNull SurfaceHolder holder) {
         Log.d("Game.java", "surfaceCreated()");
-
-        // Verifica se o loop do jogo está no estado TERMINATED
-        if (gameLoop.getState().equals(Thread.State.TERMINATED)) {
-            SurfaceHolder surfaceHolder = getHolder();
-            gameLoop = new GameLoop(this, surfaceHolder); // Cria uma nova instância de GameLoop
-            performance.setGameLoop(gameLoop);
-        }
-
-        gameLoop.startLoop(); // Inicia o loop do jogo
-
+        resume();
     }
 
+    /** Resume only if a surface exists; never restart an already-running Thread. */
+    public void resume() {
+        if (!getHolder().getSurface().isValid()) return;
+        if (gameLoop.getState() == Thread.State.TERMINATED) {
+            gameLoop = new GameLoop(this, getHolder());
+            performance.setGameLoop(gameLoop);
+        }
+        if (gameLoop.getState() == Thread.State.NEW) {
+            gameLoop.startLoop();
+        }
+    }
 
     @Override
     public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
