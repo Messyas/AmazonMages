@@ -11,6 +11,8 @@ import com.example.amazonMages.combat.DamageEvent;
 import com.example.amazonMages.combat.DamageResolver;
 import com.example.amazonMages.combat.Posture;
 import com.example.amazonMages.ai.EnemyBrain;
+import com.example.amazonMages.ai.EnemyTemplate;
+import com.example.amazonMages.ai.EnemyRank;
 import com.example.amazonMages.ai.EnemyConfig;
 import com.example.amazonMages.ai.EnemyProjectile;
 import com.example.amazonMages.ai.EnemyState;
@@ -32,6 +34,8 @@ public class Enemy extends Circle {
     private boolean wasRetreating;
     private int deathTicks = -1;
     private final EnemyConfig config;
+    private EnemyTemplate template;
+    private int phase;
     private final EnemyBrain brain;
     private int health;
     private double preciseHealth;
@@ -67,6 +71,23 @@ public class Enemy extends Circle {
         this.preciseHealth = health;
     }
 
+    /** Instantiate a configured rank while reusing the species' movement and renderer. */
+    public Enemy(Context context, Player player, EnemyTemplate template,
+                 double x, double y) {
+        this(context, player, template.behavior, x, y, EnemyPersonality.AGGRESSIVE);
+        this.template = template;
+        this.health = template.maxHealth;
+        this.preciseHealth = template.maxHealth;
+        this.damage = template.projectileDamage;
+        this.radius = template.radius;
+    }
+
+    public EnemyTemplate getTemplate() { return template; }
+    public EnemyRank getRank() { return template == null ? EnemyRank.NORMAL : template.rank; }
+    public int getPhase() { return phase; }
+    public int getMaximumHealth() { return template == null ? config.maxHealth : template.maxHealth; }
+    public double getHealthRatio() { return Math.max(0, health) / (double) getMaximumHealth(); }
+
     @Override public void update() { update(1); }
 
     public void update(int elapsedTicks) {
@@ -79,6 +100,7 @@ public class Enemy extends Circle {
         double dx = player.getPositionX() - positionX;
         double dy = player.getPositionY() - positionY;
         brain.update(dx, dy, health, elapsedTicks);
+        if (template != null) phase = Math.max(phase, template.phaseFor(health));
         velocityX = brain.getMoveX();
         velocityY = brain.getMoveY();
         boolean retreating = personality == EnemyPersonality.CAUTIOUS && health > 1 &&
@@ -169,6 +191,7 @@ public class Enemy extends Circle {
         if (deathTicks >= 0 || hit.amount <= 0) return;
         preciseHealth = Math.max(0, preciseHealth - DamageResolver.resolve(hit, combatStats, null));
         health = (int) Math.ceil(preciseHealth);
+        if (template != null) phase = Math.max(phase, template.phaseFor(health));
         posture.applyPressure(hit.postureDamage);
         if (health == 0) {
             deathTicks = 0;
