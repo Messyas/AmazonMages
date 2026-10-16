@@ -19,7 +19,9 @@ public final class ProjectileWorld {
         world.create()
             .add(ProjectileComponent.class, new ProjectileComponent(spell))
             .add(TransformComponent.class,
-                new TransformComponent(spell.getPositionX(), spell.getPositionY()));
+                new TransformComponent(spell.getPositionX(), spell.getPositionY()))
+            .add(VelocityComponent.class,
+                new VelocityComponent(spell.getVelocityX(), spell.getVelocityY()));
     }
 
     public void update() { scheduler.update(world, 1); }
