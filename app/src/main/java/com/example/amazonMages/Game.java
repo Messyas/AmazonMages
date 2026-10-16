@@ -271,7 +271,6 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             else if (EnemyTemplates.ANCIENT_WRAITH.defeatEvent.equals(event.id)) reward = EnemyTemplates.ANCIENT_WRAITH.experienceReward;
             if (reward > 0) progression.gainExperience(reward);
             saveQuestProgress();
-            if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
         });
         enemyManager.setKillListener(event -> eventBus.publish(new GameEvent(event, 0)));
 
@@ -279,27 +278,23 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
 
         setFocusable(true);
-        saves.loadPosition(position -> {
+        saves.loadSnapshot((position, stats, quests, items) -> {
             if (position != null && Double.isFinite(position.x) && Double.isFinite(position.y)) {
                 player.restorePosition(position.x, position.y);
                 gameDisplay.update();
             }
-            saves.loadQuests(rows -> {
-                questJournal.restore(rows);
-                saves.loadStats(stats -> {
-                    progression.restore(stats);
-                    applyProgressionEffects();
-                    if (position != null) player.setHealthPoint(position.health);
-                    saves.loadInventory(inventoryRows -> {
-                        Map<String, Integer> loaded = new LinkedHashMap<>();
-                        for (InventoryItemEntity row : inventoryRows) loaded.put(row.itemId, row.quantity);
-                        inventory.restore(loaded);
-                        saveLoaded = true;
-                        startIfReady();
-                    });
-                });
-            });
-        });
+            questJournal.restore(quests);
+            progression.restore(stats);
+            applyProgressionEffects();
+            if (position != null) player.setHealthPoint(position.health);
+            Map<String, Integer> loaded = new LinkedHashMap<>();
+            for (InventoryItemEntity row : items) loaded.put(row.itemId, row.quantity);
+            inventory.restore(loaded);
+            saveLoaded = true;
+            startIfReady();
+        }, () -> android.widget.Toast.makeText(getContext(),
+            "Falha ao carregar save. Volte ao menu e tente novamente.",
+            android.widget.Toast.LENGTH_LONG).show());
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -314,7 +309,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 if (attributesPanel.touch(event.getX(), event.getY(), getWidth(), getHeight(), progression)) {
                     applyProgressionEffects();
-                    if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
+                    saveNow();
                 }
             }
             return true;
@@ -599,7 +594,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (progression.mana < 35 || !weapons.special()) return;
         progression.spendMana(35);
         sound("storm");
-        if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
+        saveNow();
         coconutStormTicks = 150;
         double dx = player.getAttackDirectionX(), dy = player.getAttackDirectionY();
         if (dx == 0 && dy == 0) dy = 1;
@@ -663,10 +658,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         float density = getResources().getDisplayMetrics().density;
         float lineHeight = 17 * density;
         float left = 8 * density, top = getHeight() * .23f;
-        Paint panel = new Paint();
-        panel.setColor(0xD916211C);
+        hudPaint.setColor(0xD916211C);
         canvas.drawRoundRect(left, top, getWidth() - left,
-            top + (lines.length + 1) * lineHeight, 8, 8, panel);
+            top + (lines.length + 1) * lineHeight, 8, 8, hudPaint);
         hudPaint.setColor(0xFFBDF1CB);
         hudPaint.setTextSize(12 * density);
         for (int i = 0; i < lines.length; i++)

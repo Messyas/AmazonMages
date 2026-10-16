@@ -31,7 +31,30 @@ public class GameSaveRepository {
         this.slotId = slotId;
         database = Room.databaseBuilder(context.getApplicationContext(),
             GameDatabase.class, "amazon_mages_saves.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build();
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build();
+    }
+
+    public interface SnapshotCallback {
+        void onLoaded(PlayerPositionEntity position, PlayerStatsEntity stats,
+            List<QuestProgressEntity> quests, List<InventoryItemEntity> inventory);
+    }
+
+    /** A failed read must never become a new game that overwrites an existing save. */
+    public void loadSnapshot(SnapshotCallback callback, Runnable failed) {
+        submit(() -> {
+            try {
+                database.runInTransaction(() -> {
+                    PlayerPositionEntity position = database.playerPositionDao().load(slotId);
+                    PlayerStatsEntity stats = database.playerStatsDao().load(slotId);
+                    List<QuestProgressEntity> quests = database.questProgressDao().loadForSlot(slotId);
+                    List<InventoryItemEntity> inventory = database.inventoryItemDao().loadForSlot(slotId);
+                    postIfOpen(() -> callback.onLoaded(position, stats, quests, inventory));
+                });
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load save; gameplay remains disabled", e);
+                postIfOpen(failed);
+            }
+        });
     }
 
     public static final androidx.room.migration.Migration MIGRATION_1_2 =
@@ -59,6 +82,17 @@ public class GameSaveRepository {
         new androidx.room.migration.Migration(4, 5) {
             @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS inventory_items (slotId INTEGER NOT NULL, itemId TEXT NOT NULL, quantity INTEGER NOT NULL, PRIMARY KEY(slotId, itemId))");
+            }
+        };
+
+    /** Normalize both historical ALTER TABLE saves and fresh v2-v5 databases. */
+    public static final androidx.room.migration.Migration MIGRATION_5_6 =
+        new androidx.room.migration.Migration(5, 6) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE player_positions_v6 (slotId INTEGER NOT NULL, x REAL NOT NULL, y REAL NOT NULL, updatedAt INTEGER NOT NULL, health INTEGER NOT NULL DEFAULT 5, PRIMARY KEY(slotId))");
+                db.execSQL("INSERT INTO player_positions_v6 (slotId, x, y, updatedAt, health) SELECT slotId, x, y, updatedAt, health FROM player_positions");
+                db.execSQL("DROP TABLE player_positions");
+                db.execSQL("ALTER TABLE player_positions_v6 RENAME TO player_positions");
             }
         };
 
