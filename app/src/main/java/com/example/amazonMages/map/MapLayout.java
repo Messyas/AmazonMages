@@ -1,6 +1,7 @@
 package com.example.amazonMages.map;
 
 public class MapLayout {
+    public static final int ACID_SWAMP = 5;
     public static final int TILE_WIDTH_PIXELS = 64;
     public static final int TILE_HEIGHT_PIXELS = 64;
     public static final int NUMBER_OF_ROW_TILES = 70;
