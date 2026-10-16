@@ -11,6 +11,7 @@ import com.example.amazonMages.combat.WeaponDefinition;
 import com.example.amazonMages.combat.WeaponType;
 import com.example.amazonMages.combat.DamageEvent;
 import com.example.amazonMages.dev.DevConsole;
+import com.example.amazonMages.ecs.ProjectileWorld;
 import com.example.amazonMages.events.GameEvent;
 import com.example.amazonMages.events.GameEventBus;
 import com.example.amazonMages.dev.DevicePerformanceMonitor;
@@ -168,7 +169,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private GameLoop gameLoop;
     private volatile boolean activityResumed = false;
     private final EnemyManager enemyManager;
-    private final List<Spell> spellList = new ArrayList<>();
+    private final ProjectileWorld projectileWorld = new ProjectileWorld(-64, -64, 100 * 64 + 64, 70 * 64 + 64);
     private int numberOfSpellsToCast = 0;
     private final WeaponLoadout weapons = new WeaponLoadout();
     private final Random coconutRandom = new Random();
@@ -385,7 +386,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         player.draw(canvas, gameDisplay);
 
         enemyManager.draw(canvas, gameDisplay);
-        for (Spell spell : spellList) spell.draw(canvas, gameDisplay);
+        projectileWorld.draw(canvas, gameDisplay);
 
         // Desenha os painéis do jogo
         joystick.draw(canvas);
@@ -433,23 +434,15 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             if (weapons.basic(progression.castSpeed())) {
                 sound("attack");
                 boolean coconut = weapons.current() == WeaponLoadout.COCONUT;
-                spellList.add(new Spell(getContext(), player, coconut,
+                projectileWorld.spawn(new Spell(getContext(), player, coconut,
                     coconut ? progression.physicalMultiplier() : progression.magicMultiplier()));
             }
             numberOfSpellsToCast--;
         }
-        Iterator<Spell> activeSpells = spellList.iterator();
-        while (activeSpells.hasNext()) {
-            Spell spell = activeSpells.next();
-            spell.update();
-            // Remove projectiles after they leave the playable world.
-            if (spell.getPositionX() < -64 || spell.getPositionY() < -64 ||
-                spell.getPositionX() > 100 * 64 + 64 || spell.getPositionY() > 70 * 64 + 64) {
-                activeSpells.remove();
-            }
-        }
-
-        enemyManager.collideWithPlayerSpells(spellList);
+        projectileWorld.update();
+        List<Spell> activeProjectiles = projectileWorld.collisionSnapshot();
+        enemyManager.collideWithPlayerSpells(activeProjectiles);
+        projectileWorld.reconcileCollisions(activeProjectiles);
 
         // Atualiza o gameDisplay para que seu centro seja definido para o novo centro das
         // coordenadas do jogador no jogo
@@ -582,7 +575,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             gameLoop.getAverageUpdateMs(), gameLoop.getAverageDrawMs()) +
             "\\nInimigos " + enemyManager.getEnemyCount() +
             " | projeteis inimigos " + enemyManager.getProjectileCount() +
-            " | magias " + spellList.size() +
+            " | magias " + projectileWorld.count() +
             "\\nJogador " + (int) player.getPositionX() +
             "," + (int) player.getPositionY() +
             "\\n" + deviceMonitor.snapshot();
