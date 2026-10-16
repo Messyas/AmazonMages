@@ -25,6 +25,7 @@ public final class EnemyManager {
     private final Context context;
     private final Player player;
     private int tick;
+    private int spawnTicks;
 
     public EnemyManager(Context context, Player player) {
         this.context = context.getApplicationContext();
@@ -35,8 +36,11 @@ public final class EnemyManager {
         if (tick >= Integer.MAX_VALUE - 1) tick = 0;
         tick++;
         attacks.beginTick(tick);
-        if (enemies.size() < MAX_ENEMIES && Enemy.readyToSpawn())
-            enemies.add(new Enemy(context, player));
+        // Keep spawn timing local to this play session, even when at capacity.
+        if (++spawnTicks >= 180) {
+            spawnTicks = 0;
+            if (enemies.size() < MAX_ENEMIES) enemies.add(new Enemy(context, player));
+        }
 
         Iterator<Enemy> iterator = enemies.iterator();
         while (iterator.hasNext()) {
