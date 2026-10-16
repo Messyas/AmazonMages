@@ -21,6 +21,7 @@ import com.example.amazonMages.ecs.PickupSystem;
 import com.example.amazonMages.items.ItemRegistry;
 import com.example.amazonMages.items.ItemDefinition;
 import com.example.amazonMages.items.Inventory;
+import com.example.amazonMages.items.ConsumableService;
 import com.example.amazonMages.save.InventoryItemEntity;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -136,6 +137,18 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 }
                 return "Item desconhecido: coco, cajado, erva.";
             }
+            @Override public String inventory() {
+                return "Inventario: " + inventory.snapshot();
+            }
+            @Override public String use(String item) {
+                if (!"erva".equals(item)) return "Consumivel desconhecido: erva.";
+                int before = player.getHealthPoint();
+                int after = consumables.useHealingHerb(inventory, before, player.getMaximumHealth());
+                if (after == before) return "Sem erva ou vida ja esta cheia.";
+                player.setHealthPoint(after);
+                saveInventory();
+                return "Erva utilizada. Vida: " + after + "/" + player.getMaximumHealth();
+            }
             @Override public String spawn(String species, int count) {
                 if ("erva".equals(species)) {
                     for (int i = 0; i < count; i++)
@@ -181,6 +194,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final ItemRegistry itemRegistry = new ItemRegistry()
         .register(new ItemDefinition("erva", "Erva do Pantano", 99));
     private final Inventory inventory = new Inventory(itemRegistry);
+    private final ConsumableService consumables = new ConsumableService();
+    private final Paint pickupPaint = new Paint(3);
     private final DialogueManager dialogue = new DialogueManager();
     private final DialogueRenderer dialogueRenderer = new DialogueRenderer();
     private final QuestJournal questJournal = new QuestJournal();
@@ -501,7 +516,6 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void drawPickups(Canvas canvas) {
-        Paint pickupPaint = new Paint(3);
         pickupPaint.setColor(0xFF8CD87B);
         for (Entity entity : pickupWorld.with(PickupComponent.class, TransformComponent.class)) {
             TransformComponent position = entity.get(TransformComponent.class);
