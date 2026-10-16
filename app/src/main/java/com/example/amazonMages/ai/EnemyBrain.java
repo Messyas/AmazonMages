@@ -14,10 +14,10 @@ public final class EnemyBrain {
 
     public EnemyBrain(EnemyConfig config) { this.config = config; }
 
-    public void update(double dx, double dy, int health) {
+    public void update(double dx, double dy, int health, int elapsedTicks) {
         fire = false;
         moveX = moveY = 0;
-        if (cooldown > 0) cooldown--;
+        cooldown = Math.max(0, cooldown - elapsedTicks);
         double distance = Math.hypot(dx, dy);
         boolean enraged = health > 0 && health * 3 <= config.maxHealth;
         if (distance > config.noticeRadius) {
@@ -30,7 +30,7 @@ public final class EnemyBrain {
             alertRemaining = config.alertTicks;
         }
         if (alertRemaining > 0) {
-            alertRemaining--;
+            alertRemaining = Math.max(0, alertRemaining - elapsedTicks);
             state = EnemyState.ALERT;
             return;
         }
@@ -38,7 +38,7 @@ public final class EnemyBrain {
             distance <= config.attackRadius ? EnemyState.ATTACK : EnemyState.CHASE;
         if (distance > 0) {
             double ux = dx / distance, uy = dy / distance;
-            double speed = config.speed / 60.0 * (enraged ? 1.4 : 1);
+            double speed = config.speed / 60.0 * elapsedTicks * (enraged ? 1.4 : 1);
             if (distance > config.preferredDistance) {
                 moveX = ux * speed;
                 moveY = uy * speed;
@@ -54,9 +54,15 @@ public final class EnemyBrain {
                 shotX = Math.cos(angle);
                 shotY = Math.sin(angle);
                 fire = true;
-                cooldown = enraged ? config.enragedCooldown : config.attackCooldown;
             }
         }
+    }
+
+    /** Called only after a shot is actually authorized by the group director. */
+    public void onShotFired(int health) {
+        fire = false;
+        cooldown = health > 0 && health * 3 <= config.maxHealth ?
+            config.enragedCooldown : config.attackCooldown;
     }
 
     public EnemyState getState() { return state; }
