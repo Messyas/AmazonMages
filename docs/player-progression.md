@@ -36,3 +36,16 @@
 - `applyProgressionEffects()`: Resistência reduz dano físico em 2,5% por ponto acima de 1 (máximo 40%); Arcano reduz ácido em 1,5% por ponto acima de 1 (máximo 25%); Mente concede +10 de mana máxima por ponto acima de 1.
 - Os efeitos são **provisórios** e não substituem o balanceamento final. Mana não tem consumo/regeneração real; Vigor, Inteligência, Destreza e Força ainda não aplicam efeitos. Não há botão para gastar pontos de habilidade.
 - **Pendente:** testar toque/modal em diferentes resoluções, compilar Android, verificar migração Room v4 e balancear efeitos. Nenhum build foi executado nesta sessão.
+
+## Integração de combate e mana (etapa seguinte)
+
+- Vigor: +1 de HP máximo por ponto acima de 1; barra de vida usa o limite dinâmico. HP salvo é restaurado após calcular o máximo do personagem.
+- Mente: +10 de mana máxima por ponto acima de 1; regeneração de mana de 1,5 por segundo +0,15 por ponto extra, em 60 atualizações/s.
+- Inteligência: +6% de dano mágico por ponto extra nos projéteis mágicos.
+- Força: +6% de dano físico por ponto extra nos cocos básicos e na Tempestade de Cocos.
+- Destreza: +3,5% de velocidade de ataque básico por ponto extra, até 2×; cooldown calculado em ticks.
+- Tempestade de Cocos: consome 35 de mana apenas se puder ser ativada; mantém cooldown de 1080 ticks (~18 s a 60 UPS).
+- O HUD mostra mana atual/máxima. Regeneração ocorre somente quando a atualização do mundo está ativa.
+- Resistência e Arcano mantêm os efeitos defensivos provisórios anteriores.
+
+**Limitações:** não existe recuperação automática de vida por Vigor, nem efeitos de status ou equipamentos alterando atributos; os números são provisórios. Não houve build nem teste em dispositivo nesta sessão. Validar salvamento/restauração com Vigor alto, consumo e regeneração de mana, dano fracionário e cooldowns.
