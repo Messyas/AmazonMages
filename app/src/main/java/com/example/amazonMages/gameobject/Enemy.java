@@ -73,6 +73,8 @@ public class Enemy extends Circle {
         double dx = player.getPositionX() - positionX;
         double dy = player.getPositionY() - positionY;
         brain.update(dx, dy, health, elapsedTicks);
+        velocityX = brain.getMoveX();
+        velocityY = brain.getMoveY();
         if (personality == EnemyPersonality.CAUTIOUS && health > 1 &&
             health < config.maxHealth && Math.hypot(dx, dy) < 380) {
             // Wounded cautious ghosts withdraw before their final enraged phase.
@@ -97,8 +99,6 @@ public class Enemy extends Circle {
                 velocityY = dy / distance * config.speed / 60.0 * elapsedTicks;
             }
         }
-        velocityX = brain.getMoveX();
-        velocityY = brain.getMoveY();
         positionX += velocityX;
         positionY += velocityY;
         facing = Direction.fromVector(velocityX, velocityY, facing);
