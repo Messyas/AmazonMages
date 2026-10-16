@@ -11,6 +11,7 @@ import com.example.amazonMages.combat.WeaponDefinition;
 import com.example.amazonMages.combat.WeaponType;
 import com.example.amazonMages.combat.DamageEvent;
 import com.example.amazonMages.dev.DevConsole;
+import com.example.amazonMages.dev.DevicePerformanceMonitor;
 import com.example.amazonMages.map.MapLayout;
 import com.example.amazonMages.audio.GameAudioManager;
 import java.util.Random;
@@ -59,6 +60,8 @@ import java.util.List;
 class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     private GameAudioManager audio;
+    private final DevicePerformanceMonitor deviceMonitor = new DevicePerformanceMonitor(getContext());
+    private volatile boolean debugOverlay;
     public void setAudioManager(GameAudioManager manager) { this.audio = manager; }
     private void sound(String event) { if (audio != null) audio.play(event); }
 
@@ -68,6 +71,18 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0)
             return "Console indisponível em builds de produção.";
         return new DevConsole(new DevConsole.Commands() {
+            @Override public String debug(String mode) {
+                if ("on".equals(mode)) {
+                    debugOverlay = true;
+                    return "Monitor ligado. Feche o console e retome o jogo.";
+                }
+                if ("off".equals(mode)) {
+                    debugOverlay = false;
+                    return "Monitor desligado.";
+                }
+                deviceMonitor.sampleIfDue();
+                return diagnostics();
+            }
             @Override public String position() {
                 return "x=" + (int) player.getPositionX() + " y=" + (int) player.getPositionY();
             }
@@ -367,7 +382,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
         // Desenha os painéis do jogo
         joystick.draw(canvas);
-        performance.draw(canvas);
+        if (debugOverlay && isDebuggable()) drawDebugOverlay(canvas);
         drawCombatHud(canvas);
         drawBossHud(canvas);
         if (!dialogue.isActive()) drawTalkPrompt(canvas);
@@ -388,6 +403,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
 
     public void update() {
+        if (debugOverlay && isDebuggable()) deviceMonitor.sampleIfDue();
         if (attributesPanel.isOpen()) return;
         if (dialogue.isActive()) { dialogue.update(); return; }
         // Para de atualizar o jogo se o jogador estiver morto
@@ -545,6 +561,40 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         hudPaint.setTextSize(15 * getResources().getDisplayMetrics().density);
         canvas.drawText(boss.getTemplate().displayName + " - Fase " + (boss.getPhase() + 1),
             left, top - 12, hudPaint);
+    }
+
+    private boolean isDebuggable() {
+        return (getContext().getApplicationInfo().flags &
+            android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+    }
+
+    private String diagnostics() {
+        return String.format(java.util.Locale.US,
+            "FPS %.1f | UPS %.1f | update %.2f ms | draw %.2f ms",
+            gameLoop.getAverageFPS(), gameLoop.getAverageUPS(),
+            gameLoop.getAverageUpdateMs(), gameLoop.getAverageDrawMs()) +
+            "\\nInimigos " + enemyManager.getEnemyCount() +
+            " | projeteis inimigos " + enemyManager.getProjectileCount() +
+            " | magias " + spellList.size() +
+            "\\nJogador " + (int) player.getPositionX() +
+            "," + (int) player.getPositionY() +
+            "\\n" + deviceMonitor.snapshot();
+    }
+
+    private void drawDebugOverlay(Canvas canvas) {
+        String[] lines = diagnostics().split("\\n");
+        float density = getResources().getDisplayMetrics().density;
+        float lineHeight = 17 * density;
+        float left = 8 * density, top = getHeight() * .23f;
+        Paint panel = new Paint();
+        panel.setColor(0xD916211C);
+        canvas.drawRoundRect(left, top, getWidth() - left,
+            top + (lines.length + 1) * lineHeight, 8, 8, panel);
+        hudPaint.setColor(0xFFBDF1CB);
+        hudPaint.setTextSize(12 * density);
+        for (int i = 0; i < lines.length; i++)
+            canvas.drawText(lines[i], left + 8 * density,
+                top + (i + 1) * lineHeight, hudPaint);
     }
 
     private void drawCombatHud(Canvas canvas) {
