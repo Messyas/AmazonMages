@@ -74,7 +74,12 @@ public class Enemy extends Circle {
     /** Instantiate a configured rank while reusing the species' movement and renderer. */
     public Enemy(Context context, Player player, EnemyTemplate template,
                  double x, double y) {
-        this(context, player, template.behavior, x, y, EnemyPersonality.AGGRESSIVE);
+        this(context,player,template,x,y,EnemyPersonality.AGGRESSIVE);
+    }
+
+    public Enemy(Context context, Player player, EnemyTemplate template,
+                 double x, double y, EnemyPersonality personality) {
+        this(context, player, template.behavior, x, y, personality);
         this.template = template;
         this.health = template.maxHealth;
         this.preciseHealth = template.maxHealth;

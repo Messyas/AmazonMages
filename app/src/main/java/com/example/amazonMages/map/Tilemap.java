@@ -45,14 +45,19 @@ public class Tilemap {
 
     /** World coordinates of a random swamp tile, or null when none is suitable. */
     public double[] randomSwampSpawn(double playerX, double playerY, java.util.Random random) {
+        return randomRegionSpawn(playerX,playerY,random,MapLayout.ACID_SWAMP,300,1400);
+    }
+
+    public double[] randomRegionSpawn(double playerX,double playerY,java.util.Random random,
+            int tileType,double minDistance,double maxDistance) {
         for (int attempt = 0; attempt < 150; attempt++) {
             int row = random.nextInt(NUMBER_OF_ROW_TILES);
             int col = random.nextInt(NUMBER_OF_COLUMN_TILES);
-            if (layout[row][col] != MapLayout.ACID_SWAMP) continue;
+            if (layout[row][col] != tileType) continue;
             double x = (col + 0.5) * TILE_WIDTH_PIXELS;
             double y = (row + 0.5) * TILE_HEIGHT_PIXELS;
             double distance = Math.hypot(x - playerX, y - playerY);
-            if (distance >= 300 && distance <= 1400) return new double[]{x, y};
+            if (distance >= minDistance && distance <= maxDistance) return new double[]{x, y};
         }
         return null;
     }

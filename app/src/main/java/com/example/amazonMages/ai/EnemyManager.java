@@ -26,7 +26,9 @@ public final class EnemyManager {
     private static final double MID_DISTANCE = 1250;
     private static final int MID_UPDATE_TICKS = 6;
     private static final int FAR_UPDATE_TICKS = 60;
-    private final List<Enemy> enemies = new ArrayList<>();
+    private final com.example.amazonMages.ecs.EnemyRegistry enemies = new com.example.amazonMages.ecs.EnemyRegistry();
+    private final SpawnDirector spawns = new SpawnDirector(new SpawnDirector.Region(
+        com.example.amazonMages.map.MapLayout.ACID_SWAMP,36,180,300,1400,EnemyTemplates.ACID_GHOST));
     private final com.example.amazonMages.ecs.HostileProjectileWorld projectiles = new com.example.amazonMages.ecs.HostileProjectileWorld();
     private final AttackDirector attacks = new AttackDirector();
     private final Context context;
@@ -37,18 +39,24 @@ public final class EnemyManager {
     public interface DropListener { void onDefeat(EnemyTemplate template, double x, double y); }
     private DropListener dropListener;
     public void setDropListener(DropListener listener) { dropListener = listener; }
+    public interface DetailedKillListener { void onEnemyDefeated(String eventId, long entityId); }
+    private DetailedKillListener detailedKillListener;
+    public void setDetailedKillListener(DetailedKillListener listener) { detailedKillListener=listener; }
     private KillListener killListener;
     public void setKillListener(KillListener listener) { killListener = listener; }
     private void reportDefeat(Enemy enemy) {
+        long entityId=enemies.claimDefeat(enemy);
+        if(entityId==0)return;
         EnemyTemplate template = enemy.getTemplate();
         String event = template == null ? "enemy.acid_ghost.defeated" : template.defeatEvent;
         if (dropListener != null) dropListener.onDefeat(template, enemy.getPositionX(), enemy.getPositionY());
         if (killListener != null) killListener.onEnemyDefeated(event);
+        if (detailedKillListener != null) detailedKillListener.onEnemyDefeated(event,entityId);
     }
 
     /** Bosses are explicit encounters, never added by the ambient spawn loop. */
     public Enemy spawnEncounter(EnemyTemplate template, double x, double y) {
-        if (template == null || !template.isBossEncounter() ||
+        if (enemies.size() >= MAX_ENEMIES + 2 || template == null || !template.isBossEncounter() ||
             !Double.isFinite(x) || !Double.isFinite(y)) return null;
         for (Enemy enemy : enemies) {
             if (!enemy.isDead() && enemy.getTemplate() != null &&
@@ -79,14 +87,11 @@ public final class EnemyManager {
         if (tick >= Integer.MAX_VALUE - 1) tick = 0;
         tick++;
         attacks.beginTick(tick);
-        // Keep spawn timing local to this play session, even when at capacity.
-        if (++spawnTicks >= 180) {
-            spawnTicks = 0;
-            if (enemies.size() < MAX_ENEMIES) {
-                double[] spawn = tilemap.randomSwampSpawn(player.getPositionX(), player.getPositionY(), random);
-                if (spawn != null) enemies.add(new Enemy(context, player, EnemyConfig.acidGhost(),
-                    spawn[0], spawn[1], EnemyPersonality.random(random)));
-            }
+        EnemyTemplate ambient=spawns.update(enemies.size(),random);
+        if (ambient!=null) {
+            double[] spawn=tilemap.randomRegionSpawn(player.getPositionX(),player.getPositionY(),random,
+                spawns.region.tileType,spawns.region.minDistance,spawns.region.maxDistance);
+            if(spawn!=null) enemies.add(new Enemy(context,player,ambient,spawn[0],spawn[1],EnemyPersonality.random(random)));
         }
 
         // Social ghosts select nearby unfused ghosts of the same species.
@@ -110,13 +115,11 @@ public final class EnemyManager {
             double distance = Math.hypot(
                 enemy.getPositionX() - player.getPositionX(),
                 enemy.getPositionY() - player.getPositionY());
-            if (enemy.finishedDeath() || (distance > DESPAWN_DISTANCE &&
-                (enemy.getTemplate() == null || !enemy.getTemplate().isBossEncounter()))) {
+            if (enemy.finishedDeath() || spawns.shouldDespawn(distance,enemy.getTemplate()!=null && enemy.getTemplate().isBossEncounter())) {
                 iterator.remove();
                 continue;
             }
-            int period = distance < ACTIVE_DISTANCE ? 1 :
-                distance < MID_DISTANCE ? MID_UPDATE_TICKS : FAR_UPDATE_TICKS;
+            int period = spawns.updatePeriod(distance);
             if ((tick + enemy.getUpdateOffset()) % period == 0) enemy.update(period);
         }
 
