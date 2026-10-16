@@ -16,6 +16,8 @@ import com.example.amazonMages.ai.EnemyState;
 import com.example.amazonMages.ai.EnemyPersonality;
 import com.example.amazonMages.graphics.Direction;
 import com.example.amazonMages.graphics.GhostAtlasRenderer;
+import com.example.amazonMages.graphics.GhostAnimation;
+import com.example.amazonMages.graphics.GhostAnimationController;
 import com.example.androidstudio2dgamedevelopment.R;
 
 /** Acid ghost entity: visuals, health and a reusable behavior controller. */
@@ -27,7 +29,11 @@ public class Enemy extends Circle {
 
     private final Player player;
     private final GhostAtlasRenderer spriteRenderer;
-    private int animationTicks;
+    private final GhostAnimationController animation = new GhostAnimationController();
+    private boolean hasSeenPlayer;
+    private boolean sawAlly;
+    private boolean wasRetreating;
+    private int deathTicks = -1;
     private final EnemyConfig config;
     private final EnemyBrain brain;
     private int health;
@@ -74,13 +80,20 @@ public class Enemy extends Circle {
     @Override public void update() { update(1); }
 
     public void update(int elapsedTicks) {
-        animationTicks += elapsedTicks;
+        if (deathTicks >= 0) {
+            deathTicks += elapsedTicks;
+            animation.update(elapsedTicks, GhostAnimation.DEATH);
+            return;
+        }
+        EnemyState previousState = brain.getState();
         double dx = player.getPositionX() - positionX;
         double dy = player.getPositionY() - positionY;
         brain.update(dx, dy, health, elapsedTicks);
         velocityX = brain.getMoveX();
         velocityY = brain.getMoveY();
-        if (personality == EnemyPersonality.CAUTIOUS && health > 1 &&
+        boolean retreating = personality == EnemyPersonality.CAUTIOUS && health > 1 &&
+            health < config.maxHealth && Math.hypot(dx, dy) < 380;
+        if (retreating &&
             health < config.maxHealth && Math.hypot(dx, dy) < 380) {
             // Wounded cautious ghosts withdraw before their final enraged phase.
             double distance = Math.hypot(dx, dy);
@@ -104,6 +117,20 @@ public class Enemy extends Circle {
                 velocityY = dy / distance * config.speed / 60.0 * elapsedTicks;
             }
         }
+        if (previousState == EnemyState.IDLE && brain.getState() == EnemyState.ALERT) {
+            animation.react(hasSeenPlayer ? GhostAnimation.STARTLED : GhostAnimation.SPOTTED_PLAYER);
+            hasSeenPlayer = true;
+        }
+        if (retreating && !wasRetreating) animation.react(GhostAnimation.STARTLED);
+        wasRetreating = retreating;
+        GhostAnimation ambient = brain.getState() == EnemyState.IDLE ? GhostAnimation.IDLE :
+            brain.getState() == EnemyState.ALERT ? GhostAnimation.ALERT :
+            retreating ? GhostAnimation.FLEE :
+            brain.getState() == EnemyState.ENRAGED ? GhostAnimation.ENRAGED :
+            personality == EnemyPersonality.SOCIAL && Double.isFinite(groupTargetX) ? GhostAnimation.SOCIAL :
+            brain.getState() == EnemyState.CHASE ? GhostAnimation.CHASE :
+            Math.hypot(velocityX, velocityY) > 0 ? GhostAnimation.MOVE : GhostAnimation.IDLE;
+        animation.update(elapsedTicks, ambient);
         positionX += velocityX;
         positionY += velocityY;
         facing = Direction.fromVector(velocityX, velocityY, facing);
@@ -111,13 +138,19 @@ public class Enemy extends Circle {
     }
 
     public EnemyProjectile fireProjectile() {
-        if (!brain.shouldFire()) return null;
+        if (deathTicks >= 0 || !brain.shouldFire()) return null;
+        animation.react(GhostAnimation.ATTACK);
         brain.onShotFired(health);
         return new EnemyProjectile(positionX, positionY,
             brain.getShotX(), brain.getShotY(), config.projectileSpeed, damage);
     }
 
     public void setGroupTarget(Enemy other) {
+        if (other != null && !sawAlly) {
+            animation.react(GhostAnimation.SPOTTED_ALLY);
+            sawAlly = true;
+        }
+        if (other == null) sawAlly = false;
         groupTargetX = other == null ? Double.NaN : other.getPositionX();
         groupTargetY = other == null ? Double.NaN : other.getPositionY();
     }
@@ -128,13 +161,24 @@ public class Enemy extends Circle {
         damage = 2;
         fused = true;
         radius = 42;
+        animation.react(GhostAnimation.FUSION);
     }
 
     public boolean isFused() { return fused; }
     public int getDamage() { return damage; }
     public EnemyPersonality getPersonality() { return personality; }
 
-    public void takeDamage(int amount) { if (amount > 0) health = Math.max(0, health - amount); }
+    public void takeDamage(int amount) {
+        if (amount <= 0 || deathTicks >= 0) return;
+        health = Math.max(0, health - amount);
+        if (health == 0) {
+            deathTicks = 0;
+            animation.react(GhostAnimation.DEATH);
+        } else animation.react(GhostAnimation.HURT);
+    }
+    public boolean finishedDeath() {
+        return deathTicks >= GhostAnimation.DEATH.durationTicks();
+    }
     public boolean isDead() { return health <= 0; }
     public int getHealth() { return health; }
     public int getUpdateOffset() { return updateOffset; }
@@ -147,6 +191,6 @@ public class Enemy extends Circle {
 
     @Override public void draw(Canvas canvas, GameDisplay display) {
         spriteRenderer.draw(canvas, display, positionX, positionY,
-            facing, brain.getState(), fused, animationTicks);
+            facing, animation.getCurrent(), fused, animation.getTicks());
     }
 }
