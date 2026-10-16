@@ -38,3 +38,14 @@ Console interno para testes de QA e desenvolvimento. O botão **Console de desen
 
 ## Testes pendentes
 Validar compilação Android, visibilidade somente em debug, pausa segura, coordenadas válidas, colisões após teleporte, limites de spawn, comportamento dos bosses, salvamento de progressão e ausência de comandos no APK release. Nenhum build foi executado nesta sessão.
+
+## Monitor de desempenho Android
+
+Comandos disponíveis em builds debug:
+- `debug on`: ativa overlay com FPS, UPS, duração média de update/draw, contagem de inimigos, projéteis e magias, posição do jogador, heap Java, heap nativo, RAM disponível, núcleos de CPU, ticks de CPU do processo por segundo (quando legíveis), bateria, temperatura da **bateria** e estado térmico do sistema.
+- `debug off`: desativa o overlay e a amostragem periódica.
+- `debug info`: mostra uma fotografia das métricas no console. Para FPS/UPS úteis, executar após jogar alguns segundos, pois o jogo fica pausado durante o console.
+
+`dev/DevicePerformanceMonitor` amostra métricas de sistema no máximo uma vez por segundo. O loop já calcula FPS, UPS e tempos médios. Estado térmico é fornecido por `PowerManager` em Android 10+; em versões anteriores aparece como indisponível. Temperatura é a **bateria**, não CPU/GPU. Ticks de CPU não são porcentagem e só aparecem quando `/proc/self/stat` é legível. A métrica de memória nativa é estimativa da heap nativa, não toda a memória do processo. O overlay fica desativado por padrão e não existe em builds não depuráveis.
+
+**Pendente:** build Android, teste em aparelho real, teste de telas pequenas e conferência da coleta em diferentes fabricantes.
