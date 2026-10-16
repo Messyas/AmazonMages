@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         Log.d("MainActivity.java", "onResume()");
         super.onResume();
+        game.resume();
     }
 
     /**
