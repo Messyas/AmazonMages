@@ -58,12 +58,17 @@ public class Tilemap {
         return bitmap;
     }
 
+    private static int floorDiv(int value, int divisor) {
+        int quotient = value / divisor;
+        return value % divisor < 0 ? quotient - 1 : quotient;
+    }
+
     public void draw(Canvas canvas, GameDisplay display) {
         Rect visible = display.getGameRect();
-        int left = Math.max(0, Math.floorDiv(visible.left, CHUNK_WIDTH));
-        int top = Math.max(0, Math.floorDiv(visible.top, CHUNK_HEIGHT));
-        int right = Math.min(chunkCols - 1, Math.floorDiv(visible.right - 1, CHUNK_WIDTH));
-        int bottom = Math.min(chunkRows - 1, Math.floorDiv(visible.bottom - 1, CHUNK_HEIGHT));
+        int left = Math.max(0, floorDiv(visible.left, CHUNK_WIDTH));
+        int top = Math.max(0, floorDiv(visible.top, CHUNK_HEIGHT));
+        int right = Math.min(chunkCols - 1, floorDiv(visible.right - 1, CHUNK_WIDTH));
+        int bottom = Math.min(chunkRows - 1, floorDiv(visible.bottom - 1, CHUNK_HEIGHT));
         for (int row = top; row <= bottom; row++) {
             for (int col = left; col <= right; col++) {
                 int originX = col * CHUNK_WIDTH;
