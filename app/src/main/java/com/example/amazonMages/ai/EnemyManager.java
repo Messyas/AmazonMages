@@ -3,6 +3,9 @@ package com.example.amazonMages.ai;
 import android.content.Context;
 import android.graphics.Canvas;
 import com.example.amazonMages.GameDisplay;
+import com.example.amazonMages.ecs.Entity;
+import com.example.amazonMages.ecs.ProjectileComponent;
+import com.example.amazonMages.ecs.ProjectileWorld;
 import com.example.amazonMages.combat.DamageEvent;
 import com.example.amazonMages.combat.DamageType;
 import com.example.amazonMages.gameobject.Circle;
@@ -154,6 +157,23 @@ public final class EnemyManager {
             else if (Circle.isColliding(shot, player)) {
                 player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, DamageType.ACID));
                 shots.remove();
+            }
+        }
+    }
+
+    /** ECS projectile collision; each projectile can hit only one enemy. */
+    public void collideWithPlayerProjectiles(ProjectileWorld world) {
+        for (Enemy enemy : enemies) {
+            if (enemy.isDead()) continue;
+            for (Entity projectile : world.overlapping(
+                    enemy.getPositionX(), enemy.getPositionY(), enemy.getRadius())) {
+                if (enemy.isDead()) break;
+                if (!world.consume(projectile.id())) continue;
+                enemy.receiveHit(projectile.get(ProjectileComponent.class).spell.getHit());
+                if (enemy.isDead()) {
+                    reportDefeat(enemy);
+                    break;
+                }
             }
         }
     }
