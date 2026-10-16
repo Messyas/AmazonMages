@@ -18,7 +18,8 @@ public class GameSaveRepository {
     private final int slotId;
     private volatile boolean closed;
     private final GameDatabase database;
-    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    // All menu/game instances share submission order, including saves followed by reopening a slot.
+    private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
 
     public int getSlotId() { return slotId; }
@@ -287,7 +288,7 @@ public class GameSaveRepository {
 
     /** Reject late work and callbacks once this session has been disposed. */
     private synchronized void submit(Runnable operation) {
-        if (!closed) io.execute(operation);
+        if (!closed) IO.execute(operation);
     }
 
     private void postIfOpen(Runnable callback) {
@@ -298,7 +299,6 @@ public class GameSaveRepository {
     public synchronized void close() {
         if (closed) return;
         closed = true;
-        io.execute(database::close);
-        io.shutdown();
+        IO.execute(database::close);
     }
 }
