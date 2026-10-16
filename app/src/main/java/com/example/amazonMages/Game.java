@@ -131,7 +131,6 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         saves.loadPosition(position -> {
             if (position != null && Double.isFinite(position.x) && Double.isFinite(position.y)) {
                 player.restorePosition(position.x, position.y);
-                player.setHealthPoint(position.health);
                 gameDisplay.update();
             }
             saves.loadQuests(rows -> {
@@ -139,6 +138,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 saves.loadStats(stats -> {
                     progression.restore(stats);
                     applyProgressionEffects();
+                    if (position != null) player.setHealthPoint(position.health);
                     saveLoaded = true;
                     startIfReady();
                 });
