@@ -145,6 +145,17 @@ public final class EnemyManager {
         }
     }
 
+    /** Area impacts used by the intrinsic coconut storm. */
+    public void coconutImpact(double x, double y, double radius) {
+        for (Enemy enemy : enemies) {
+            if (enemy.isDead()) continue;
+            double distance = Math.hypot(enemy.getPositionX() - x, enemy.getPositionY() - y);
+            if (distance < radius + enemy.getRadius()) {
+                enemy.receiveHit(new DamageEvent(1, 18, DamageType.PHYSICAL));
+            }
+        }
+    }
+
     public void draw(Canvas canvas, GameDisplay display) {
         for (Enemy enemy : enemies) enemy.draw(canvas, display);
         for (EnemyProjectile shot : projectiles) shot.draw(canvas, display);
