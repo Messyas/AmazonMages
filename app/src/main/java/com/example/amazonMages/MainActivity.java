@@ -12,6 +12,9 @@ import android.widget.Toast;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.SeekBar;
+import android.widget.EditText;
+import android.widget.ScrollView;
+import android.content.pm.ApplicationInfo;
 import com.example.amazonMages.audio.GameAudioManager;
 
 import com.example.amazonMages.save.GameSaveRepository;
@@ -171,6 +174,8 @@ public class MainActivity extends Activity {
         LinearLayout panel = menu("JOGO PAUSADO");
         button(panel, "Continuar", v -> pauseDialog.dismiss());
         button(panel, "Configurações de áudio", v -> showPauseAudioSettings());
+        if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+            button(panel, "Console de desenvolvimento", v -> showDevConsole());
         button(panel, "Salvar progresso", v -> {
             if (game != null) {
                 game.saveNow();
@@ -191,6 +196,28 @@ public class MainActivity extends Activity {
             if (game != null && resumed) game.resume();
         });
         pauseDialog.show();
+    }
+
+    private void showDevConsole() {
+        if (game == null || pauseDialog == null ||
+            (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0) return;
+        LinearLayout panel = menu("CONSOLE DEV");
+        TextView output = new TextView(this);
+        output.setTextColor(Color.WHITE);
+        output.setText("Digite help para listar comandos.");
+        panel.addView(output);
+        EditText command = new EditText(this);
+        command.setSingleLine(true);
+        command.setHint("tp inicio | god on | spawn fantasma");
+        panel.addView(command);
+        AlertDialog console = new AlertDialog.Builder(this).setView(panel).create();
+        button(panel, "Executar", v -> {
+            String result = game.runDevCommand(command.getText().toString());
+            output.setText(result);
+            command.selectAll();
+        });
+        button(panel, "Fechar", v -> console.dismiss());
+        console.show();
     }
 
     private void showPauseAudioSettings() {
