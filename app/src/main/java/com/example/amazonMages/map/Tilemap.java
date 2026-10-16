@@ -3,6 +3,8 @@ package com.example.amazonMages.map;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Rect;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import com.example.amazonMages.GameDisplay;
 import com.example.amazonMages.graphics.SpriteSheet;
@@ -16,44 +18,57 @@ public class Tilemap {
     private static final int CHUNK_HEIGHT = CHUNK_TILES * TILE_HEIGHT_PIXELS;
     private final int chunkRows = (NUMBER_OF_ROW_TILES + CHUNK_TILES - 1) / CHUNK_TILES;
     private final int chunkCols = (NUMBER_OF_COLUMN_TILES + CHUNK_TILES - 1) / CHUNK_TILES;
-    private final Bitmap[][] chunks = new Bitmap[chunkRows][chunkCols];
+    private static final int MAX_CACHED_CHUNKS = 24;
+    private final int[][] layout;
+    private final SpriteSheet spriteSheet;
+    private final LinkedHashMap<Integer, Bitmap> cache = new LinkedHashMap<Integer, Bitmap>(32, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<Integer, Bitmap> eldest) {
+            if (size() <= MAX_CACHED_CHUNKS) return false;
+            eldest.getValue().recycle();
+            return true;
+        }
+    };
     private final Rect source = new Rect();
     private final Rect destination = new Rect();
 
     public Tilemap(SpriteSheet spriteSheet) {
-        int[][] layout = new MapLayout().getLayout();
-        for (int row = 0; row < chunkRows; row++) {
-            for (int col = 0; col < chunkCols; col++) {
-                int width = Math.min(CHUNK_TILES, NUMBER_OF_COLUMN_TILES - col * CHUNK_TILES) * TILE_WIDTH_PIXELS;
-                int height = Math.min(CHUNK_TILES, NUMBER_OF_ROW_TILES - row * CHUNK_TILES) * TILE_HEIGHT_PIXELS;
-                Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                Canvas chunkCanvas = new Canvas(bitmap);
-                for (int y = 0; y < height / TILE_HEIGHT_PIXELS; y++) {
-                    for (int x = 0; x < width / TILE_WIDTH_PIXELS; x++) {
-                        int tileRow = row * CHUNK_TILES + y;
-                        int tileCol = col * CHUNK_TILES + x;
-                        Tile tile = Tile.getTile(layout[tileRow][tileCol], spriteSheet,
-                            new Rect(x * TILE_WIDTH_PIXELS, y * TILE_HEIGHT_PIXELS,
-                                (x + 1) * TILE_WIDTH_PIXELS, (y + 1) * TILE_HEIGHT_PIXELS));
-                        tile.draw(chunkCanvas);
-                    }
-                }
-                chunks[row][col] = bitmap;
+        this.spriteSheet = spriteSheet;
+        this.layout = new MapLayout().getLayout();
+    }
+
+    private Bitmap getChunk(int row, int col) {
+        int key = row * chunkCols + col;
+        Bitmap cached = cache.get(key);
+        if (cached != null) return cached;
+        int width = Math.min(CHUNK_TILES, NUMBER_OF_COLUMN_TILES - col * CHUNK_TILES) * TILE_WIDTH_PIXELS;
+        int height = Math.min(CHUNK_TILES, NUMBER_OF_ROW_TILES - row * CHUNK_TILES) * TILE_HEIGHT_PIXELS;
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas chunkCanvas = new Canvas(bitmap);
+        for (int y = 0; y < height / TILE_HEIGHT_PIXELS; y++) {
+            for (int x = 0; x < width / TILE_WIDTH_PIXELS; x++) {
+                int tileRow = row * CHUNK_TILES + y;
+                int tileCol = col * CHUNK_TILES + x;
+                Tile tile = Tile.getTile(layout[tileRow][tileCol], spriteSheet,
+                    new Rect(x * TILE_WIDTH_PIXELS, y * TILE_HEIGHT_PIXELS,
+                        (x + 1) * TILE_WIDTH_PIXELS, (y + 1) * TILE_HEIGHT_PIXELS));
+                tile.draw(chunkCanvas);
             }
         }
+        cache.put(key, bitmap);
+        return bitmap;
     }
 
     public void draw(Canvas canvas, GameDisplay display) {
         Rect visible = display.getGameRect();
-        int left = Math.max(0, visible.left / CHUNK_WIDTH);
-        int top = Math.max(0, visible.top / CHUNK_HEIGHT);
+        int left = Math.max(0, Math.floorDiv(visible.left, CHUNK_WIDTH));
+        int top = Math.max(0, Math.floorDiv(visible.top, CHUNK_HEIGHT));
         int right = Math.min(chunkCols - 1, Math.floorDiv(visible.right - 1, CHUNK_WIDTH));
         int bottom = Math.min(chunkRows - 1, Math.floorDiv(visible.bottom - 1, CHUNK_HEIGHT));
         for (int row = top; row <= bottom; row++) {
             for (int col = left; col <= right; col++) {
                 int originX = col * CHUNK_WIDTH;
                 int originY = row * CHUNK_HEIGHT;
-                Bitmap bitmap = chunks[row][col];
+                Bitmap bitmap = getChunk(row, col);
                 int l = Math.max(visible.left, originX);
                 int t = Math.max(visible.top, originY);
                 int r = Math.min(visible.right, originX + bitmap.getWidth());
