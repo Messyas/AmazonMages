@@ -196,6 +196,20 @@ public final class EnemyManager {
         for (EnemyProjectile shot : projectiles) shot.draw(canvas, display);
     }
 
+    /** Debug only: removes active enemies and projectiles without kill rewards. */
+    public void clearForDebug() {
+        enemies.clear();
+        projectiles.clear();
+    }
+
+    /** Debug-only normal enemy spawn; bypasses the ambient spawn timer. */
+    public boolean spawnNormalForDebug(double x, double y) {
+        if (!Double.isFinite(x) || !Double.isFinite(y) || enemies.size() >= MAX_ENEMIES) return false;
+        enemies.add(new Enemy(context, player, EnemyConfig.acidGhost(), x, y,
+            EnemyPersonality.AGGRESSIVE));
+        return true;
+    }
+
     public int getEnemyCount() { return enemies.size(); }
     public int getProjectileCount() { return projectiles.size(); }
 }
