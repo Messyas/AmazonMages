@@ -38,3 +38,7 @@ Referência: branch `fix/android-performance`, outubro de 2026. Não houve build
 5. Implementar escudo/parry/postura e progressão em incrementos testáveis.
 
 Nenhum item pendente deve ser marcado como pronto apenas porque aparece no documento de design.
+
+## Atualização: missões persistentes (Room v3)
+
+A base de diálogo demonstrativa e a missão `first_ghosts` estão conectadas a `Game`. O progresso/estado agora são gravados em `quest_progress` por slot, restaurados antes de iniciar o loop e removidos junto com o slot. A recompensa continua simbólica (sem inventário/desbloqueio real). Falta compilar e testar a migração e o ciclo de vida.
