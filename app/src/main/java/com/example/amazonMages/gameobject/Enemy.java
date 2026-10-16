@@ -15,6 +15,7 @@ import com.example.amazonMages.ai.EnemyProjectile;
 import com.example.amazonMages.ai.EnemyState;
 import com.example.amazonMages.ai.EnemyPersonality;
 import com.example.amazonMages.graphics.Direction;
+import com.example.amazonMages.graphics.GhostAtlasRenderer;
 import com.example.androidstudio2dgamedevelopment.R;
 
 /** Acid ghost entity: visuals, health and a reusable behavior controller. */
@@ -25,6 +26,8 @@ public class Enemy extends Circle {
     private static Bitmap enemyBitmap;
 
     private final Player player;
+    private final GhostAtlasRenderer spriteRenderer;
+    private int animationTicks;
     private final EnemyConfig config;
     private final EnemyBrain brain;
     private int health;
@@ -50,6 +53,7 @@ public class Enemy extends Circle {
                  double spawnX, double spawnY, EnemyPersonality personality) {
         super(getColor(context, R.color.enemy), spawnX, spawnY, 30);
         this.player = player;
+        this.spriteRenderer = new GhostAtlasRenderer(context);
         this.config = config;
         this.personality = personality;
         this.brain = new EnemyBrain(config);
@@ -70,6 +74,7 @@ public class Enemy extends Circle {
     @Override public void update() { update(1); }
 
     public void update(int elapsedTicks) {
+        animationTicks += elapsedTicks;
         double dx = player.getPositionX() - positionX;
         double dy = player.getPositionY() - positionY;
         brain.update(dx, dy, health, elapsedTicks);
@@ -141,16 +146,7 @@ public class Enemy extends Circle {
     }
 
     @Override public void draw(Canvas canvas, GameDisplay display) {
-        if (enemyBitmap != null) {
-            float x = (float) display.gameToDisplayCoordinatesX(positionX);
-            float y = (float) display.gameToDisplayCoordinatesY(positionY);
-            if (fused) {
-                android.graphics.Rect dst = new android.graphics.Rect(
-                    (int)x - 48, (int)y - 48, (int)x + 48, (int)y + 48);
-                canvas.drawBitmap(enemyBitmap, null, dst, null);
-            } else canvas.drawBitmap(enemyBitmap,
-                x - enemyBitmap.getWidth() / 2f,
-                y - enemyBitmap.getHeight() / 2f, null);
-        }
+        spriteRenderer.draw(canvas, display, positionX, positionY,
+            facing, brain.getState(), fused, animationTicks);
     }
 }
