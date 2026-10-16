@@ -34,6 +34,27 @@ public class Tilemap {
     public Tilemap(SpriteSheet spriteSheet) {
         this.spriteSheet = spriteSheet;
         this.layout = new MapLayout().getLayout();
+        // Stable patches of magical acid swamp, distributed through the world.
+        for (int row = 7; row < NUMBER_OF_ROW_TILES - 6; row += 13) {
+            for (int col = 10; col < NUMBER_OF_COLUMN_TILES - 6; col += 17) {
+                for (int dy = 0; dy < 3; dy++) for (int dx = 0; dx < 3; dx++)
+                    layout[row + dy][col + dx] = MapLayout.ACID_SWAMP;
+            }
+        }
+    }
+
+    /** World coordinates of a random swamp tile, or null when none is suitable. */
+    public double[] randomSwampSpawn(double playerX, double playerY, java.util.Random random) {
+        for (int attempt = 0; attempt < 150; attempt++) {
+            int row = random.nextInt(NUMBER_OF_ROW_TILES);
+            int col = random.nextInt(NUMBER_OF_COLUMN_TILES);
+            if (layout[row][col] != MapLayout.ACID_SWAMP) continue;
+            double x = (col + 0.5) * TILE_WIDTH_PIXELS;
+            double y = (row + 0.5) * TILE_HEIGHT_PIXELS;
+            double distance = Math.hypot(x - playerX, y - playerY);
+            if (distance >= 300 && distance <= 1400) return new double[]{x, y};
+        }
+        return null;
     }
 
     private Bitmap getChunk(int row, int col) {
