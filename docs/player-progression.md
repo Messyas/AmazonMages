@@ -14,9 +14,9 @@
 
 ## Limitações intencionais
 
-- **Os atributos ainda não alteram dano, vida, velocidade, mana ou defesa**; esses efeitos precisam ser definidos e integrados ao combate antes do balanceamento.
+- **Apenas efeitos defensivos de Resistência/Arcano e mana máxima de Mente foram ligados**; demais efeitos e balanceamento permanecem pendentes.
 - Mana é um dado persistente, mas ainda não há consumo/regeneração em feitiços.
-- Pontos de atributo podem ser alocados via API, mas não existe menu para gastar pontos; pontos de habilidade não possuem árvore funcional.
+- Pontos de atributo podem ser distribuídos no painel Canvas; pontos de habilidade não possuem árvore funcional.
 - Atributos não incluem inventário, equipamentos, skills e desbloqueios persistidos; são etapas separadas.
 - A experiência vem somente de mortes de fantasmas pelo jogador no protótipo; outros eventos e recompensas ainda não dão XP.
 - Persistência não foi compilada nem testada em Android nesta sessão.
@@ -28,3 +28,11 @@
 3. Verificar que excluir slot apaga progresso sem afetar os outros.
 4. Testar subida de nível, XP excedente, máximo de nível e fechamento do app durante autosave.
 5. Construir tela de atributos com confirmação de distribuição e salvar imediatamente após alocação.
+
+## Painel de atributos e efeitos provisórios
+
+- `AttributesPanel` desenha um modal Canvas com nível, XP, pontos e sete atributos, com botão `+` para distribuir e `X` para fechar.
+- `Game` exibe botão `ATRIBUTOS`, intercepta toques durante o modal, pausa o mundo e salva imediatamente após a alocação.
+- `applyProgressionEffects()`: Resistência reduz dano físico em 2,5% por ponto acima de 1 (máximo 40%); Arcano reduz ácido em 1,5% por ponto acima de 1 (máximo 25%); Mente concede +10 de mana máxima por ponto acima de 1.
+- Os efeitos são **provisórios** e não substituem o balanceamento final. Mana não tem consumo/regeneração real; Vigor, Inteligência, Destreza e Força ainda não aplicam efeitos. Não há botão para gastar pontos de habilidade.
+- **Pendente:** testar toque/modal em diferentes resoluções, compilar Android, verificar migração Room v4 e balancear efeitos. Nenhum build foi executado nesta sessão.
