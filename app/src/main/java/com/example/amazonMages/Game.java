@@ -150,6 +150,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
         Log.d("Game.java", "surfaceDestroyed()");
+        gameLoop.stopLoop();
     }
 
     @Override
@@ -206,8 +207,15 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             spellList.add(new Spell(getContext(), player));
             numberOfSpellsToCast--;
         }
-        for (Spell spell : spellList) {
+        Iterator<Spell> activeSpells = spellList.iterator();
+        while (activeSpells.hasNext()) {
+            Spell spell = activeSpells.next();
             spell.update();
+            // Remove projectiles after they leave the playable world.
+            if (spell.getPositionX() < -64 || spell.getPositionY() < -64 ||
+                spell.getPositionX() > 100 * 64 + 64 || spell.getPositionY() > 70 * 64 + 64) {
+                activeSpells.remove();
+            }
         }
 
         // Itera pela lista de inimigos e verifica colisão entre cada inimigo e o jogador
