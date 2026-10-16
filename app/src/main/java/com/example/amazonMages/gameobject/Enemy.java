@@ -27,6 +27,7 @@ public class Enemy extends Circle {
     private final EnemyConfig config;
     private final EnemyBrain brain;
     private int health;
+    private final int updateOffset = (int) (Math.random() * 60);
     private Direction facing = Direction.SOUTH;
     private Direction attackFacing = Direction.SOUTH;
 
@@ -55,10 +56,12 @@ public class Enemy extends Circle {
         return false;
     }
 
-    @Override public void update() {
+    @Override public void update() { update(1); }
+
+    public void update(int elapsedTicks) {
         double dx = player.getPositionX() - positionX;
         double dy = player.getPositionY() - positionY;
-        brain.update(dx, dy, health);
+        brain.update(dx, dy, health, elapsedTicks);
         velocityX = brain.getMoveX();
         velocityY = brain.getMoveY();
         positionX += velocityX;
@@ -69,6 +72,7 @@ public class Enemy extends Circle {
 
     public EnemyProjectile fireProjectile() {
         if (!brain.shouldFire()) return null;
+        brain.onShotFired(health);
         return new EnemyProjectile(positionX, positionY,
             brain.getShotX(), brain.getShotY(), config.projectileSpeed);
     }
@@ -76,6 +80,7 @@ public class Enemy extends Circle {
     public void takeDamage(int amount) { if (amount > 0) health = Math.max(0, health - amount); }
     public boolean isDead() { return health <= 0; }
     public int getHealth() { return health; }
+    public int getUpdateOffset() { return updateOffset; }
     public EnemyState getAiState() { return brain.getState(); }
     public Direction getFacing() { return facing; }
     public Direction getAttackFacing() { return attackFacing; }
