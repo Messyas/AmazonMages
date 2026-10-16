@@ -290,9 +290,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                     progression.restore(stats);
                     applyProgressionEffects();
                     if (position != null) player.setHealthPoint(position.health);
-                    saves.loadInventory(rows -> {
+                    saves.loadInventory(inventoryRows -> {
                         Map<String, Integer> loaded = new LinkedHashMap<>();
-                        for (InventoryItemEntity row : rows) loaded.put(row.itemId, row.quantity);
+                        for (InventoryItemEntity row : inventoryRows) loaded.put(row.itemId, row.quantity);
                         inventory.restore(loaded);
                         saveLoaded = true;
                         startIfReady();
@@ -304,7 +304,12 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
+    public synchronized boolean onTouchEvent(MotionEvent event) {
+        if (!saveLoaded || !activityResumed || player.getHealthPoint() <= 0) return true;
+        if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+            resetInput();
+            return true;
+        }
         if (attributesPanel.isOpen()) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 if (attributesPanel.touch(event.getX(), event.getY(), getWidth(), getHeight(), progression)) {
@@ -330,6 +335,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN &&
             event.getX() > getWidth() * 0.38f && event.getX() < getWidth() * 0.70f &&
             event.getY() < getHeight() * 0.22f) {
+            resetInput();
             startElderDialogue();
             sound("dialogue");
             return true;
@@ -421,10 +427,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
         Log.d("Game.java", "surfaceDestroyed()");
         gameLoop.stopLoop();
+        synchronized (this) { resetInput(); }
     }
 
     @Override
-    public void draw(Canvas canvas) {
+    public synchronized void draw(Canvas canvas) {
         super.draw(canvas);
 
         // Desenha o Tilemap
@@ -459,7 +466,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
 
-    public void update() {
+    public synchronized void update() {
         if (debugOverlay && isDebuggable()) deviceMonitor.sampleIfDue();
         if (attributesPanel.isOpen()) return;
         if (dialogue.isActive()) { dialogue.update(); return; }
@@ -554,17 +561,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         progression.mana = Math.min(progression.mana, progression.maxMana);
     }
 
-    private void saveInventory() {
-        if (!saveLoaded) return;
-        List<InventoryItemEntity> rows = new ArrayList<>();
-        for (Map.Entry<String, Integer> item : inventory.snapshot().entrySet())
-            rows.add(new InventoryItemEntity(saves.getSlotId(), item.getKey(), item.getValue()));
-        saves.saveInventory(rows);
-    }
+    private void saveInventory() { saveNow(); }
 
-    private void saveQuestProgress() {
-        if (saveLoaded) saves.saveQuests(questJournal.snapshot(saves.getSlotId()));
-    }
+    private void saveQuestProgress() { saveNow(); }
 
     private void handleDialogueEvent(String event) {
         if ("quest.offer.first_ghosts".equals(event)) questJournal.offer(INTRO_QUEST);
@@ -701,20 +700,34 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     /** Explicit save action used by the in-game pause menu. */
-    public void saveNow() {
+    public synchronized void saveNow() {
         if (!saveLoaded) return;
-        saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
-        saveQuestProgress();
-        saves.saveStats(progression.snapshot(saves.getSlotId()));
+        List<InventoryItemEntity> rows = new ArrayList<>();
+        for (Map.Entry<String, Integer> item : inventory.snapshot().entrySet())
+            rows.add(new InventoryItemEntity(saves.getSlotId(), item.getKey(), item.getValue()));
+        saves.saveSnapshot(new com.example.amazonMages.save.PlayerPositionEntity(
+                saves.getSlotId(), player.getPositionX(), player.getPositionY(),
+                player.getHealthPoint(), System.currentTimeMillis()),
+            progression.snapshot(saves.getSlotId()), questJournal.snapshot(saves.getSlotId()), rows);
     }
 
-    public synchronized void pause() {
+    private void resetInput() {
+        joystick.setIsPressed(false);
+        joystick.resetActuator();
+        attackPointerId = -1;
+        joystickPointerId = -1;
+        numberOfSpellsToCast = 0;
+    }
+
+    public void pause() {
         activityResumed = false;
+        // Never hold the Game monitor while joining a loop that needs it.
         gameLoop.stopLoop();
-        saveNow();
+        synchronized (this) { resetInput(); saveNow(); }
     }
 
     public void closeSaveRepository() {
+        pause();
         saves.close();
     }
 

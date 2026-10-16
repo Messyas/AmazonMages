@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 public class GameSaveRepository {
     private static final String TAG = "GameSaveRepository";
     private final int slotId;
+    private volatile boolean closed;
     private final GameDatabase database;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -66,7 +67,7 @@ public class GameSaveRepository {
     }
 
     public void loadInventory(InventoryLoadCallback callback) {
-        io.execute(() -> {
+        submit(() -> {
             List<InventoryItemEntity> rows;
             try { rows = database.inventoryItemDao().loadForSlot(slotId); }
             catch (RuntimeException e) {
@@ -74,13 +75,13 @@ public class GameSaveRepository {
                 rows = new ArrayList<>();
             }
             List<InventoryItemEntity> result = rows;
-            main.post(() -> callback.onLoaded(result));
+            postIfOpen(() -> callback.onLoaded(result));
         });
     }
 
     public void saveInventory(List<InventoryItemEntity> snapshot) {
         final List<InventoryItemEntity> rows = new ArrayList<>(snapshot);
-        io.execute(() -> {
+        submit(() -> {
             try {
                 database.runInTransaction(() -> {
                     database.inventoryItemDao().deleteForSlot(slotId);
@@ -93,17 +94,17 @@ public class GameSaveRepository {
     public interface StatsLoadCallback { void onLoaded(PlayerStatsEntity stats); }
 
     public void loadStats(StatsLoadCallback callback) {
-        io.execute(() -> {
+        submit(() -> {
             PlayerStatsEntity row = null;
             try { row = database.playerStatsDao().load(slotId); }
             catch (RuntimeException e) { Log.e(TAG, "Unable to load stats", e); }
             PlayerStatsEntity result = row;
-            main.post(() -> callback.onLoaded(result));
+            postIfOpen(() -> callback.onLoaded(result));
         });
     }
 
     public void saveStats(PlayerStatsEntity stats) {
-        io.execute(() -> {
+        submit(() -> {
             try { database.playerStatsDao().save(stats); }
             catch (RuntimeException e) { Log.e(TAG, "Unable to save stats", e); }
         });
@@ -114,7 +115,7 @@ public class GameSaveRepository {
     }
 
     public void loadQuests(QuestLoadCallback callback) {
-        io.execute(() -> {
+        submit(() -> {
             List<QuestProgressEntity> rows;
             try {
                 rows = database.questProgressDao().loadForSlot(slotId);
@@ -123,13 +124,13 @@ public class GameSaveRepository {
                 rows = new ArrayList<>();
             }
             List<QuestProgressEntity> result = rows;
-            main.post(() -> callback.onLoaded(result));
+            postIfOpen(() -> callback.onLoaded(result));
         });
     }
 
     public void saveQuests(List<QuestProgressEntity> snapshot) {
         final List<QuestProgressEntity> rows = new ArrayList<>(snapshot);
-        io.execute(() -> {
+        submit(() -> {
             try {
                 database.questProgressDao().upsertAll(rows);
             } catch (RuntimeException e) {
@@ -143,7 +144,7 @@ public class GameSaveRepository {
     }
 
     public void loadSlots(SlotsCallback callback) {
-        io.execute(() -> {
+        submit(() -> {
             java.util.List<PlayerPositionEntity> slots;
             try {
                 slots = database.playerPositionDao().loadAll();
@@ -152,28 +153,23 @@ public class GameSaveRepository {
                 slots = new java.util.ArrayList<>();
             }
             java.util.List<PlayerPositionEntity> result = slots;
-            main.post(() -> callback.onLoaded(result));
+            postIfOpen(() -> callback.onLoaded(result));
         });
     }
 
     public void deleteSlot(int id, Runnable done) {
-        io.execute(() -> {
+        submit(() -> {
             try {
-                database.runInTransaction(() -> {
-                    database.questProgressDao().deleteForSlot(id);
-                    database.playerStatsDao().deleteForSlot(id);
-                    database.inventoryItemDao().deleteForSlot(id);
-                    database.playerPositionDao().delete(id);
-                });
+                deleteSlotData(database, id);
             } catch (RuntimeException e) {
                 Log.e(TAG, "Unable to delete slot", e);
             }
-            main.post(done);
+            postIfOpen(done);
         });
     }
 
     public void loadPosition(LoadCallback callback) {
-        io.execute(() -> {
+        submit(() -> {
             PlayerPositionEntity position = null;
             try {
                 position = database.playerPositionDao().load(slotId);
@@ -181,7 +177,7 @@ public class GameSaveRepository {
                 Log.e(TAG, "Unable to load player position", e);
             }
             PlayerPositionEntity result = position;
-            main.post(() -> callback.onLoaded(result));
+            postIfOpen(() -> callback.onLoaded(result));
         });
     }
 
@@ -189,7 +185,7 @@ public class GameSaveRepository {
         if (!Double.isFinite(x) || !Double.isFinite(y)) return;
         PlayerPositionEntity snapshot =
             new PlayerPositionEntity(slotId, x, y, health, System.currentTimeMillis());
-        io.execute(() -> {
+        submit(() -> {
             try {
                 database.playerPositionDao().save(snapshot);
             } catch (RuntimeException e) {
@@ -198,8 +194,51 @@ public class GameSaveRepository {
         });
     }
 
+    /** All mutable arguments are snapshots owned by this queued operation. */
+    public void saveSnapshot(PlayerPositionEntity position, PlayerStatsEntity stats,
+            List<QuestProgressEntity> quests, List<InventoryItemEntity> inventory) {
+        if (!Double.isFinite(position.x) || !Double.isFinite(position.y)) return;
+        submit(() -> {
+            try { writeSnapshot(database, position, stats, quests, inventory); }
+            catch (RuntimeException e) { Log.e(TAG, "Unable to save snapshot", e); }
+        });
+    }
+
+    static void writeSnapshot(GameDatabase db, PlayerPositionEntity position,
+            PlayerStatsEntity stats, List<QuestProgressEntity> quests,
+            List<InventoryItemEntity> inventory) {
+        db.runInTransaction(() -> {
+            db.playerPositionDao().save(position);
+            db.playerStatsDao().save(stats);
+            db.questProgressDao().deleteForSlot(position.slotId);
+            db.questProgressDao().upsertAll(quests);
+            db.inventoryItemDao().deleteForSlot(position.slotId);
+            db.inventoryItemDao().upsertAll(inventory);
+        });
+    }
+
+    static void deleteSlotData(GameDatabase db, int id) {
+        db.runInTransaction(() -> {
+            db.questProgressDao().deleteForSlot(id);
+            db.playerStatsDao().deleteForSlot(id);
+            db.inventoryItemDao().deleteForSlot(id);
+            db.playerPositionDao().delete(id);
+        });
+    }
+
+    /** Reject late work and callbacks once this session has been disposed. */
+    private synchronized void submit(Runnable operation) {
+        if (!closed) io.execute(operation);
+    }
+
+    private void postIfOpen(Runnable callback) {
+        main.post(() -> { if (!closed) callback.run(); });
+    }
+
     /** Flushes queued saves before closing the database; does not block the UI thread. */
-    public void close() {
+    public synchronized void close() {
+        if (closed) return;
+        closed = true;
         io.execute(database::close);
         io.shutdown();
     }
