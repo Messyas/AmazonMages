@@ -30,6 +30,7 @@ public final class EnemyManager {
     private final SpawnDirector spawns = new SpawnDirector(new SpawnDirector.Region(
         com.example.amazonMages.map.MapLayout.ACID_SWAMP,36,180,300,1400,EnemyTemplates.ACID_GHOST));
     private final com.example.amazonMages.ecs.HostileProjectileWorld projectiles = new com.example.amazonMages.ecs.HostileProjectileWorld();
+    private final List<Entity> impacts = new ArrayList<>();
     private final AttackDirector attacks = new AttackDirector();
     private final Context context;
     private final Player player;
@@ -163,8 +164,8 @@ public final class EnemyManager {
     public void collideWithPlayerProjectiles(ProjectileWorld world) {
         for (Enemy enemy : enemies) {
             if (enemy.isDead()) continue;
-            for (Entity projectile : world.overlapping(
-                    enemy.getPositionX(), enemy.getPositionY(), enemy.getRadius())) {
+            world.overlappingInto(enemy.getPositionX(),enemy.getPositionY(),enemy.getRadius(),impacts);
+            for (Entity projectile : impacts) {
                 if (enemy.isDead()) break;
                 if (!world.consume(projectile.id())) continue;
                 enemy.receiveHit(projectile.get(ProjectileComponent.class).spell.getHit());

@@ -26,6 +26,15 @@ public final class World {
         return Collections.unmodifiableList(result);
     }
 
+    public void queryInto(List<Entity> result, Class<? extends Component> type) {
+        result.clear();
+        for(Entity entity:entities.values()) if(entity.has(type))result.add(entity);
+    }
+    public void queryInto(List<Entity> result, Class<? extends Component> first, Class<? extends Component> second) {
+        result.clear();
+        for(Entity entity:entities.values()) if(entity.has(first) && entity.has(second))result.add(entity);
+    }
+
     /** Caller-owned snapshot; safe destruction during iteration without per-query list allocation. */
     @SafeVarargs
     public final void queryInto(List<Entity> result, Class<? extends Component>... types) {

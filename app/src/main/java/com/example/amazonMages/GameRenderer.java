@@ -9,6 +9,7 @@ import com.example.amazonMages.map.Tilemap;
 
 /** Owns world rendering and its reusable drawing state; never mutates simulation data. */
 final class GameRenderer {
+    private final java.util.List<Entity> visiblePickups = new java.util.ArrayList<>();
     private final Tilemap tiles;
     private final Player player;
     private final EnemyManager enemies;
@@ -33,7 +34,8 @@ final class GameRenderer {
         player.draw(canvas, display);
         enemies.draw(canvas, display);
         projectiles.draw(canvas, display);
-        for (Entity entity : pickups.with(PickupComponent.class, TransformComponent.class)) {
+        pickups.queryInto(visiblePickups,PickupComponent.class,TransformComponent.class);
+        for (Entity entity : visiblePickups) {
             TransformComponent position = entity.get(TransformComponent.class);
             canvas.drawCircle((float) display.gameToDisplayCoordinatesX(position.x),
                 (float) display.gameToDisplayCoordinatesY(position.y), 13, pickupPaint);

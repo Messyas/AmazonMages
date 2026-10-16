@@ -8,6 +8,7 @@ import java.util.List;
 
 /** Bridges ECS projectiles to the existing collision interface. */
 public final class ProjectileWorld {
+    private final List<Entity> renderEntities = new ArrayList<>();
     private final World world = new World();
     private final SystemScheduler scheduler = new SystemScheduler();
     private final ProjectileCollisionSystem collisions = new ProjectileCollisionSystem();
@@ -33,6 +34,10 @@ public final class ProjectileWorld {
         return collisions.overlapping(world, x, y, radius);
     }
 
+    public void overlappingInto(double x,double y,double radius,List<Entity> hits) {
+        collisions.overlappingInto(world,x,y,radius,hits);
+    }
+
     public boolean consume(long entityId) { return world.destroy(entityId); }
 
     public List<Spell> collisionSnapshot() {
@@ -50,8 +55,8 @@ public final class ProjectileWorld {
     }
 
     public void draw(Canvas canvas, GameDisplay display) {
-        for (Entity entity : world.with(ProjectileComponent.class))
-            entity.get(ProjectileComponent.class).spell.draw(canvas, display);
+        world.queryInto(renderEntities,ProjectileComponent.class);
+        for (Entity entity : renderEntities) entity.get(ProjectileComponent.class).spell.draw(canvas, display);
     }
 
     public int count() { return world.size(); }

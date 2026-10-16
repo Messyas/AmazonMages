@@ -17,6 +17,14 @@ public class SystemSchedulerTest {
         assertEquals("collision:1", order.get(1));
     }
 
+    @Test public void systemRemovalTakesEffectOnTheNextTick() {
+        SystemScheduler scheduler=new SystemScheduler();
+        int[] updates={0}; GameSystem second=(world,ticks)->updates[0]++;
+        scheduler.add((world,ticks)->scheduler.remove(second)); scheduler.add(second);
+        scheduler.update(new World(),1);assertEquals(1,updates[0]);
+        scheduler.update(new World(),1);assertEquals(1,updates[0]);
+    }
+
     @Test public void supportsRemovalDuringSnapshotQuery() {
         World world = new World();
         world.create().add(TransformComponent.class, new TransformComponent(1, 2));
