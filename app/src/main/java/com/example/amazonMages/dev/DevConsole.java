@@ -6,6 +6,7 @@ import java.util.Locale;
 public final class DevConsole {
     public interface Commands {
         String position();
+        String debug(String mode);
         String teleport(double x, double y);
         String god(boolean enabled);
         String heal();
@@ -22,7 +23,12 @@ public final class DevConsole {
         String[] parts = input.trim().toLowerCase(Locale.ROOT).split("\\s+");
         try {
             switch (parts[0]) {
-                case "help": return "help | pos | locais | tp <nome> | tp <x> <y> | god on/off | heal | give <id> | spawn <id> [1-10] | clear | level <1-99>";
+                case "help": return "debug on/off/info | help | pos | locais | tp <nome> | tp <x> <y> | god on/off | heal | give <id> | spawn <id> [1-10] | clear | level <1-99>";
+                case "debug":
+                    if (parts.length == 2 && (parts[1].equals("on") ||
+                        parts[1].equals("off") || parts[1].equals("info")))
+                        return commands.debug(parts[1]);
+                    break;
                 case "pos": return commands.position();
                 case "locais": return DevLocations.names();
                 case "tp":
