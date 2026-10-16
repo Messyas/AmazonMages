@@ -127,6 +127,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                     } else if (touchX < getWidth() * 0.85f) {
                         activateCoconutStorm();
                     } else {
+                        attackPointerId = event.getPointerId(downIndex);
                         numberOfSpellsToCast++;
                     }
                 } else if (joystick.getIsPressed()) {
@@ -143,6 +144,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 return true;
 
             case MotionEvent.ACTION_MOVE:
+                if (attackPointerId >= 0) {
+                    int attackIndex = event.findPointerIndex(attackPointerId);
+                    if (attackIndex >= 0) player.aim(event.getX(attackIndex) - getWidth() * 0.90,
+                        event.getY(attackIndex) - getHeight() * 0.86);
+                }
                 if (joystick.getIsPressed()) {
                     // O joystick foi pressionado anteriormente e agora está sendo movido
                     int pointerIndex = event.findPointerIndex(joystickPointerId);
@@ -152,6 +158,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_POINTER_UP:
+                if (attackPointerId == event.getPointerId(event.getActionIndex())) attackPointerId = -1;
                 if (joystickPointerId == event.getPointerId(event.getActionIndex())) {
                     // O ponteiro do joystick foi solto -> setIsPressed(false) e resetActuator()
                     joystick.setIsPressed(false);
@@ -268,7 +275,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private void activateCoconutStorm() {
         if (!weapons.special()) return;
         coconutStormTicks = 150;
-        double dx = player.getDirectionX(), dy = player.getDirectionY();
+        double dx = player.getAttackDirectionX(), dy = player.getAttackDirectionY();
         if (dx == 0 && dy == 0) dy = 1;
         stormX = player.getPositionX() + dx * 210;
         stormY = player.getPositionY() + dy * 210;
