@@ -312,6 +312,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         joystick.update();
         player.update();
         weapons.update();
+        progression.regenerateMana();
         updateCoconutStorm();
 
         // Coordinate AI updates, enemy population and staggered ranged attacks.
@@ -319,7 +320,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
         // Atualiza o estado de todos os feitiços
         while (numberOfSpellsToCast > 0) {
-            if (weapons.basic()) spellList.add(new Spell(getContext(), player, weapons.current() == WeaponLoadout.COCONUT));
+            if (weapons.basic(progression.castSpeed())) {
+                boolean coconut = weapons.current() == WeaponLoadout.COCONUT;
+                spellList.add(new Spell(getContext(), player, coconut,
+                    coconut ? progression.physicalMultiplier() : progression.magicMultiplier()));
+            }
             numberOfSpellsToCast--;
         }
         Iterator<Spell> activeSpells = spellList.iterator();
@@ -370,7 +375,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             Math.min(.40, (progression.resistencia - 1) * .025));
         player.getCombatStats().setResistance(DamageType.ACID,
             Math.min(.25, (progression.arcano - 1) * .015));
-        progression.maxMana = 100 + (progression.mente - 1) * 10;
+        player.setMaximumHealth(progression.maximumHealth());
+        progression.maxMana = progression.manaCapacity();
         progression.mana = Math.min(progression.mana, progression.maxMana);
     }
 
@@ -409,7 +415,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void activateCoconutStorm() {
-        if (!weapons.special()) return;
+        if (progression.mana < 35 || !weapons.special()) return;
+        progression.spendMana(35);
+        if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
         coconutStormTicks = 150;
         double dx = player.getAttackDirectionX(), dy = player.getAttackDirectionY();
         if (dx == 0 && dy == 0) dy = 1;
@@ -424,7 +432,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             double angle = coconutRandom.nextDouble() * Math.PI * 2;
             double distance = Math.sqrt(coconutRandom.nextDouble()) * 125;
             enemyManager.coconutImpact(stormX + Math.cos(angle) * distance,
-                stormY + Math.sin(angle) * distance, 45);
+                stormY + Math.sin(angle) * distance, 45, progression.physicalMultiplier());
         }
     }
 
@@ -432,6 +440,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         float w = getWidth(), h = getHeight();
         hudPaint.setTextSize(24 * getResources().getDisplayMetrics().density);
         hudPaint.setColor(0xCCF2E8D0);
+        canvas.drawText("Mana: " + (int) progression.mana + "/" + (int) progression.maxMana,
+            w * .52f, h * .53f, hudPaint);
         canvas.drawText("Arma: " + (weapons.selectedSlot() + 1) + "  " + weapons.current().name,
             w * 0.52f, h * 0.59f, hudPaint);
         hudPaint.setColor(0xAA38574C);
