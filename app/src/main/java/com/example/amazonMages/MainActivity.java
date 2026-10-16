@@ -75,6 +75,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         Log.d("MainActivity.java", "onDestroy()");
+        game.closeSaveRepository();
         super.onDestroy();
     }
 
