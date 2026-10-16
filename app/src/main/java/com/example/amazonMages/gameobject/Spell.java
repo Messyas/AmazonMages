@@ -40,7 +40,7 @@ public class Spell extends Circle {
         }
 
         // Define a direção do feitiço com base na posição do jogador
-        double dx = spellcaster.getDirectionX(), dy = spellcaster.getDirectionY();
+        double dx = spellcaster.getAttackDirectionX(), dy = spellcaster.getAttackDirectionY();
         if (dx == 0 && dy == 0) { dx = 0; dy = 1; }
         velocityX = dx * MAX_SPEED;
         velocityY = dy * MAX_SPEED;
