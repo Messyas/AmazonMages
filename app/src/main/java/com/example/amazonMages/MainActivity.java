@@ -7,6 +7,8 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.Toast;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -22,6 +24,7 @@ public class MainActivity extends Activity {
     private Game game;
     private GameSaveRepository menuRepository;
     private boolean resumed;
+    private AlertDialog pauseDialog;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -100,11 +103,59 @@ public class MainActivity extends Activity {
 
     private void startGame(int slotId) {
         game = new Game(this, slotId);
-        setContentView(game);
+        FrameLayout root = new FrameLayout(this);
+        root.addView(game, new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        Button pauseButton = new Button(this);
+        pauseButton.setText("Ⅱ");
+        pauseButton.setContentDescription("Pausar jogo");
+        pauseButton.setTextColor(Color.WHITE);
+        pauseButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(29, 53, 43)));
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+            (int)(56 * getResources().getDisplayMetrics().density),
+            (int)(56 * getResources().getDisplayMetrics().density),
+            Gravity.TOP | Gravity.END);
+        int margin = (int)(12 * getResources().getDisplayMetrics().density);
+        params.setMargins(margin, margin, margin, margin);
+        root.addView(pauseButton, params);
+        pauseButton.setOnClickListener(v -> showPauseMenu());
+        setContentView(root);
         if (resumed) game.resume();
     }
 
+    private void showPauseMenu() {
+        if (game == null || pauseDialog != null) return;
+        game.pause();
+        LinearLayout panel = menu("JOGO PAUSADO");
+        button(panel, "Continuar", v -> pauseDialog.dismiss());
+        button(panel, "Salvar progresso", v -> {
+            if (game != null) {
+                game.saveNow();
+                Toast.makeText(this, "Salvamento solicitado", Toast.LENGTH_SHORT).show();
+            }
+        });
+        button(panel, "Voltar ao menu principal", v -> {
+            pauseDialog.setOnDismissListener(null);
+            pauseDialog.dismiss();
+            pauseDialog = null;
+            returnToMenu();
+        });
+        pauseDialog = new AlertDialog.Builder(this)
+            .setView(panel)
+            .create();
+        pauseDialog.setOnDismissListener(dialog -> {
+            pauseDialog = null;
+            if (game != null && resumed) game.resume();
+        });
+        pauseDialog.show();
+    }
+
     private void returnToMenu() {
+        if (pauseDialog != null) {
+            pauseDialog.setOnDismissListener(null);
+            pauseDialog.dismiss();
+            pauseDialog = null;
+        }
         if (game != null) {
             game.pause();
             game.closeSaveRepository();
@@ -116,7 +167,7 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
-        if (game != null) game.resume();
+        if (game != null && pauseDialog == null) game.resume();
     }
 
     @Override protected void onPause() {
@@ -136,15 +187,7 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (game != null) {
-            new AlertDialog.Builder(this)
-                .setTitle("Voltar ao menu?")
-                .setMessage("Seu progresso será salvo.")
-                .setNegativeButton("Continuar jogando", null)
-                .setPositiveButton("Menu", (dialog, which) -> returnToMenu())
-                .show();
-        } else {
-            showMainMenu();
-        }
+        if (game != null) showPauseMenu();
+        else showMainMenu();
     }
 }
