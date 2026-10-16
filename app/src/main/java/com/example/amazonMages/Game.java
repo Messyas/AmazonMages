@@ -76,7 +76,6 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         SpriteAnimator animator = new SpriteAnimator(spriteSheet.getPlayerAnimations());
         player = new Player(context, joystick, 2*500, 500, 32, animator);
         saves = new GameSaveRepository(context, slotId);
-        enemyManager = new EnemyManager(context, player);
 
 
         // Initialize display and center it around the player
@@ -86,6 +85,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
         // Initialize Tilemap
         tilemap = new Tilemap(spriteSheet);
+        enemyManager = new EnemyManager(context, player, tilemap);
 
         // Inicia o serviço de música
         Intent musicIntent = new Intent(context, MusicService.class);
