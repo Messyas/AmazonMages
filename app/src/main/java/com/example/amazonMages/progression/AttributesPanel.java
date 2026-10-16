@@ -18,7 +18,7 @@ public final class AttributesPanel {
         if (!open) return false;
         float left = width * .12f, top = height * .08f;
         float panelWidth = width * .76f, panelHeight = height * .84f;
-        if (x > left + panelWidth - 62 && y < top + 58) { close(); return true; }
+        if (x > left + panelWidth * .67f && y >= top && y < top + 58) { close(); return true; }
         float rowTop = top + panelHeight * .29f;
         float rowHeight = panelHeight * .083f;
         int index = (int)((y - rowTop) / rowHeight);
