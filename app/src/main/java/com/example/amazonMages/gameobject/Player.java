@@ -63,6 +63,12 @@ public class Player extends Circle {
         healthBar.draw(canvas, gameDisplay);
     }
 
+    /** Used only before the game loop starts, when restoring a save. */
+    public void restorePosition(double x, double y) {
+        positionX = x;
+        positionY = y;
+    }
+
     public int getHealthPoint() {
         return healthPoints;
     }
