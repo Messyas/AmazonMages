@@ -5,6 +5,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
+import android.graphics.Paint;
+import com.example.amazonMages.combat.WeaponLoadout;
+import java.util.Random;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -48,6 +51,12 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final EnemyManager enemyManager;
     private final List<Spell> spellList = new ArrayList<>();
     private int numberOfSpellsToCast = 0;
+    private final WeaponLoadout weapons = new WeaponLoadout();
+    private final Random coconutRandom = new Random();
+    private int coconutStormTicks;
+    private double stormX, stormY;
+    private final Paint hudPaint = new Paint(3);
+    private int attackPointerId = -1;
     private final GameOver gameOver;
     private final Performance performance;
     private final GameDisplay gameDisplay;
@@ -110,10 +119,20 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
-                if (joystick.getIsPressed()) {
+                int downIndex = event.getActionIndex();
+                float touchX = event.getX(downIndex), touchY = event.getY(downIndex);
+                if (touchX > getWidth() * 0.72f && touchY > getHeight() * 0.55f) {
+                    if (touchY < getHeight() * 0.75f) {
+                        weapons.next();
+                    } else if (touchX < getWidth() * 0.85f) {
+                        activateCoconutStorm();
+                    } else {
+                        numberOfSpellsToCast++;
+                    }
+                } else if (joystick.getIsPressed()) {
                     // O joystick estava pressionado antes deste evento -> lançar feitiço
                     numberOfSpellsToCast++;
-                } else if (joystick.isPressed(event.getX(), event.getY())) {
+                } else if (joystick.isPressed(touchX, touchY)) {
                     // O joystick está pressionado neste evento -> setIsPressed(true) e armazena o id do ponteiro
                     joystickPointerId = event.getPointerId(event.getActionIndex());
                     joystick.setIsPressed(true);
@@ -126,7 +145,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             case MotionEvent.ACTION_MOVE:
                 if (joystick.getIsPressed()) {
                     // O joystick foi pressionado anteriormente e agora está sendo movido
-                    joystick.setActuator(event.getX(), event.getY());
+                    int pointerIndex = event.findPointerIndex(joystickPointerId);
+                    if (pointerIndex >= 0) joystick.setActuator(event.getX(pointerIndex), event.getY(pointerIndex));
                 }
                 return true;
 
@@ -193,6 +213,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Desenha os painéis do jogo
         joystick.draw(canvas);
         performance.draw(canvas);
+        drawCombatHud(canvas);
 
         // Desenha "Game Over" se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
@@ -210,13 +231,15 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Atualiza o estado do jogo
         joystick.update();
         player.update();
+        weapons.update();
+        updateCoconutStorm();
 
         // Coordinate AI updates, enemy population and staggered ranged attacks.
         enemyManager.update();
 
         // Atualiza o estado de todos os feitiços
         while (numberOfSpellsToCast > 0) {
-            spellList.add(new Spell(getContext(), player));
+            if (weapons.basic()) spellList.add(new Spell(getContext(), player, weapons.current() == WeaponLoadout.COCONUT));
             numberOfSpellsToCast--;
         }
         Iterator<Spell> activeSpells = spellList.iterator();
@@ -241,6 +264,49 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+
+    private void activateCoconutStorm() {
+        if (!weapons.special()) return;
+        coconutStormTicks = 150;
+        double dx = player.getDirectionX(), dy = player.getDirectionY();
+        if (dx == 0 && dy == 0) dy = 1;
+        stormX = player.getPositionX() + dx * 210;
+        stormY = player.getPositionY() + dy * 210;
+    }
+
+    private void updateCoconutStorm() {
+        if (coconutStormTicks <= 0) return;
+        coconutStormTicks--;
+        if (coconutStormTicks % 18 == 0) {
+            double angle = coconutRandom.nextDouble() * Math.PI * 2;
+            double distance = Math.sqrt(coconutRandom.nextDouble()) * 125;
+            enemyManager.coconutImpact(stormX + Math.cos(angle) * distance,
+                stormY + Math.sin(angle) * distance, 45);
+        }
+    }
+
+    private void drawCombatHud(Canvas canvas) {
+        float w = getWidth(), h = getHeight();
+        hudPaint.setTextSize(24 * getResources().getDisplayMetrics().density);
+        hudPaint.setColor(0xCCF2E8D0);
+        canvas.drawText("Arma: " + (weapons.selectedSlot() + 1) + "  " + weapons.current().name,
+            w * 0.52f, h * 0.59f, hudPaint);
+        hudPaint.setColor(0xAA38574C);
+        canvas.drawCircle(w * 0.90f, h * 0.86f, 54, hudPaint);
+        canvas.drawCircle(w * 0.77f, h * 0.86f, 43, hudPaint);
+        canvas.drawCircle(w * 0.88f, h * 0.66f, 38, hudPaint);
+        hudPaint.setColor(0xFFFFFFFF);
+        hudPaint.setTextSize(22 * getResources().getDisplayMetrics().density);
+        canvas.drawText("ATK", w * 0.865f, h * 0.87f, hudPaint);
+        canvas.drawText(weapons.specialCooldown() == 0 ? "ESP" : "" + (weapons.specialCooldown() / 60 + 1),
+            w * 0.73f, h * 0.87f, hudPaint);
+        canvas.drawText("TROCA", w * 0.81f, h * 0.67f, hudPaint);
+        if (coconutStormTicks > 0) {
+            hudPaint.setColor(0x66D9B86C);
+            canvas.drawCircle((float) gameDisplay.gameToDisplayCoordinatesX(stormX),
+                (float) gameDisplay.gameToDisplayCoordinatesY(stormY), 125, hudPaint);
+        }
+    }
 
     /** Explicit save action used by the in-game pause menu. */
     public void saveNow() {
