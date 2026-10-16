@@ -6,6 +6,7 @@ import com.example.amazonMages.gameobject.GameObject;
 
 public class GameDisplay {
     public final Rect DISPLAY_RECT;
+    private final Rect gameRect = new Rect();
     private final int widthPixels;
     private final int heightPixels;
     private final GameObject centerObject;
@@ -46,11 +47,12 @@ public class GameDisplay {
     }
 
     public Rect getGameRect() {
-        return new Rect(
+        gameRect.set(
                 (int) (gameCenterX - (double) widthPixels /2),
                 (int) (gameCenterY - (double) heightPixels /2),
                 (int) (gameCenterX + (double) widthPixels /2),
                 (int) (gameCenterY + (double) heightPixels /2)
         );
+        return gameRect;
     }
 }
