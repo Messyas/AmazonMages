@@ -30,7 +30,7 @@ public class GameSaveRepository {
         this.slotId = slotId;
         database = Room.databaseBuilder(context.getApplicationContext(),
             GameDatabase.class, "amazon_mages_saves.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3).build();
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build();
     }
 
     public static final androidx.room.migration.Migration MIGRATION_1_2 =
@@ -46,6 +46,32 @@ public class GameSaveRepository {
                 db.execSQL("CREATE TABLE IF NOT EXISTS quest_progress (slotId INTEGER NOT NULL, questId TEXT NOT NULL, state TEXT NOT NULL, progress INTEGER NOT NULL, PRIMARY KEY(slotId, questId))");
             }
         };
+
+    public static final androidx.room.migration.Migration MIGRATION_3_4 =
+        new androidx.room.migration.Migration(3, 4) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS player_stats (slotId INTEGER NOT NULL, level INTEGER NOT NULL, experience INTEGER NOT NULL, attributePoints INTEGER NOT NULL, skillPoints INTEGER NOT NULL, vigor INTEGER NOT NULL, mente INTEGER NOT NULL, resistencia INTEGER NOT NULL, inteligencia INTEGER NOT NULL, destreza INTEGER NOT NULL, arcano INTEGER NOT NULL, forca INTEGER NOT NULL, mana REAL NOT NULL, maxMana REAL NOT NULL, PRIMARY KEY(slotId))");
+            }
+        };
+
+    public interface StatsLoadCallback { void onLoaded(PlayerStatsEntity stats); }
+
+    public void loadStats(StatsLoadCallback callback) {
+        io.execute(() -> {
+            PlayerStatsEntity row = null;
+            try { row = database.playerStatsDao().load(slotId); }
+            catch (RuntimeException e) { Log.e(TAG, "Unable to load stats", e); }
+            PlayerStatsEntity result = row;
+            main.post(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void saveStats(PlayerStatsEntity stats) {
+        io.execute(() -> {
+            try { database.playerStatsDao().save(stats); }
+            catch (RuntimeException e) { Log.e(TAG, "Unable to save stats", e); }
+        });
+    }
 
     public interface QuestLoadCallback {
         void onLoaded(List<QuestProgressEntity> progress);
@@ -99,6 +125,7 @@ public class GameSaveRepository {
             try {
                 database.runInTransaction(() -> {
                     database.questProgressDao().deleteForSlot(id);
+                    database.playerStatsDao().deleteForSlot(id);
                     database.playerPositionDao().delete(id);
                 });
             } catch (RuntimeException e) {
