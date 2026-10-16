@@ -40,3 +40,10 @@
 ## Notas de gameplay para artistas
 
 O coco é **fruta**, não fezes. O especial é uma tempestade de cocos reais que caem em vários pontos de uma área. O humor deve vir do contraste entre conjuração dramática e pancadas sonoras cômicas. O escudo é frontal e direcionado à mira, não uma esfera envolvendo o personagem.
+
+## Retratos e diálogos (pendentes)
+
+- `portrait_player_neutral.png`, `portrait_player_surprised.png`: expressões do protagonista.
+- `portrait_npc_elder_neutral.png`, `portrait_npc_elder_angry.png`: retratos iniciais de NPC.
+- Card de diálogo responsivo (pode começar com Canvas), indicador de continuação e SFX de abertura/texto/confirmação.
+- Detalhes técnicos e requisitos: [dialogue-quests.md](dialogue-quests.md).
