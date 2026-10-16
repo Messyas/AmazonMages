@@ -24,3 +24,13 @@ Current player maximum health remains 5 and is still displayed as an integer. In
 ## Validation
 
 No Android/Gradle build has been run in this environment. Compile and run tests on the Android project before merging. In particular verify damage at low HP, fused ghosts, projectile collision, save/restore and lifecycle pause/resume.
+
+## Equipment and coconut prototype
+
+- `WeaponDefinition`, `WeaponType`, `WeaponLoadout`: four quick slots, one starter intrinsic magic, basic and special cooldowns.
+- Starter coconut basic: brown circular projectile with physical hit and posture pressure; uses independent attack aim vector.
+- Starter coconut storm: 150-tick area effect, eight to nine randomized impact pulses in a 125px radius, 1080-tick cooldown. Area preview drawn on Canvas; falling-fruit sprites, telegraphs and sounds are still pending.
+- Provisional Canvas HUD: lower-right attack, special and weapon switch zones. The starter is the only equipped weapon; cycling does not yet show other options until acquired/equipped.
+- Touch handling now uses the correct pointer index for joystick movement and an independent attack pointer for aiming. Drag from the attack region to aim subsequent attacks; current basic fires on press.
+- This is a playable prototype layer, **not** a finished inventory or combat feature set. Catalyst and physical equipment have data categories but no distinct attack executors yet. No mana, potions, equipment persistence, shield/parry, skill tree or full inventory.
+- Android compilation and device tests were not available; validate resource loading, HUD scaling, multi-touch, pause/resume and save slots before merging.
