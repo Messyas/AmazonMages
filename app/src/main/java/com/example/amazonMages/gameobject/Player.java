@@ -10,7 +10,9 @@ import com.example.amazonMages.GameLoop;
 import com.example.amazonMages.gamepanel.HealthBar;
 import com.example.amazonMages.gamepanel.Joystick;
 import com.example.amazonMages.Utils;
-import com.example.amazonMages.graphics.Animator;
+import com.example.amazonMages.graphics.SpriteAnimator;
+import com.example.amazonMages.graphics.AnimationAction;
+import com.example.amazonMages.graphics.Direction;
 
 import com.example.androidstudio2dgamedevelopment.R;
 
@@ -25,10 +27,12 @@ public class Player extends Circle {
     private final Joystick joystick;
     private final HealthBar healthBar;
     private int healthPoints = MAX_HEALTH_POINTS;
-    private final Animator animator;
+    private final SpriteAnimator animator;
+    private Direction facing = Direction.SOUTH;
+    private Direction attackFacing = Direction.SOUTH;
     private final PlayerState playerState;
 
-    public Player(Context context, Joystick joystick, double positionX, double positionY, double radius, Animator animator) {
+    public Player(Context context, Joystick joystick, double positionX, double positionY, double radius, SpriteAnimator animator) {
         super(getColor(context, R.color.player), positionX, positionY, radius);
         this.joystick = joystick;
         this.healthBar = new HealthBar(context, this);
@@ -52,13 +56,16 @@ public class Player extends Circle {
             double distance = Utils.getDistanceBetweenPoints(0, 0, velocityX, velocityY);
             directionX = velocityX/distance;
             directionY = velocityY/distance;
+            facing = Direction.fromVector(directionX, directionY, facing);
         }
 
         playerState.update();
+        animator.setState(velocityX == 0 && velocityY == 0 ? AnimationAction.IDLE : AnimationAction.MOVE, facing);
+        animator.update();
     }
 
     public void draw(Canvas canvas, GameDisplay gameDisplay) {
-        animator.draw(canvas, gameDisplay, this);
+        animator.draw(canvas, gameDisplay, positionX, positionY);
 
         healthBar.draw(canvas, gameDisplay);
     }
@@ -78,6 +85,14 @@ public class Player extends Circle {
         if (healthPoints >= 0)
             this.healthPoints = healthPoints;
     }
+
+    /** Aim can be set separately from movement by future combat controls. */
+    public void aim(double x, double y) {
+        attackFacing = Direction.fromVector(x, y, attackFacing);
+    }
+
+    public Direction getFacing() { return facing; }
+    public Direction getAttackFacing() { return attackFacing; }
 
     public PlayerState getPlayerState() {
         return playerState;
