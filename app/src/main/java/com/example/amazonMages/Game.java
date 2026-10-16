@@ -12,6 +12,15 @@ import com.example.amazonMages.combat.WeaponType;
 import com.example.amazonMages.combat.DamageEvent;
 import com.example.amazonMages.dev.DevConsole;
 import com.example.amazonMages.ecs.ProjectileWorld;
+import com.example.amazonMages.ecs.World;
+import com.example.amazonMages.ecs.Entity;
+import com.example.amazonMages.ecs.TransformComponent;
+import com.example.amazonMages.ecs.ColliderComponent;
+import com.example.amazonMages.ecs.PickupComponent;
+import com.example.amazonMages.ecs.PickupSystem;
+import com.example.amazonMages.items.ItemRegistry;
+import com.example.amazonMages.items.ItemDefinition;
+import com.example.amazonMages.items.Inventory;
 import com.example.amazonMages.events.GameEvent;
 import com.example.amazonMages.events.GameEventBus;
 import com.example.amazonMages.dev.DevicePerformanceMonitor;
@@ -117,9 +126,19 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                         WeaponType.INTRINSIC, new DamageEvent(1, 10, DamageType.MAGIC)));
                     return "Cajado de Teste equipado no slot 2. Use TROCA.";
                 }
-                return "Item desconhecido: coco, cajado. Inventário ainda não existe.";
+                if ("erva".equals(item)) {
+                    int accepted = inventory.add("erva", 1);
+                    return "Ervas: " + inventory.count("erva") + " (+" + accepted + ")";
+                }
+                return "Item desconhecido: coco, cajado, erva.";
             }
             @Override public String spawn(String species, int count) {
+                if ("erva".equals(species)) {
+                    for (int i = 0; i < count; i++)
+                        spawnPickup("erva", 1, player.getPositionX() + 75 + (i % 4) * 28,
+                            player.getPositionY() + (i / 4) * 28);
+                    return "Ervas no chao: " + count;
+                }
                 EnemyTemplate template;
                 if ("fantasma".equals(species)) template = EnemyTemplates.ACID_GHOST;
                 else if ("sentinela".equals(species)) template = EnemyTemplates.SWAMP_SENTINEL;
@@ -153,6 +172,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     private static final String INTRO_QUEST = "first_ghosts";
     private final GameEventBus eventBus = new GameEventBus();
+    private final World pickupWorld = new World();
+    private final PickupSystem pickupSystem = new PickupSystem();
+    private final ItemRegistry itemRegistry = new ItemRegistry()
+        .register(new ItemDefinition("erva", "Erva do Pantano", 99));
+    private final Inventory inventory = new Inventory(itemRegistry);
     private final DialogueManager dialogue = new DialogueManager();
     private final DialogueRenderer dialogueRenderer = new DialogueRenderer();
     private final QuestJournal questJournal = new QuestJournal();
@@ -387,6 +411,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
         enemyManager.draw(canvas, gameDisplay);
         projectileWorld.draw(canvas, gameDisplay);
+        drawPickups(canvas);
 
         // Desenha os painéis do jogo
         joystick.draw(canvas);
@@ -422,6 +447,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Atualiza o estado do jogo
         joystick.update();
         player.update();
+        int collected = pickupSystem.collect(pickupWorld, player.getPositionX(),
+            player.getPositionY(), player.getRadius(), inventory);
+        if (collected > 0) eventBus.publish(new GameEvent("item.erva.collected", 0));
         weapons.update();
         progression.regenerateMana();
         updateCoconutStorm();
@@ -453,6 +481,24 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+
+    private void spawnPickup(String itemId, int quantity, double x, double y) {
+        if (itemRegistry.get(itemId) == null) throw new IllegalArgumentException("item");
+        pickupWorld.create()
+            .add(TransformComponent.class, new TransformComponent(x, y))
+            .add(ColliderComponent.class, new ColliderComponent(13))
+            .add(PickupComponent.class, new PickupComponent(itemId, quantity));
+    }
+
+    private void drawPickups(Canvas canvas) {
+        Paint pickupPaint = new Paint(3);
+        pickupPaint.setColor(0xFF8CD87B);
+        for (Entity entity : pickupWorld.with(PickupComponent.class, TransformComponent.class)) {
+            TransformComponent position = entity.get(TransformComponent.class);
+            canvas.drawCircle((float) gameDisplay.gameToDisplayCoordinatesX(position.x),
+                (float) gameDisplay.gameToDisplayCoordinatesY(position.y), 13, pickupPaint);
+        }
+    }
 
     private void startElderDialogue() {
         QuestState state = questJournal.state(INTRO_QUEST);
