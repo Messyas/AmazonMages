@@ -48,3 +48,13 @@ O `events/GameEventBus` é síncrono e simples. No jogo, derrotas dos inimigos a
 - A coleta publica `item.erva.collected` no Event Bus. Ainda não há interface de inventário, persistência de itens nem tabela de drops.
 - `PickupSystemTest` cobre coleta por proximidade e capacidade parcial.
 - **Não foi executado build nem teste Android.** A migração de colisões de projéteis contra inimigos continua pendente: `ProjectileCollisionSystem` é reutilizado para pickups, mas o combate ainda usa `EnemyManager.collideWithPlayerSpells`.
+
+## Quinta etapa: impactos dos projéteis via ECS
+
+- `ProjectileWorld.overlapping(x, y, radius)` consulta os componentes de colisão dos projéteis.
+- `ProjectileWorld.consume(entityId)` remove o projétil após o primeiro impacto.
+- `EnemyManager.collideWithPlayerProjectiles` substitui a chamada antiga de colisão em `Game.update()`; dano, derrota e recompensas continuam no `EnemyManager`.
+- O método legado `collideWithPlayerSpells` permanece temporariamente disponível para compatibilidade, mas não é mais chamado pelo loop principal.
+- **Ressalva:** o novo teste geométrico considera tangência como colisão (`<=`), enquanto `Circle.isColliding` usava `<`. A equivalência exata desse caso-limite ainda precisa de ajuste e teste.
+- A migração do inventário para Room, drops persistentes e integração dos projéteis inimigos com ECS continuam pendentes.
+- Build Android e testes automatizados ainda não foram executados nesta sessão.
