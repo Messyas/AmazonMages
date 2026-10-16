@@ -7,6 +7,8 @@ import com.example.amazonMages.gameobject.Circle;
 import com.example.amazonMages.gameobject.Enemy;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.Spell;
+import com.example.amazonMages.map.Tilemap;
+import java.util.Random;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -24,12 +26,15 @@ public final class EnemyManager {
     private final AttackDirector attacks = new AttackDirector();
     private final Context context;
     private final Player player;
+    private final Tilemap tilemap;
+    private final Random random = new Random();
     private int tick;
     private int spawnTicks;
 
-    public EnemyManager(Context context, Player player) {
+    public EnemyManager(Context context, Player player, Tilemap tilemap) {
         this.context = context.getApplicationContext();
         this.player = player;
+        this.tilemap = tilemap;
     }
 
     public void update() {
@@ -39,7 +44,26 @@ public final class EnemyManager {
         // Keep spawn timing local to this play session, even when at capacity.
         if (++spawnTicks >= 180) {
             spawnTicks = 0;
-            if (enemies.size() < MAX_ENEMIES) enemies.add(new Enemy(context, player));
+            if (enemies.size() < MAX_ENEMIES) {
+                double[] spawn = tilemap.randomSwampSpawn(player.getPositionX(), player.getPositionY(), random);
+                if (spawn != null) enemies.add(new Enemy(context, player, EnemyConfig.acidGhost(),
+                    spawn[0], spawn[1], EnemyPersonality.random(random)));
+            }
+        }
+
+        // Social ghosts select nearby unfused ghosts of the same species.
+        for (Enemy enemy : enemies) {
+            Enemy target = null;
+            if (enemy.getPersonality() == EnemyPersonality.SOCIAL && !enemy.isFused()) {
+                double best = 320;
+                for (Enemy other : enemies) {
+                    if (enemy == other || other.isFused()) continue;
+                    double distance = Math.hypot(enemy.getPositionX() - other.getPositionX(),
+                        enemy.getPositionY() - other.getPositionY());
+                    if (distance < best) { best = distance; target = other; }
+                }
+            }
+            enemy.setGroupTarget(target);
         }
 
         Iterator<Enemy> iterator = enemies.iterator();
@@ -55,6 +79,22 @@ public final class EnemyManager {
             int period = distance < ACTIVE_DISTANCE ? 1 :
                 distance < MID_DISTANCE ? MID_UPDATE_TICKS : FAR_UPDATE_TICKS;
             if ((tick + enemy.getUpdateOffset()) % period == 0) enemy.update(period);
+        }
+
+        // Fuse nearby unfused ghosts once; the survivor keeps both remaining HP.
+        for (int i = 0; i < enemies.size(); i++) {
+            Enemy first = enemies.get(i);
+            if (first.isFused() || first.getPersonality() != EnemyPersonality.SOCIAL) continue;
+            for (int j = i + 1; j < enemies.size(); j++) {
+                Enemy second = enemies.get(j);
+                if (second.isFused()) continue;
+                if (Math.hypot(first.getPositionX() - second.getPositionX(),
+                        first.getPositionY() - second.getPositionY()) < 52) {
+                    first.fuseWith(second);
+                    enemies.remove(j);
+                    break;
+                }
+            }
         }
 
         // Rotating priority prevents the same ghost from monopolizing the firing budget.
@@ -79,7 +119,7 @@ public final class EnemyManager {
             shot.update();
             if (shot.expired()) shots.remove();
             else if (Circle.isColliding(shot, player)) {
-                player.setHealthPoint(player.getHealthPoint() - 1);
+                player.setHealthPoint(player.getHealthPoint() - shot.getDamage());
                 shots.remove();
             }
         }
