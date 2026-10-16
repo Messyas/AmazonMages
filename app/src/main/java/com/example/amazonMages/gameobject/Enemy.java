@@ -6,6 +6,10 @@ import android.content.Context;
 import android.graphics.Canvas;
 
 import com.example.amazonMages.GameDisplay;
+import com.example.amazonMages.combat.CombatStats;
+import com.example.amazonMages.combat.DamageEvent;
+import com.example.amazonMages.combat.DamageResolver;
+import com.example.amazonMages.combat.Posture;
 import com.example.amazonMages.ai.EnemyBrain;
 import com.example.amazonMages.ai.EnemyConfig;
 import com.example.amazonMages.ai.EnemyProjectile;
@@ -30,6 +34,9 @@ public class Enemy extends Circle {
     private final EnemyConfig config;
     private final EnemyBrain brain;
     private int health;
+    private double preciseHealth;
+    private final CombatStats combatStats = new CombatStats();
+    private final Posture posture = new Posture(100);
     private final EnemyPersonality personality;
     private int damage = 1;
     private boolean fused;
@@ -57,6 +64,7 @@ public class Enemy extends Circle {
         this.personality = personality;
         this.brain = new EnemyBrain(config);
         this.health = config.maxHealth;
+        this.preciseHealth = health;
     }
 
     @Override public void update() { update(1); }
@@ -112,6 +120,7 @@ public class Enemy extends Circle {
             brain.getState() == EnemyState.CHASE ? GhostAnimation.CHASE :
             Math.hypot(velocityX, velocityY) > 0 ? GhostAnimation.MOVE : GhostAnimation.IDLE;
         animation.update(elapsedTicks, ambient);
+        posture.update();
         positionX += velocityX;
         positionY += velocityY;
         facing = Direction.fromVector(velocityX, velocityY, facing);
@@ -139,19 +148,28 @@ public class Enemy extends Circle {
     /** Only one fusion per resulting mob; prevents exponential health/damage stacking. */
     public void fuseWith(Enemy other) {
         health += other.health;
+        preciseHealth += other.preciseHealth;
         damage = 2;
         fused = true;
         radius = 42;
         animation.react(GhostAnimation.FUSION);
     }
 
+    public CombatStats getCombatStats() { return combatStats; }
+    public Posture getPosture() { return posture; }
     public boolean isFused() { return fused; }
     public int getDamage() { return damage; }
     public EnemyPersonality getPersonality() { return personality; }
 
     public void takeDamage(int amount) {
-        if (amount <= 0 || deathTicks >= 0) return;
-        health = Math.max(0, health - amount);
+        receiveHit(new DamageEvent(Math.max(0, amount), 10, com.example.amazonMages.combat.DamageType.MAGIC));
+    }
+
+    public void receiveHit(DamageEvent hit) {
+        if (deathTicks >= 0 || hit.amount <= 0) return;
+        preciseHealth = Math.max(0, preciseHealth - DamageResolver.resolve(hit, combatStats, null));
+        health = (int) Math.ceil(preciseHealth);
+        posture.applyPressure(hit.postureDamage);
         if (health == 0) {
             deathTicks = 0;
             animation.react(GhostAnimation.DEATH);
