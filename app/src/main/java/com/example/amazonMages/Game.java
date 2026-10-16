@@ -119,6 +119,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             @Override public String heal() {
                 player.setHealthPoint(player.getMaximumHealth());
                 progression.mana = progression.maxMana;
+                states.revive();
                 return "Vida e mana restauradas.";
             }
             @Override public String give(String item) {
@@ -148,6 +149,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 int after = consumables.useHealingHerb(inventory, before, player.getMaximumHealth());
                 if (after == before) return "Sem erva ou vida ja esta cheia.";
                 player.setHealthPoint(after);
+                states.revive();
                 saveInventory();
                 return "Erva utilizada. Vida: " + after + "/" + player.getMaximumHealth();
             }
@@ -287,7 +289,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 }
                 if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE)
                     startBossEncounter(EnemyTemplates.SWAMP_SENTINEL,
-                        Math.min(6300, player.getPositionX()+300), Math.min(4380, player.getPositionY()+200));
+                        Math.max(100, Math.min(6300, player.getPositionX()+300)), Math.max(100, Math.min(4380, player.getPositionY()+200)));
             }
         });
         eventBus.subscribe(event -> {
@@ -435,7 +437,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
         Log.d("Game.java", "surfaceDestroyed()");
         gameLoop.stopLoop();
-        synchronized (this) { resetInput(); }
+        synchronized (this) { states.pause(); resetInput(); }
     }
 
     @Override

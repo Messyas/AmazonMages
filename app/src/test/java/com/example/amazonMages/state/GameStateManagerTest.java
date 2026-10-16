@@ -12,6 +12,7 @@ public class GameStateManagerTest {
         states.resume(); assertEquals(INVENTORY,states.state());
         states.modal(PLAYING); states.gameOver(); assertFalse(states.acceptsInput());
         states.pause(); states.resume(); assertEquals(GAME_OVER,states.state());
+        states.revive();assertTrue(states.updatesWorld());
         states.loading(); states.loaded(); states.resume(); assertTrue(states.updatesWorld());
     }
 }

@@ -11,6 +11,7 @@ public final class GameStateManager {
     public synchronized void resume() { resumed=true; }
     public synchronized void pause() { resumed=false; }
     public synchronized void gameOver() { dead=true; }
+    public synchronized void revive() { dead=false; }
     public synchronized void modal(State state) {
         if (state!=State.PLAYING && state!=State.DIALOGUE && state!=State.INVENTORY && state!=State.ATTRIBUTES)
             throw new IllegalArgumentException("modal");

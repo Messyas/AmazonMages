@@ -300,9 +300,14 @@ public class GameSaveRepository {
     }
 
     /** Flushes queued saves before closing the database; does not block the UI thread. */
-    public synchronized void close() {
-        if (closed) return;
-        closed = true;
-        IO.execute(database::close);
+    public void close() { close(null); }
+
+    /** Optional disposal completion; unlike load callbacks this is intentionally delivered after close. */
+    public synchronized void close(Runnable done) {
+        if (!closed) {
+            closed = true;
+            IO.execute(database::close);
+        }
+        if (done != null) IO.execute(() -> main.post(done));
     }
 }

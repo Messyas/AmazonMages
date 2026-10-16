@@ -13,6 +13,12 @@ import static org.junit.Assert.*;
 public class CombatIntegrationTest {
     private final Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
     private Player player() { return new Player(context, new Joystick(0, 0, 70, 40), 100, 100, 32, null); }
+    @Test public void fractionalDamageCanBeHealedEvenWhenRoundedHealthLooksFull() {
+        Player player=player();
+        player.receiveHit(new com.example.amazonMages.combat.DamageEvent(.5,0,com.example.amazonMages.combat.DamageType.ACID));
+        assertEquals(5,player.getHealthPoint());assertEquals(4.5,player.getPreciseHealth(),0);
+        assertTrue(player.heal(2));assertEquals(5,player.getPreciseHealth(),0);assertFalse(player.heal(2));
+    }
     @Test public void hostileShotDamagesOnceAndExpires() {
         Player player = player();
         HostileProjectileWorld shots = new HostileProjectileWorld();
