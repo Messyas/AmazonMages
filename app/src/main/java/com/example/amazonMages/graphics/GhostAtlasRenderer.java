@@ -36,6 +36,8 @@ public final class GhostAtlasRenderer {
                 com.example.androidstudio2dgamedevelopment.R.drawable.ghost, options);
             genericNormal = loadOptional(context, "acid_ghost_atlas");
             genericFused = loadOptional(context, "acid_ghost_fused_atlas");
+            if (!valid(genericNormal, 4)) genericNormal = null;
+            if (!valid(genericFused, 4)) genericFused = null;
             for (GhostAnimation action : GhostAnimation.values()) {
                 Bitmap normal = loadOptional(context, "acid_ghost_" + action.fileSuffix);
                 Bitmap merged = loadOptional(context, "acid_ghost_fused_" + action.fileSuffix);
