@@ -21,7 +21,7 @@ public class GameLoop extends Thread{
     private final SurfaceHolder surfaceHolder;
 
     // Variáveis de controle de loop
-    private boolean isRunning = false;  // Indica se o jogo está rodando
+    private volatile boolean isRunning = false;  // Indica se o jogo está rodando
     private double averageUPS;          // Média de atualizações por segundo
     private double averageFPS;          // Média de quadros por segundo
 
@@ -87,7 +87,7 @@ public class GameLoop extends Thread{
             // Tenta atualizar e renderizar o jogo
             try {
                 canvas = surfaceHolder.lockCanvas(); // Bloqueia a superfície para desenho
-                synchronized (surfaceHolder) {
+                if (canvas != null) synchronized (surfaceHolder) {
                     game.update();   // Atualiza a lógica do jogo
                     updateCount++;   // Incrementa o contador de atualizações
 
@@ -144,6 +144,7 @@ public class GameLoop extends Thread{
     public void stopLoop() {
         Log.d("GameLoop.java", "stopLoop()");  // Registra no log que o loop foi parado
         isRunning = false;  // Atualiza a variável de controle para parar o loop
+        if (Thread.currentThread() == this || getState() == State.NEW) return;
         try {
             join();  // Aguarda o término da thread do loop do jogo
         } catch (InterruptedException e) {
