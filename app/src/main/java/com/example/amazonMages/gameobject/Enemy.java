@@ -13,6 +13,7 @@ import com.example.amazonMages.ai.EnemyBrain;
 import com.example.amazonMages.ai.EnemyConfig;
 import com.example.amazonMages.ai.EnemyProjectile;
 import com.example.amazonMages.ai.EnemyState;
+import com.example.amazonMages.ai.EnemyPersonality;
 import com.example.amazonMages.graphics.Direction;
 import com.example.androidstudio2dgamedevelopment.R;
 
@@ -27,6 +28,10 @@ public class Enemy extends Circle {
     private final EnemyConfig config;
     private final EnemyBrain brain;
     private int health;
+    private final EnemyPersonality personality;
+    private int damage = 1;
+    private boolean fused;
+    private double groupTargetX = Double.NaN, groupTargetY = Double.NaN;
     private final int updateOffset = (int) (Math.random() * 60);
     private Direction facing = Direction.SOUTH;
     private Direction attackFacing = Direction.SOUTH;
@@ -36,11 +41,17 @@ public class Enemy extends Circle {
     }
 
     public Enemy(Context context, Player player, EnemyConfig config) {
-        super(getColor(context, R.color.enemy),
-            player.getPositionX() + (Math.random() - 0.5) * 1100,
-            player.getPositionY() + (Math.random() - 0.5) * 1100, 30);
+        this(context, player, config, player.getPositionX() + (Math.random() - 0.5) * 1100,
+            player.getPositionY() + (Math.random() - 0.5) * 1100,
+            EnemyPersonality.random(new java.util.Random()));
+    }
+
+    public Enemy(Context context, Player player, EnemyConfig config,
+                 double spawnX, double spawnY, EnemyPersonality personality) {
+        super(getColor(context, R.color.enemy), spawnX, spawnY, 30);
         this.player = player;
         this.config = config;
+        this.personality = personality;
         this.brain = new EnemyBrain(config);
         this.health = config.maxHealth;
         if (enemyBitmap == null) enemyBitmap =
@@ -62,6 +73,30 @@ public class Enemy extends Circle {
         double dx = player.getPositionX() - positionX;
         double dy = player.getPositionY() - positionY;
         brain.update(dx, dy, health, elapsedTicks);
+        if (personality == EnemyPersonality.CAUTIOUS && health > 1 &&
+            health < config.maxHealth && Math.hypot(dx, dy) < 380) {
+            // Wounded cautious ghosts withdraw before their final enraged phase.
+            double distance = Math.hypot(dx, dy);
+            if (distance > 0) {
+                velocityX = -dx / distance * config.speed / 60.0 * elapsedTicks;
+                velocityY = -dy / distance * config.speed / 60.0 * elapsedTicks;
+            }
+        } else if (personality == EnemyPersonality.SOCIAL &&
+                   Double.isFinite(groupTargetX) && Double.isFinite(groupTargetY) && !fused) {
+            double gx = groupTargetX - positionX, gy = groupTargetY - positionY;
+            double distance = Math.hypot(gx, gy);
+            if (distance > 0) {
+                velocityX = gx / distance * config.speed / 60.0 * elapsedTicks;
+                velocityY = gy / distance * config.speed / 60.0 * elapsedTicks;
+            }
+        } else if (personality == EnemyPersonality.AGGRESSIVE &&
+                   brain.getState() != EnemyState.IDLE && brain.getState() != EnemyState.ALERT) {
+            double distance = Math.hypot(dx, dy);
+            if (distance > 0) {
+                velocityX = dx / distance * config.speed / 60.0 * elapsedTicks;
+                velocityY = dy / distance * config.speed / 60.0 * elapsedTicks;
+            }
+        }
         velocityX = brain.getMoveX();
         velocityY = brain.getMoveY();
         positionX += velocityX;
@@ -74,8 +109,25 @@ public class Enemy extends Circle {
         if (!brain.shouldFire()) return null;
         brain.onShotFired(health);
         return new EnemyProjectile(positionX, positionY,
-            brain.getShotX(), brain.getShotY(), config.projectileSpeed);
+            brain.getShotX(), brain.getShotY(), config.projectileSpeed, damage);
     }
+
+    public void setGroupTarget(Enemy other) {
+        groupTargetX = other == null ? Double.NaN : other.getPositionX();
+        groupTargetY = other == null ? Double.NaN : other.getPositionY();
+    }
+
+    /** Only one fusion per resulting mob; prevents exponential health/damage stacking. */
+    public void fuseWith(Enemy other) {
+        health += other.health;
+        damage = 2;
+        fused = true;
+        radius = 42;
+    }
+
+    public boolean isFused() { return fused; }
+    public int getDamage() { return damage; }
+    public EnemyPersonality getPersonality() { return personality; }
 
     public void takeDamage(int amount) { if (amount > 0) health = Math.max(0, health - amount); }
     public boolean isDead() { return health <= 0; }
@@ -92,7 +144,11 @@ public class Enemy extends Circle {
         if (enemyBitmap != null) {
             float x = (float) display.gameToDisplayCoordinatesX(positionX);
             float y = (float) display.gameToDisplayCoordinatesY(positionY);
-            canvas.drawBitmap(enemyBitmap,
+            if (fused) {
+                android.graphics.Rect dst = new android.graphics.Rect(
+                    (int)x - 48, (int)y - 48, (int)x + 48, (int)y + 48);
+                canvas.drawBitmap(enemyBitmap, null, dst, null);
+            } else canvas.drawBitmap(enemyBitmap,
                 x - enemyBitmap.getWidth() / 2f,
                 y - enemyBitmap.getHeight() / 2f, null);
         }
