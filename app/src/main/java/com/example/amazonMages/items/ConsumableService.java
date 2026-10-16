@@ -2,6 +2,12 @@ package com.example.amazonMages.items;
 
 /** Pure gameplay rules for consuming inventory items. */
 public final class ConsumableService {
+    public boolean use(Inventory inventory, ItemDefinition item, com.example.amazonMages.effects.GameplayEffect.Target target) {
+        if (item==null || item.effect==null || inventory.count(item.id)==0) return false;
+        if (!item.effect.apply(target)) return false;
+        return inventory.remove(item.id,1);
+    }
+
     public static final String HEALING_HERB = "erva";
     private static final int HERB_HEAL = 2;
 

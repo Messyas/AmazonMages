@@ -27,6 +27,7 @@ import java.util.Date;
 /** Classic main menu with three independent save slots. */
 public class MainActivity extends Activity {
     private Game game;
+    private final com.example.amazonMages.state.GameStateManager states = new com.example.amazonMages.state.GameStateManager();
     private GameAudioManager audio;
     private GameSaveRepository menuRepository;
     private boolean resumed;
@@ -65,6 +66,7 @@ public class MainActivity extends Activity {
     }
 
     private void showMainMenu() {
+        states.menu();
         LinearLayout root = menu("AMAZON MAGES");
         button(root, "Jogar", v -> showSlots(false));
         button(root, "Áudio", v -> showAudioSettings());
@@ -146,7 +148,7 @@ public class MainActivity extends Activity {
     }
 
     private void startGame(int slotId) {
-        game = new Game(this, slotId);
+        game = new Game(this, slotId, states);
         game.setAudioManager(audio);
         FrameLayout root = new FrameLayout(this);
         root.addView(game, new FrameLayout.LayoutParams(

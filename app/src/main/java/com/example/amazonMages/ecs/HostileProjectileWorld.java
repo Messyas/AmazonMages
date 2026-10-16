@@ -41,7 +41,9 @@ public final class HostileProjectileWorld {
             double radius = player.getRadius() + entity.get(ColliderComponent.class).radius;
             if (Math.hypot(position.x - player.getPositionX(), position.y - player.getPositionY()) < radius
                     && world.destroy(entity.id())) {
+                double before=player.getPreciseHealth();
                 player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, DamageType.ACID));
+                if (player.getPreciseHealth()<before) player.getStatusEffects().grantSlow(60,.15);
             }
         }
     }

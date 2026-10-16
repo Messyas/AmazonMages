@@ -74,6 +74,7 @@ import java.util.List;
  * e renderizar todos os objetos na tela.
  */
 class Game extends SurfaceView implements SurfaceHolder.Callback {
+    private final com.example.amazonMages.state.GameStateManager states;
 
     private GameAudioManager audio;
     private final DevicePerformanceMonitor deviceMonitor = new DevicePerformanceMonitor(getContext());
@@ -196,6 +197,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final com.example.amazonMages.ui.InventoryPanel inventoryPanel = new com.example.amazonMages.ui.InventoryPanel(itemRegistry);
     private String inventoryNotice;
     private final Inventory inventory = new Inventory(itemRegistry);
+    private final com.example.amazonMages.effects.PlayerEffectTarget effectTarget;
     private final ConsumableService consumables = new ConsumableService();
     private final GameRenderer renderer;
     private final com.example.amazonMages.save.SaveCoordinator saveCoordinator;
@@ -233,7 +235,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
      * @param context O contexto da aplicação, que é passado para a Superclasse SurfaceView.
      */
     public Game(Context context, int slotId) {
+        this(context, slotId, new com.example.amazonMages.state.GameStateManager());
+    }
+
+    public Game(Context context, int slotId, com.example.amazonMages.state.GameStateManager states) {
         super(context);
+        this.states = states;
+        states.loading();
 
         // Get surface holder and add callback
         SurfaceHolder surfaceHolder = getHolder();
@@ -251,6 +259,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         SpriteAnimator animator = new SpriteAnimator(spriteSheet.getPlayerAnimations());
         player = new Player(context, joystick, 2*500, 500, 32, animator);
         saves = new GameSaveRepository(context, slotId);
+        effectTarget = new com.example.amazonMages.effects.PlayerEffectTarget(player, progression);
 
 
         // Initialize display and center it around the player
@@ -281,7 +290,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         enemyManager.setDropListener((template, x, y) ->
             com.example.amazonMages.items.DropTable.forEnemy(template == null ? "acid_ghost" : template.id)
                 .roll(coconutRandom, (item, quantity) -> spawnPickup(item, quantity, x, y)));
-        enemyManager.setKillListener(event -> eventBus.publish(new GameEvent(event, 0)));
+        enemyManager.setDetailedKillListener((event,id) -> eventBus.publish(new GameEvent(event, id)));
 
         dialogue.setEventListener(this::handleDialogueEvent);
 
@@ -303,6 +312,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             saveCoordinator.restoreWorld(equipment, pickups);
             saveCoordinator.ready();
             saveLoaded = true;
+            states.loaded();
             startIfReady();
         }, () -> android.widget.Toast.makeText(getContext(),
             "Falha ao carregar save. Volte ao menu e tente novamente.",
@@ -312,7 +322,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public synchronized boolean onTouchEvent(MotionEvent event) {
-        if (!saveLoaded || !activityResumed || player.getHealthPoint() <= 0) return true;
+        if (!states.acceptsInput() || player.getHealthPoint() <= 0) return true;
         if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
             resetInput();
             return true;
@@ -320,14 +330,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (inventoryPanel.isOpen()) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 int action = inventoryPanel.touch(event.getX(), event.getY(), getWidth(), getHeight());
+                if (action == -2) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
                 ItemDefinition item = inventoryPanel.selected();
                 if (action == -1) {
-                    boolean applied = false;
-                    if ("erva".equals(item.id) && inventory.count(item.id) > 0) applied = player.heal(2);
-                    if ("mana".equals(item.id) && inventory.count(item.id) > 0 && progression.mana < progression.maxMana) {
-                        progression.mana = Math.min(progression.maxMana, progression.mana + 25); applied = true;
-                    }
-                    if (applied) { inventory.remove(item.id, 1); saveNow(); }
+                    boolean applied = consumables.use(inventory, item, effectTarget);
+                    if (applied) saveNow();
                     inventoryNotice = applied ? "Item utilizado." : "O item nao pode ser usado agora.";
                 } else if (action >= 0 && item.weapon != null && inventory.count(item.id) > 0) {
                     weapons.equip(action, item.weapon); weapons.select(action); saveNow();
@@ -338,12 +345,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         }
         if (!dialogue.isActive() && !attributesPanel.isOpen() && event.getActionMasked() == MotionEvent.ACTION_DOWN &&
                 event.getX() > getWidth() * .70f && event.getY() > getHeight() * .20f && event.getY() < getHeight() * .36f) {
-            resetInput(); inventoryPanel.open(); return true;
+            resetInput(); inventoryPanel.open(); states.modal(com.example.amazonMages.state.GameStateManager.State.INVENTORY); return true;
         }
         if (attributesPanel.isOpen()) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 if (attributesPanel.touch(event.getX(), event.getY(), getWidth(), getHeight(), progression)) {
                     applyProgressionEffects();
+                    if (!attributesPanel.isOpen()) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
                     saveNow();
                 }
             }
@@ -352,6 +360,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (!dialogue.isActive() && event.getActionMasked() == MotionEvent.ACTION_DOWN &&
             event.getX() < getWidth() * .38f && event.getY() < getHeight() * .18f) {
             attributesPanel.toggle();
+            states.modal(com.example.amazonMages.state.GameStateManager.State.ATTRIBUTES);
             joystick.setIsPressed(false);
             joystick.resetActuator();
             attackPointerId = -1;
@@ -359,7 +368,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             return true;
         }
         if (dialogue.isActive()) {
-            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) dialogue.advance();
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                dialogue.advance();
+                if (!dialogue.isActive()) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+            }
             return true;
         }
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN &&
@@ -434,11 +446,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     /** Resume only if a surface exists; never restart an already-running Thread. */
     public synchronized void resume() {
         activityResumed = true;
+        states.resume();
         startIfReady();
     }
 
     private synchronized void startIfReady() {
         if (!saveLoaded || !activityResumed || !getHolder().getSurface().isValid()) return;
+        states.resume();
         if (gameLoop.getState() == Thread.State.TERMINATED) {
             gameLoop = new GameLoop(this, getHolder());
             performance.setGameLoop(gameLoop);
@@ -493,10 +507,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     public synchronized void update() {
         if (debugOverlay && isDebuggable()) deviceMonitor.sampleIfDue();
-        if (attributesPanel.isOpen() || inventoryPanel.isOpen()) return;
-        if (dialogue.isActive()) { dialogue.update(); return; }
+
         // Para de atualizar o jogo se o jogador estiver morto
-        if (player.getHealthPoint() <= 0) {
+        if (player.getHealthPoint() <= 0) { states.gameOver(); return; }
+        if (!states.updatesWorld()) {
+            if (states.state() == com.example.amazonMages.state.GameStateManager.State.DIALOGUE) dialogue.update();
             return;
         }
 
@@ -554,6 +569,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void startElderDialogue() {
+        states.modal(com.example.amazonMages.state.GameStateManager.State.DIALOGUE);
         QuestState state = questJournal.state(INTRO_QUEST);
         if (state == QuestState.LOCKED) {
             dialogue.start(new DialogueSequence("elder_intro", Arrays.asList(
@@ -733,6 +749,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     public void pause() {
         activityResumed = false;
+        states.pause();
         // Never hold the Game monitor while joining a loop that needs it.
         gameLoop.stopLoop();
         synchronized (this) { resetInput(); saveNow(); }

@@ -25,7 +25,7 @@ public final class DropTable {
         return GHOST;
     }
     private static final DropTable GHOST = new DropTable(new Entry("erva",.4,1,2),
-        new Entry("mana",.25,1,1),new Entry("cajado",.05,1,1));
+        new Entry("mana",.25,1,1),new Entry("bencao",.1,1,1),new Entry("cajado",.05,1,1));
     private static final DropTable BOSS = new DropTable(new Entry("erva",1,3,6),
         new Entry("mana",1,2,4),new Entry("cajado",1,1,1));
 }
