@@ -3,12 +3,9 @@ package com.example.amazonMages.gameobject;
 import static androidx.core.content.ContextCompat.getColor;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 
 import com.example.amazonMages.GameDisplay;
-import com.example.amazonMages.GameLoop;
 import com.example.amazonMages.ai.EnemyBrain;
 import com.example.amazonMages.ai.EnemyConfig;
 import com.example.amazonMages.ai.EnemyProjectile;
@@ -22,10 +19,6 @@ import com.example.androidstudio2dgamedevelopment.R;
 
 /** Acid ghost entity: visuals, health and a reusable behavior controller. */
 public class Enemy extends Circle {
-    private static final double SPAWNS_PER_MINUTE = 20;
-    private static final double UPDATES_PER_SPAWN = GameLoop.MAX_UPS / (SPAWNS_PER_MINUTE / 60.0);
-    private static double updatesUntilNextSpawn = UPDATES_PER_SPAWN;
-    private static Bitmap enemyBitmap;
 
     private final Player player;
     private final GhostAtlasRenderer spriteRenderer;
@@ -64,17 +57,6 @@ public class Enemy extends Circle {
         this.personality = personality;
         this.brain = new EnemyBrain(config);
         this.health = config.maxHealth;
-        if (enemyBitmap == null) enemyBitmap =
-            BitmapFactory.decodeResource(context.getResources(), R.drawable.ghost);
-    }
-
-    public static boolean readyToSpawn() {
-        if (updatesUntilNextSpawn <= 0) {
-            updatesUntilNextSpawn += UPDATES_PER_SPAWN;
-            return true;
-        }
-        updatesUntilNextSpawn--;
-        return false;
     }
 
     @Override public void update() { update(1); }
@@ -93,8 +75,7 @@ public class Enemy extends Circle {
         velocityY = brain.getMoveY();
         boolean retreating = personality == EnemyPersonality.CAUTIOUS && health > 1 &&
             health < config.maxHealth && Math.hypot(dx, dy) < 380;
-        if (retreating &&
-            health < config.maxHealth && Math.hypot(dx, dy) < 380) {
+        if (retreating) {
             // Wounded cautious ghosts withdraw before their final enraged phase.
             double distance = Math.hypot(dx, dy);
             if (distance > 0) {
