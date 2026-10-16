@@ -11,6 +11,8 @@ public final class DevConsole {
         String god(boolean enabled);
         String heal();
         String give(String item);
+        String use(String item);
+        String inventory();
         String spawn(String species, int count);
         String clearEnemies();
         String level(int amount);
@@ -23,7 +25,7 @@ public final class DevConsole {
         String[] parts = input.trim().toLowerCase(Locale.ROOT).split("\\s+");
         try {
             switch (parts[0]) {
-                case "help": return "debug on/off/info | help | pos | locais | tp <nome> | tp <x> <y> | god on/off | heal | give <id> | spawn <id> [1-10] | clear | level <1-99>";
+                case "help": return "debug on/off/info | help | pos | locais | tp <nome> | tp <x> <y> | god on/off | heal | give <id> | use <id> | inventory | spawn <id> [1-10] | clear | level <1-99>";
                 case "debug":
                     if (parts.length == 2 && (parts[1].equals("on") ||
                         parts[1].equals("off") || parts[1].equals("info")))
@@ -44,6 +46,8 @@ public final class DevConsole {
                     break;
                 case "heal": if (parts.length == 1) return commands.heal(); break;
                 case "give": if (parts.length == 2) return commands.give(parts[1]); break;
+                case "use": if (parts.length == 2) return commands.use(parts[1]); break;
+                case "inventory": if (parts.length == 1) return commands.inventory(); break;
                 case "spawn":
                     if (parts.length == 2 || parts.length == 3) {
                         int count = parts.length == 3 ? Integer.parseInt(parts[2]) : 1;
