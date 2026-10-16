@@ -25,14 +25,16 @@ public class Enemy extends Circle {
     private static final double UPDATES_PER_SPAWN = GameLoop.MAX_UPS / SPAWNS_PER_SECOND;
     private static double updatesUntilNextSpawn = UPDATES_PER_SPAWN;
     private final Player player;
-    private final Bitmap enemyBitmap;
+    private static Bitmap enemyBitmap;
 
     public Enemy(Context context, Player player) {
         super(getColor(context, R.color.enemy), Math.random() * 1000, Math.random() * 1000, 30);
         this.player = player;
 
         // Carrega a imagem do inimigo
-        enemyBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.ghost);
+        if (enemyBitmap == null) {
+            enemyBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.ghost);
+        }
     }
 
     public static boolean readyToSpawn() {
