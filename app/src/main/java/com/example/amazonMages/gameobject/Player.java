@@ -34,6 +34,9 @@ public class Player extends Circle {
     private final StatusEffects statusEffects = new StatusEffects();
     private final Posture posture = new Posture(100);
     private double preciseHealth = MAX_HEALTH_POINTS;
+    private boolean invulnerable;
+    public void setInvulnerable(boolean enabled) { invulnerable = enabled; }
+    public boolean isInvulnerable() { return invulnerable; }
     private final HealthBar healthBar;
     private int healthPoints = MAX_HEALTH_POINTS;
     private int maximumHealth = MAX_HEALTH_POINTS;
@@ -112,7 +115,7 @@ public class Player extends Circle {
 
     /** Apply typed damage without rounding away fractional resistance. */
     public void receiveHit(DamageEvent hit) {
-        if (healthPoints <= 0) return;
+        if (healthPoints <= 0 || invulnerable) return;
         preciseHealth = Math.max(0, preciseHealth - DamageResolver.resolve(hit, combatStats, statusEffects));
         healthPoints = (int) Math.ceil(preciseHealth);
         posture.applyPressure(hit.postureDamage);
