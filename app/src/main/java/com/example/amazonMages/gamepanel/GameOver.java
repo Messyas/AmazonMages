@@ -13,22 +13,20 @@ import com.example.androidstudio2dgamedevelopment.R;
  */
 public class GameOver {
 
-    private final Context context;
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     public GameOver(Context context) {
-        this.context = context;
+        paint.setColor(getColor(context, R.color.gameOver));
+        paint.setTextAlign(Paint.Align.CENTER);
     }
 
     public void draw(Canvas canvas) {
         String text = "Game Over";
 
-        float x = 800;
-        float y = 200;
+        float x = canvas.getWidth() * .5f;
+        float y = canvas.getHeight() * .45f;
 
-        Paint paint = new Paint();
-        int color = getColor(context, R.color.gameOver);
-        paint.setColor(color);
-        float textSize = 150;
+        float textSize = Math.min(canvas.getWidth(), canvas.getHeight()) * .12f;
         paint.setTextSize(textSize);
 
         canvas.drawText(text, x, y, paint);

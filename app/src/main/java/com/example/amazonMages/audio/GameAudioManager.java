@@ -19,7 +19,7 @@ public final class GameAudioManager {
     private final AudioManager audioManager;
     private final SoundPool pool;
     private final Map<String, Integer> effects = new HashMap<>();
-    private final Map<Integer, Boolean> loaded = new HashMap<>();
+    private final Map<Integer, Boolean> loaded = new java.util.concurrent.ConcurrentHashMap<>();
     private final AudioManager.OnAudioFocusChangeListener focusListener = change -> {
         if (change == AudioManager.AUDIOFOCUS_GAIN) {
             focusHeld = true;
@@ -33,11 +33,11 @@ public final class GameAudioManager {
         }
     };
     private MediaPlayer music;
-    private boolean active;
-    private boolean focusHeld;
-    private boolean released;
-    private float musicVolume;
-    private float effectsVolume;
+    private volatile boolean active;
+    private volatile boolean focusHeld;
+    private volatile boolean released;
+    private volatile float musicVolume;
+    private volatile float effectsVolume;
 
     public GameAudioManager(Context context) {
         this.context = context.getApplicationContext();

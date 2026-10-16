@@ -15,7 +15,7 @@ public class SpriteSheet {
     public SpriteSheet(Context context) {
         BitmapFactory.Options bitmapOptions = new BitmapFactory.Options();
         bitmapOptions.inScaled = false; // Desativa a escala automática da imagem
-        bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.sprites, bitmapOptions); // Carrega a sprite sheet
+        bitmap = com.example.amazonMages.resources.ResourceManager.shared(context).bitmap(R.drawable.sprites, false); // Carrega a sprite sheet
         // Sprite do Personagem modificado
     }
 

@@ -257,6 +257,12 @@ public class MainActivity extends Activity {
         super.onPause();
     }
 
+    @Override public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
+            com.example.amazonMages.resources.ResourceManager.clearShared();
+    }
+
     @Override protected void onDestroy() {
         if (game != null) {
             game.pause();
@@ -265,6 +271,7 @@ public class MainActivity extends Activity {
         }
         menuRepository.close();
         if (audio != null) audio.release();
+        com.example.amazonMages.resources.ResourceManager.clearShared();
         super.onDestroy();
     }
 

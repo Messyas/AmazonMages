@@ -14,7 +14,7 @@ import com.example.androidstudio2dgamedevelopment.R;
 public class Spell extends Circle {
     public static final double SPEED_PIXELS_PER_SECOND = 800.0;
     private static final double MAX_SPEED = SPEED_PIXELS_PER_SECOND / GameLoop.MAX_UPS;
-    private static Bitmap spellBitmap;
+    private final Bitmap spellBitmap;
     private final DamageEvent hit;
     private final boolean coconut;
 
@@ -39,9 +39,7 @@ public class Spell extends Circle {
         this.coconut = coconut;
         this.hit = coconut ? new DamageEvent(Math.max(0, multiplier), 12, DamageType.PHYSICAL) : new DamageEvent(Math.max(0, multiplier), 10, DamageType.MAGIC);
         // Carrega a imagem do feitiço
-        if (spellBitmap == null) {
-            spellBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.energyball);
-        }
+        spellBitmap = coconut ? null : com.example.amazonMages.resources.ResourceManager.shared(context).bitmap(R.drawable.energyball, true);
 
         // Define a direção do feitiço com base na posição do jogador
         double dx = spellcaster.getAttackDirectionX(), dy = spellcaster.getAttackDirectionY();

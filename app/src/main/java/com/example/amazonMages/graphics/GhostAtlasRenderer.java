@@ -17,12 +17,12 @@ import java.util.EnumMap;
  * Existing 4x8 generic atlases and ghost.png remain compatible fallbacks.
  */
 public final class GhostAtlasRenderer {
-    private static final EnumMap<GhostAnimation, Bitmap> NORMAL =
+    private final EnumMap<GhostAnimation, Bitmap> NORMAL =
         new EnumMap<>(GhostAnimation.class);
-    private static final EnumMap<GhostAnimation, Bitmap> FUSED =
+    private final EnumMap<GhostAnimation, Bitmap> FUSED =
         new EnumMap<>(GhostAnimation.class);
-    private static Bitmap genericNormal, genericFused, fallback;
-    private static boolean loaded;
+    private Bitmap genericNormal, genericFused, fallback;
+    private boolean loaded;
     private static final Paint PAINT = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Rect source = new Rect();
     private final Rect destination = new Rect();
@@ -32,8 +32,8 @@ public final class GhostAtlasRenderer {
             if (loaded) return;
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inScaled = false;
-            fallback = BitmapFactory.decodeResource(context.getResources(),
-                com.example.androidstudio2dgamedevelopment.R.drawable.ghost, options);
+            fallback = com.example.amazonMages.resources.ResourceManager.shared(context).bitmap(
+                com.example.androidstudio2dgamedevelopment.R.drawable.ghost, false);
             genericNormal = loadOptional(context, "acid_ghost_atlas");
             genericFused = loadOptional(context, "acid_ghost_fused_atlas");
             if (!valid(genericNormal, 4)) genericNormal = null;
@@ -53,7 +53,7 @@ public final class GhostAtlasRenderer {
         if (id == 0) return null;
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inScaled = false;
-        return BitmapFactory.decodeResource(context.getResources(), id, options);
+        return com.example.amazonMages.resources.ResourceManager.shared(context).bitmap(id, false);
     }
 
     private static boolean valid(Bitmap bitmap, int columns) {
