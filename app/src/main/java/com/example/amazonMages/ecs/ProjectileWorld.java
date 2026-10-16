@@ -10,6 +10,7 @@ import java.util.List;
 public final class ProjectileWorld {
     private final World world = new World();
     private final SystemScheduler scheduler = new SystemScheduler();
+    private final ProjectileCollisionSystem collisions = new ProjectileCollisionSystem();
 
     public ProjectileWorld(double minX, double minY, double maxX, double maxY) {
         scheduler.add(new ProjectileMovementSystem(minX, minY, maxX, maxY));
@@ -26,6 +27,13 @@ public final class ProjectileWorld {
     }
 
     public void update() { scheduler.update(world, 1); }
+
+    /** Returns live projectiles overlapping a target, in deterministic spawn order. */
+    public List<Entity> overlapping(double x, double y, double radius) {
+        return collisions.overlapping(world, x, y, radius);
+    }
+
+    public boolean consume(long entityId) { return world.destroy(entityId); }
 
     public List<Spell> collisionSnapshot() {
         List<Spell> result = new ArrayList<>();
