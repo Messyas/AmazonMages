@@ -15,6 +15,16 @@ public class ProjectileCollisionSystemTest {
         assertEquals(0, collisions.overlapping(world, 50, 50, 1).size());
     }
 
+    @Test public void tangentCirclesDoNotCollide() {
+        World world = new World();
+        world.create()
+            .add(TransformComponent.class, new TransformComponent(0, 0))
+            .add(ColliderComponent.class, new ColliderComponent(5));
+        ProjectileCollisionSystem collisions = new ProjectileCollisionSystem();
+        assertEquals(0, collisions.overlapping(world, 10, 0, 5).size());
+        assertEquals(1, collisions.overlapping(world, 9.999, 0, 5).size());
+    }
+
     @Test public void velocityMovesEntityAndOutOfBoundsDestroysIt() {
         World world = new World();
         Entity entity = world.create()
