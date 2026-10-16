@@ -1,91 +1,150 @@
 package com.example.amazonMages;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.graphics.Color;
 import android.os.Bundle;
-import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
-/**
- * MainActivity é o ponto de entrada principal da aplicação.
- */
+import com.example.amazonMages.save.GameSaveRepository;
+import com.example.amazonMages.save.PlayerPositionEntity;
+
+import java.text.DateFormat;
+import java.util.List;
+import java.util.Date;
+
+/** Classic main menu with three independent save slots. */
 public class MainActivity extends Activity {
-
-    // Atributo que representa o jogo
     private Game game;
+    private GameSaveRepository menuRepository;
+    private boolean resumed;
 
-    /**
-     * O método `onCreate` é chamado quando a atividade é criada.
-     * Ele inicializa o jogo e define o layout da tela.
-     *
-     * @param savedInstanceState Contém o estado salvo anterior da atividade, se houver.
-     */
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        // Registra uma mensagem no log para indicar que o método onCreate foi chamado
-        Log.d("MainActivity.java", "onCreate()");
-        super.onCreate(savedInstanceState);
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        menuRepository = new GameSaveRepository(this, 1);
+        showMainMenu();
+    }
 
-        // Inicializa a classe Game e define o layout da tela para o jogo, permitindo que os objetos
-        // da classe Game sejam renderizados na tela
-        game = new Game(this);
+    private LinearLayout menu(String heading) {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER);
+        root.setPadding(32, 32, 32, 32);
+        root.setBackgroundColor(Color.rgb(18, 25, 23));
+        TextView title = new TextView(this);
+        title.setText(heading);
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(30);
+        title.setGravity(Gravity.CENTER);
+        root.addView(title);
+        return root;
+    }
+
+    private void button(LinearLayout root, String label, View.OnClickListener click) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setOnClickListener(click);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.topMargin = 20;
+        root.addView(button, params);
+    }
+
+    private void showMainMenu() {
+        LinearLayout root = menu("AMAZON MAGES");
+        button(root, "Jogar", v -> showSlots(false));
+        button(root, "Gerenciar jogatinas", v -> showSlots(true));
+        button(root, "Sair", v -> finish());
+        setContentView(root);
+    }
+
+    private void showSlots(boolean managing) {
+        LinearLayout root = menu(managing ? "Gerenciar jogatinas" : "Escolher jogatina");
+        TextView loading = new TextView(this);
+        loading.setText("Carregando saves...");
+        loading.setTextColor(Color.WHITE);
+        root.addView(loading);
+        button(root, "Voltar", v -> showMainMenu());
+        setContentView(root);
+        menuRepository.loadSlots(slots -> {
+            if (game != null || getWindow().getDecorView().getRootView() == null) return;
+            root.removeView(loading);
+            for (int id = 1; id <= 3; id++) {
+                final int slot = id;
+                PlayerPositionEntity found = null;
+                for (PlayerPositionEntity item : slots) {
+                    if (item.slotId == slot) { found = item; break; }
+                }
+                String label = found == null ? "Jogatina " + id + " — Nova" :
+                    "Jogatina " + id + " — Vida " + found.health + " — " +
+                    DateFormat.getDateTimeInstance().format(new Date(found.updatedAt));
+                if (managing) {
+                    if (found != null) button(root, "Excluir " + label, v ->
+                        new AlertDialog.Builder(this)
+                            .setTitle("Excluir jogatina " + slot + "?")
+                            .setMessage("O progresso será perdido permanentemente.")
+                            .setNegativeButton("Cancelar", null)
+                            .setPositiveButton("Excluir", (dialog, which) ->
+                                menuRepository.deleteSlot(slot, () -> showSlots(true)))
+                            .show());
+                } else {
+                    button(root, label, v -> startGame(slot));
+                }
+            }
+        });
+    }
+
+    private void startGame(int slotId) {
+        game = new Game(this, slotId);
         setContentView(game);
+        if (resumed) game.resume();
     }
 
-    /**
-     * O método `onStart` é chamado quando a atividade se torna visível para o usuário.
-     */
-    @Override
-    protected void onStart() {
-        Log.d("MainActivity.java", "onStart()");
-        super.onStart();
+    private void returnToMenu() {
+        if (game != null) {
+            game.pause();
+            game.closeSaveRepository();
+            game = null;
+        }
+        showMainMenu();
     }
 
-    /**
-     * O método `onResume` é chamado quando a atividade começa a interagir com o usuário.
-     */
-    @Override
-    protected void onResume() {
-        Log.d("MainActivity.java", "onResume()");
+    @Override protected void onResume() {
         super.onResume();
-        game.resume();
+        resumed = true;
+        if (game != null) game.resume();
     }
 
-    /**
-     * O método `onPause` é chamado quando a atividade é parcialmente visível (por exemplo, quando
-     * outra atividade é iniciada ou a tela é bloqueada). Aqui, o jogo é pausado.
-     */
-    @Override
-    protected void onPause() {
-        Log.d("MainActivity.java", "onPause()");
-        game.pause();  // Pausa o jogo
+    @Override protected void onPause() {
+        resumed = false;
+        if (game != null) game.pause();
         super.onPause();
     }
 
-    /**
-     * O método `onStop` é chamado quando a atividade não é mais visível para o usuário.
-     */
-    @Override
-    protected void onStop() {
-        Log.d("MainActivity.java", "onStop()");
-        super.onStop();
-    }
-
-    /**
-     * O método `onDestroy` é chamado antes da destruição da atividade.
-     */
-    @Override
-    protected void onDestroy() {
-        Log.d("MainActivity.java", "onDestroy()");
-        game.closeSaveRepository();
+    @Override protected void onDestroy() {
+        if (game != null) {
+            game.pause();
+            game.closeSaveRepository();
+            game = null;
+        }
+        menuRepository.close();
         super.onDestroy();
     }
 
-    /**
-     * O método `onBackPressed` é sobrescrito para desabilitar o botão "Voltar" do Android.
-     * O comportamento padrão é comentado, evitando que a atividade feche quando o botão for pressionado.
-     */
-    @Override
-    public void onBackPressed() {
-        // Comentando "super.onBackPressed()" para desabilitar o botão "Voltar"
-        //super.onBackPressed();
+    @Override public void onBackPressed() {
+        if (game != null) {
+            new AlertDialog.Builder(this)
+                .setTitle("Voltar ao menu?")
+                .setMessage("Seu progresso será salvo.")
+                .setNegativeButton("Continuar jogando", null)
+                .setPositiveButton("Menu", (dialog, which) -> returnToMenu())
+                .show();
+        } else {
+            showMainMenu();
+        }
     }
 }
