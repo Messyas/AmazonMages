@@ -12,6 +12,20 @@ public final class PlayerProgression {
     public double mana = 100;
     public double maxMana = 100;
 
+    public int maximumHealth() { return 5 + Math.max(0, vigor - 1); }
+    public double manaCapacity() { return 100 + Math.max(0, mente - 1) * 10.0; }
+    public double castSpeed() { return Math.min(2.0, 1 + Math.max(0, destreza - 1) * .035); }
+    public double magicMultiplier() { return 1 + Math.max(0, inteligencia - 1) * .06; }
+    public double physicalMultiplier() { return 1 + Math.max(0, forca - 1) * .06; }
+    public void regenerateMana() {
+        mana = Math.min(maxMana, mana + (1.5 + Math.max(0, mente - 1) * .15) / 60.0);
+    }
+    public boolean spendMana(double amount) {
+        if (!Double.isFinite(amount) || amount < 0 || mana < amount) return false;
+        mana -= amount;
+        return true;
+    }
+
     public static long experienceToNextLevel(int level) {
         return 100L * Math.max(1, level);
     }
