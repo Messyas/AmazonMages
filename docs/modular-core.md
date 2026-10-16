@@ -72,3 +72,11 @@ O `ProjectileCollisionSystem` agora usa `Math.hypot(dx, dy) < somaDosRaios`, equ
 - `Game` aguarda o carregamento do inventário antes de liberar o início da partida; coletas e `give erva` persistem alterações.
 - `InventoryTest` cobre restauração defensiva e remoção de pilhas.
 - **Pendente:** teste de migração Room em ambiente Android, execução de build/testes, UI de inventário e persistência de itens ainda no chão. Os comandos de desenvolvimento são destinados apenas a builds debuggable.
+
+## Sétima etapa: melhorias simples
+
+- `ConsumableService` implementa regra pura de uso da erva: cura até 2 HP, respeita HP máximo e não gasta item com vida cheia.
+- Console de desenvolvimento: `inventory` mostra quantidades e `use erva` aplica cura e salva o inventário.
+- `Game.drawPickups` reutiliza um `Paint` em vez de alocar um objeto a cada quadro.
+- `ConsumableServiceTest` cobre cura, limite e ausência de consumo desnecessário.
+- Ainda pendentes: interface de uso fora do console, sistema de loot, persistência de pickups no mapa, Resource Manager geral e testes/build Android.
