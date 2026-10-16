@@ -20,6 +20,8 @@ public class GameSaveRepository {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
 
+    public int getSlotId() { return slotId; }
+
     public interface LoadCallback {
         void onLoaded(PlayerPositionEntity position);
     }
