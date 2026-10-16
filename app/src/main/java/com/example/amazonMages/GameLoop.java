@@ -15,6 +15,8 @@ public class GameLoop extends Thread {
     private volatile boolean isRunning;
     private volatile double averageUPS;
     private volatile double averageFPS;
+    private volatile double averageUpdateMs;
+    private volatile double averageDrawMs;
 
     public GameLoop(Game game, SurfaceHolder surfaceHolder) {
         this.game = game;
@@ -23,6 +25,8 @@ public class GameLoop extends Thread {
 
     public double getAverageUPS() { return averageUPS; }
     public double getAverageFPS() { return averageFPS; }
+    public double getAverageUpdateMs() { return averageUpdateMs; }
+    public double getAverageDrawMs() { return averageDrawMs; }
 
     public void startLoop() {
         if (getState() != State.NEW) return;
@@ -37,6 +41,8 @@ public class GameLoop extends Thread {
         long accumulator = 0L;
         int updates = 0;
         int frames = 0;
+        long updateNanos = 0L;
+        long drawNanos = 0L;
         while (isRunning) {
             long now = System.nanoTime();
             long elapsed = Math.max(0L, Math.min(now - previous, STEP_NANOS * MAX_CATCH_UP_UPDATES));
@@ -45,7 +51,9 @@ public class GameLoop extends Thread {
 
             int catchUp = 0;
             while (isRunning && accumulator >= STEP_NANOS && catchUp < MAX_CATCH_UP_UPDATES) {
+                long updateStart = System.nanoTime();
                 game.update();
+                updateNanos += System.nanoTime() - updateStart;
                 accumulator -= STEP_NANOS;
                 catchUp++;
                 updates++;
@@ -59,7 +67,9 @@ public class GameLoop extends Thread {
                 try {
                     canvas = surfaceHolder.lockCanvas();
                     if (canvas != null) {
+                        long drawStart = System.nanoTime();
                         game.draw(canvas);
+                        drawNanos += System.nanoTime() - drawStart;
                         frames++;
                     }
                 } catch (IllegalArgumentException | IllegalStateException e) {
@@ -80,8 +90,12 @@ public class GameLoop extends Thread {
             if (statsElapsed >= 1_000_000_000L) {
                 averageUPS = updates * 1_000_000_000.0 / statsElapsed;
                 averageFPS = frames * 1_000_000_000.0 / statsElapsed;
+                averageUpdateMs = updates == 0 ? 0 : updateNanos / (1_000_000.0 * updates);
+                averageDrawMs = frames == 0 ? 0 : drawNanos / (1_000_000.0 * frames);
                 updates = 0;
                 frames = 0;
+                updateNanos = 0L;
+                drawNanos = 0L;
                 statsStart = now;
             }
             long waitNanos = STEP_NANOS - accumulator;
