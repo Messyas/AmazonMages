@@ -16,7 +16,11 @@ public final class CanvasUi {
     public void button(Canvas c, String label, float l, float t, float r, float b, boolean selected) {
         paint.setColor(selected ? 0xFF74633A : 0xFF36594B);
         c.drawRoundRect(l, t, r, b, 8, 8, paint);
-        text(c, label, l + (r-l)*.06f, t+(b-t)*.68f, (b-t)*.42f, 0xFFF5EACD);
+        float size=(b-t)*.42f;
+        paint.setTextSize(size);
+        float measured=paint.measureText(label);
+        if(measured>(r-l)*.88f)size*=((r-l)*.88f/measured);
+        text(c, label, l + (r-l)*.06f, t+(b-t)*.68f, size, 0xFFF5EACD);
     }
     public void bar(Canvas c, float l, float t, float r, float b, double ratio, int color) {
         paint.setColor(0xFF14221B); c.drawRect(l,t,r,b,paint);

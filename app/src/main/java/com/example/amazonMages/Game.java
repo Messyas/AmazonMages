@@ -190,8 +190,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private static final String INTRO_QUEST = "first_ghosts";
+    private static final String SENTINEL_QUEST = "sentinel_encounter";
     private final GameEventBus eventBus = new GameEventBus();
     private final World pickupWorld = new World();
+    private final com.example.amazonMages.ecs.LifetimeSystem pickupLifetime = new com.example.amazonMages.ecs.LifetimeSystem();
     private final PickupSystem pickupSystem = new PickupSystem();
     private final ItemRegistry itemRegistry = com.example.amazonMages.items.ItemCatalog.create();
     private final com.example.amazonMages.ui.InventoryPanel inventoryPanel = new com.example.amazonMages.ui.InventoryPanel(itemRegistry);
@@ -211,20 +213,19 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final GameSaveRepository saves;
     private volatile boolean saveLoaded = false;
     private int updatesSinceSave = 0;
-    private int joystickPointerId = 0;
+    private final InputController input;
     private final Joystick joystick;
     private final Player player;
     private GameLoop gameLoop;
     private volatile boolean activityResumed = false;
     private final EnemyManager enemyManager;
     private final ProjectileWorld projectileWorld = new ProjectileWorld(-64, -64, 100 * 64 + 64, 70 * 64 + 64);
-    private int numberOfSpellsToCast = 0;
     private final WeaponLoadout weapons = new WeaponLoadout();
     private final Random coconutRandom = new Random();
     private int coconutStormTicks;
     private double stormX, stormY;
+    private final com.example.amazonMages.ui.CanvasUi canvasUi = new com.example.amazonMages.ui.CanvasUi();
     private final Paint hudPaint = new Paint(3);
-    private int attackPointerId = -1;
     private final GameOver gameOver;
     private final Performance performance;
     private final GameDisplay gameDisplay;
@@ -260,6 +261,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         player = new Player(context, joystick, 2*500, 500, 32, animator);
         saves = new GameSaveRepository(context, slotId);
         effectTarget = new com.example.amazonMages.effects.PlayerEffectTarget(player, progression);
+        input = new InputController(player, joystick, weapons, this::activateCoconutStorm);
 
 
         // Initialize display and center it around the player
@@ -275,7 +277,19 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             saves, inventory, progression, questJournal, player, pickupWorld, weapons, itemRegistry);
         questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
+        questJournal.register(new QuestDefinition(SENTINEL_QUEST, "Sentinela do Pantano",
+            EnemyTemplates.SWAMP_SENTINEL.defeatEvent, 1, "sentinel.defeated"));
         eventBus.subscribe(event -> questJournal.onEvent(event.id));
+        eventBus.subscribe(event -> {
+            if ("encounter.swamp_sentinel.requested".equals(event.id)) {
+                if (questJournal.state(SENTINEL_QUEST) == QuestState.LOCKED) {
+                    questJournal.offer(SENTINEL_QUEST); questJournal.accept(SENTINEL_QUEST);
+                }
+                if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE)
+                    startBossEncounter(EnemyTemplates.SWAMP_SENTINEL,
+                        Math.min(6300, player.getPositionX()+300), Math.min(4380, player.getPositionY()+200));
+            }
+        });
         eventBus.subscribe(event -> {
             if (event.id.startsWith("enemy.")) sound("ghost_defeat");
         });
@@ -284,9 +298,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             if (EnemyTemplates.ACID_GHOST.defeatEvent.equals(event.id)) reward = EnemyTemplates.ACID_GHOST.experienceReward;
             else if (EnemyTemplates.SWAMP_SENTINEL.defeatEvent.equals(event.id)) reward = EnemyTemplates.SWAMP_SENTINEL.experienceReward;
             else if (EnemyTemplates.ANCIENT_WRAITH.defeatEvent.equals(event.id)) reward = EnemyTemplates.ANCIENT_WRAITH.experienceReward;
-            if (reward > 0) progression.gainExperience(reward);
-            saveQuestProgress();
+            if (reward > 0) { progression.gainExperience(reward); saveQuestProgress(); }
         });
+        pickupSystem.setListener((item,id,quantity) -> eventBus.publish(new GameEvent("item."+item+".collected",id)));
         enemyManager.setDropListener((template, x, y) ->
             com.example.amazonMages.items.DropTable.forEnemy(template == null ? "acid_ghost" : template.id)
                 .roll(coconutRandom, (item, quantity) -> spawnPickup(item, quantity, x, y)));
@@ -310,6 +324,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             inventory.restore(loaded);
             if (inventory.count("coco") == 0) inventory.add("coco", 1);
             saveCoordinator.restoreWorld(equipment, pickups);
+            if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE)
+                eventBus.publish(new GameEvent("encounter.swamp_sentinel.requested",0));
             saveCoordinator.ready();
             saveLoaded = true;
             states.loaded();
@@ -361,10 +377,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             event.getX() < getWidth() * .38f && event.getY() < getHeight() * .18f) {
             attributesPanel.toggle();
             states.modal(com.example.amazonMages.state.GameStateManager.State.ATTRIBUTES);
-            joystick.setIsPressed(false);
-            joystick.resetActuator();
-            attackPointerId = -1;
-            numberOfSpellsToCast = 0;
+            resetInput();
             return true;
         }
         if (dialogue.isActive()) {
@@ -382,59 +395,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             sound("dialogue");
             return true;
         }
-        // Lida com ações de eventos de toque do usuário
-        switch (event.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
-            case MotionEvent.ACTION_POINTER_DOWN:
-                int downIndex = event.getActionIndex();
-                float touchX = event.getX(downIndex), touchY = event.getY(downIndex);
-                if (touchX > getWidth() * 0.72f && touchY > getHeight() * 0.55f) {
-                    if (touchY < getHeight() * 0.75f) {
-                        weapons.next();
-                    } else if (touchX < getWidth() * 0.85f) {
-                        activateCoconutStorm();
-                    } else {
-                        attackPointerId = event.getPointerId(downIndex);
-                        numberOfSpellsToCast++;
-                    }
-                } else if (joystick.getIsPressed()) {
-                    // O joystick estava pressionado antes deste evento -> lançar feitiço
-                    numberOfSpellsToCast++;
-                } else if (joystick.isPressed(touchX, touchY)) {
-                    // O joystick está pressionado neste evento -> setIsPressed(true) e armazena o id do ponteiro
-                    joystickPointerId = event.getPointerId(event.getActionIndex());
-                    joystick.setIsPressed(true);
-                } else {
-                    // O joystick não estava pressionado anteriormente e não está pressionado neste evento -> lançar feitiço
-                    numberOfSpellsToCast++;
-                }
-                return true;
-
-            case MotionEvent.ACTION_MOVE:
-                if (attackPointerId >= 0) {
-                    int attackIndex = event.findPointerIndex(attackPointerId);
-                    if (attackIndex >= 0) player.aim(event.getX(attackIndex) - getWidth() * 0.90,
-                        event.getY(attackIndex) - getHeight() * 0.86);
-                }
-                if (joystick.getIsPressed()) {
-                    // O joystick foi pressionado anteriormente e agora está sendo movido
-                    int pointerIndex = event.findPointerIndex(joystickPointerId);
-                    if (pointerIndex >= 0) joystick.setActuator(event.getX(pointerIndex), event.getY(pointerIndex));
-                }
-                return true;
-
-            case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_POINTER_UP:
-                if (attackPointerId == event.getPointerId(event.getActionIndex())) attackPointerId = -1;
-                if (joystickPointerId == event.getPointerId(event.getActionIndex())) {
-                    // O ponteiro do joystick foi solto -> setIsPressed(false) e resetActuator()
-                    joystick.setIsPressed(false);
-                    joystick.resetActuator();
-                }
-                return true;
-        }
-
-        return super.onTouchEvent(event);
+        return input.touch(event, getWidth(), getHeight()) || super.onTouchEvent(event);
     }
 
     @Override
@@ -463,8 +424,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
-    public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
+    public synchronized void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
         Log.d("Game.java", "surfaceChanged()");
+        resetInput();
+        joystick.layout(width,height);
+        gameDisplay.resize(width,height);
     }
 
     @Override
@@ -497,6 +461,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         hudPaint.setColor(0xFFF5EACD); hudPaint.setTextSize(getHeight() * .035f);
         canvas.drawText("INVENTARIO", getWidth() * .72f, getHeight() * .29f, hudPaint);
         inventoryPanel.draw(canvas, getWidth(), getHeight(), inventory, weapons, inventoryNotice);
+        if (!inventoryPanel.isOpen() && inventoryNotice != null)
+            canvasUi.text(canvas, inventoryNotice, getWidth()*.04f, getHeight()*.39f, Math.min(getWidth(),getHeight())*.026f, 0xFFFFD17C);
 
         // Desenha "Game Over" se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
@@ -518,32 +484,30 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Atualiza o estado do jogo
         joystick.update();
         player.update();
-        for (Entity entity : pickupWorld.with(com.example.amazonMages.ecs.LifetimeComponent.class)) {
-            if (--entity.get(com.example.amazonMages.ecs.LifetimeComponent.class).remainingTicks <= 0) pickupWorld.destroy(entity.id());
-        }
+        pickupLifetime.update(pickupWorld,1);
         int collected = pickupSystem.collect(pickupWorld, player.getPositionX(),
             player.getPositionY(), player.getRadius(), inventory);
         if (collected > 0) {
             inventoryNotice = "Itens coletados: " + collected;
-            eventBus.publish(new GameEvent("item.erva.collected", 0));
             saveInventory();
         }
+        if (pickupSystem.blockedByCapacity()) inventoryNotice = "Inventario cheio para este item.";
         weapons.update();
         progression.regenerateMana();
         updateCoconutStorm();
 
         // Coordinate AI updates, enemy population and staggered ranged attacks.
         enemyManager.update();
+        if (player.getHealthPoint() <= 0) { resetInput(); states.gameOver(); return; }
 
         // Atualiza o estado de todos os feitiços
-        while (numberOfSpellsToCast > 0) {
+        while (input.consumeShot()) {
             if (weapons.basic(progression.castSpeed())) {
                 sound("attack");
                 boolean coconut = weapons.current() == WeaponLoadout.COCONUT;
                 projectileWorld.spawn(new Spell(getContext(), player, coconut,
                     coconut ? progression.physicalMultiplier() : progression.magicMultiplier()));
             }
-            numberOfSpellsToCast--;
         }
         projectileWorld.update();
         enemyManager.collideWithPlayerProjectiles(projectileWorld);
@@ -608,7 +572,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         else if ("quest.accept.first_ghosts".equals(event)) questJournal.accept(INTRO_QUEST);
         else if ("quest.claim.first_ghosts".equals(event)) {
             String unlock = questJournal.claimReward(INTRO_QUEST);
-            if (unlock != null) lastRewardNotice = "Historia arcana descoberta";
+            if (unlock != null) {
+                lastRewardNotice = "Historia arcana descoberta. A Sentinela se aproxima!";
+                eventBus.publish(new GameEvent("encounter.swamp_sentinel.requested",0));
+            }
         }
         saveQuestProgress();
     }
@@ -713,18 +680,22 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     private void drawCombatHud(Canvas canvas) {
         float w = getWidth(), h = getHeight();
-        hudPaint.setTextSize(24 * getResources().getDisplayMetrics().density);
+        canvasUi.bar(canvas, w*.52f, h*.47f, w*.85f, h*.49f,
+            progression.mana / Math.max(1,progression.maxMana), 0xFF638ECF);
+        canvasUi.bar(canvas, w*.72f, h*.94f, w*.94f, h*.96f,
+            1-weapons.specialCooldown()/1080.0, 0xFFD3AE64);
+        hudPaint.setTextSize(Math.min(w,h)*.035f);
         hudPaint.setColor(0xCCF2E8D0);
         canvas.drawText("Mana: " + (int) progression.mana + "/" + (int) progression.maxMana,
             w * .52f, h * .53f, hudPaint);
         canvas.drawText("Arma: " + (weapons.selectedSlot() + 1) + "  " + weapons.current().name,
             w * 0.52f, h * 0.59f, hudPaint);
         hudPaint.setColor(0xAA38574C);
-        canvas.drawCircle(w * 0.90f, h * 0.86f, 54, hudPaint);
-        canvas.drawCircle(w * 0.77f, h * 0.86f, 43, hudPaint);
-        canvas.drawCircle(w * 0.88f, h * 0.66f, 38, hudPaint);
+        canvas.drawCircle(w * 0.90f, h * 0.86f, Math.min(w,h)*.085f, hudPaint);
+        canvas.drawCircle(w * 0.77f, h * 0.86f, Math.min(w,h)*.07f, hudPaint);
+        canvas.drawCircle(w * 0.88f, h * 0.66f, Math.min(w,h)*.06f, hudPaint);
         hudPaint.setColor(0xFFFFFFFF);
-        hudPaint.setTextSize(22 * getResources().getDisplayMetrics().density);
+        hudPaint.setTextSize(Math.min(w,h)*.04f);
         canvas.drawText("ATK", w * 0.865f, h * 0.87f, hudPaint);
         canvas.drawText(weapons.specialCooldown() == 0 ? "ESP" : "" + (weapons.specialCooldown() / 60 + 1),
             w * 0.73f, h * 0.87f, hudPaint);
@@ -739,13 +710,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     /** Explicit save action used by the in-game pause menu. */
     public synchronized void saveNow() { saveCoordinator.save(); }
 
-    private void resetInput() {
-        joystick.setIsPressed(false);
-        joystick.resetActuator();
-        attackPointerId = -1;
-        joystickPointerId = -1;
-        numberOfSpellsToCast = 0;
-    }
+    private void resetInput() { input.reset(); }
 
     public void pause() {
         activityResumed = false;

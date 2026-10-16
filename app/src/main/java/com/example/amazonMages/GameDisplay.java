@@ -7,11 +7,11 @@ import com.example.amazonMages.gameobject.GameObject;
 public class GameDisplay {
     public final Rect DISPLAY_RECT;
     private final Rect gameRect = new Rect();
-    private final int widthPixels;
-    private final int heightPixels;
+    private int widthPixels;
+    private int heightPixels;
     private final GameObject centerObject;
-    private final double displayCenterX;
-    private final double displayCenterY;
+    private double displayCenterX;
+    private double displayCenterY;
     private double gameToDisplayCoordinatesOffsetX;
     private double gameToDisplayCoordinatesOffsetY;
     private double gameCenterX;
@@ -28,6 +28,12 @@ public class GameDisplay {
         displayCenterY = heightPixels/2.0;
 
         update();
+    }
+
+    public void resize(int width,int height) {
+        widthPixels=Math.max(1,width); heightPixels=Math.max(1,height);
+        displayCenterX=widthPixels/2.0; displayCenterY=heightPixels/2.0;
+        DISPLAY_RECT.set(0,0,widthPixels,heightPixels); update();
     }
 
     public void update() {
