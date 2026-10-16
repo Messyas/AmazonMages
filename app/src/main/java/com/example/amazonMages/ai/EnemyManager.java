@@ -153,11 +153,15 @@ public final class EnemyManager {
 
     /** Area impacts used by the intrinsic coconut storm. */
     public void coconutImpact(double x, double y, double radius) {
+        coconutImpact(x, y, radius, 1.0);
+    }
+
+    public void coconutImpact(double x, double y, double radius, double damageMultiplier) {
         for (Enemy enemy : enemies) {
             if (enemy.isDead()) continue;
             double distance = Math.hypot(enemy.getPositionX() - x, enemy.getPositionY() - y);
             if (distance < radius + enemy.getRadius()) {
-                enemy.receiveHit(new DamageEvent(1, 18, DamageType.PHYSICAL));
+                enemy.receiveHit(new DamageEvent(Math.max(0, damageMultiplier), 18, DamageType.PHYSICAL));
                 if (enemy.isDead()) reportDefeat();
             }
         }
