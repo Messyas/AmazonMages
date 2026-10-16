@@ -25,6 +25,10 @@ public class Spell extends Circle {
     }
 
     public Spell(Context context, Player spellcaster, boolean coconut) {
+        this(context, spellcaster, coconut, 1.0);
+    }
+
+    public Spell(Context context, Player spellcaster, boolean coconut, double multiplier) {
         super(
                 ContextCompat.getColor(context, R.color.spell),
                 spellcaster.getPositionX(),
@@ -33,7 +37,7 @@ public class Spell extends Circle {
         );
 
         this.coconut = coconut;
-        this.hit = coconut ? new DamageEvent(1, 12, DamageType.PHYSICAL) : new DamageEvent(1, 10, DamageType.MAGIC);
+        this.hit = coconut ? new DamageEvent(Math.max(0, multiplier), 12, DamageType.PHYSICAL) : new DamageEvent(Math.max(0, multiplier), 10, DamageType.MAGIC);
         // Carrega a imagem do feitiço
         if (spellBitmap == null) {
             spellBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.energyball);
