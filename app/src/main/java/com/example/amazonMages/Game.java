@@ -16,6 +16,7 @@ import com.example.amazonMages.dialogue.DialogueRenderer;
 import com.example.amazonMages.quest.QuestDefinition;
 import com.example.amazonMages.quest.QuestJournal;
 import com.example.amazonMages.quest.QuestState;
+import com.example.amazonMages.progression.PlayerProgression;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -51,6 +52,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final DialogueManager dialogue = new DialogueManager();
     private final DialogueRenderer dialogueRenderer = new DialogueRenderer();
     private final QuestJournal questJournal = new QuestJournal();
+    private final PlayerProgression progression = new PlayerProgression();
     private String lastRewardNotice;
     private final Tilemap tilemap;
     private final GameSaveRepository saves;
@@ -129,8 +131,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             }
             saves.loadQuests(rows -> {
                 questJournal.restore(rows);
-                saveLoaded = true;
-                startIfReady();
+                saves.loadStats(stats -> {
+                    progression.restore(stats);
+                    saveLoaded = true;
+                    startIfReady();
+                });
             });
         });
     }
@@ -406,6 +411,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (!saveLoaded) return;
         saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
         saveQuestProgress();
+        saves.saveStats(progression.snapshot(saves.getSlotId()));
     }
 
     public synchronized void pause() {
