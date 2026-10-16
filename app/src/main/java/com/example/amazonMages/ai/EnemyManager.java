@@ -34,11 +34,15 @@ public final class EnemyManager {
     private final Tilemap tilemap;
     private final Random random = new Random();
     public interface KillListener { void onEnemyDefeated(String eventId); }
+    public interface DropListener { void onDefeat(EnemyTemplate template, double x, double y); }
+    private DropListener dropListener;
+    public void setDropListener(DropListener listener) { dropListener = listener; }
     private KillListener killListener;
     public void setKillListener(KillListener listener) { killListener = listener; }
     private void reportDefeat(Enemy enemy) {
         EnemyTemplate template = enemy.getTemplate();
         String event = template == null ? "enemy.acid_ghost.defeated" : template.defeatEvent;
+        if (dropListener != null) dropListener.onDefeat(template, enemy.getPositionX(), enemy.getPositionY());
         if (killListener != null) killListener.onEnemyDefeated(event);
     }
 

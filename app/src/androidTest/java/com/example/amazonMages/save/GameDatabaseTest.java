@@ -20,11 +20,11 @@ public class GameDatabaseTest {
     private static final Migration[] MIGRATIONS = {
         GameSaveRepository.MIGRATION_1_2, GameSaveRepository.MIGRATION_2_3,
         GameSaveRepository.MIGRATION_3_4, GameSaveRepository.MIGRATION_4_5,
-        GameSaveRepository.MIGRATION_5_6
+        GameSaveRepository.MIGRATION_5_6, GameSaveRepository.MIGRATION_6_7
     };
 
     @Test public void everyHistoricalVersionMigratesAndPreservesSlots() {
-        for (int version = 1; version <= 5; version++) {
+        for (int version = 1; version <= 6; version++) {
             String name = "migration-test-" + version;
             context.deleteDatabase(name);
             final int sourceVersion = version;

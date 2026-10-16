@@ -31,12 +31,13 @@ public class GameSaveRepository {
         this.slotId = slotId;
         database = Room.databaseBuilder(context.getApplicationContext(),
             GameDatabase.class, "amazon_mages_saves.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build();
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build();
     }
 
     public interface SnapshotCallback {
         void onLoaded(PlayerPositionEntity position, PlayerStatsEntity stats,
-            List<QuestProgressEntity> quests, List<InventoryItemEntity> inventory);
+            List<QuestProgressEntity> quests, List<InventoryItemEntity> inventory,
+            List<EquipmentEntity> equipment, List<WorldPickupEntity> pickups);
     }
 
     /** A failed read must never become a new game that overwrites an existing save. */
@@ -48,7 +49,9 @@ public class GameSaveRepository {
                     PlayerStatsEntity stats = database.playerStatsDao().load(slotId);
                     List<QuestProgressEntity> quests = database.questProgressDao().loadForSlot(slotId);
                     List<InventoryItemEntity> inventory = database.inventoryItemDao().loadForSlot(slotId);
-                    postIfOpen(() -> callback.onLoaded(position, stats, quests, inventory));
+                    List<EquipmentEntity> equipment = database.worldStateDao().equipment(slotId);
+                    List<WorldPickupEntity> pickups = database.worldStateDao().pickups(slotId);
+                    postIfOpen(() -> callback.onLoaded(position, stats, quests, inventory, equipment, pickups));
                 });
             } catch (RuntimeException e) {
                 Log.e(TAG, "Unable to load save; gameplay remains disabled", e);
@@ -93,6 +96,14 @@ public class GameSaveRepository {
                 db.execSQL("INSERT INTO player_positions_v6 (slotId, x, y, updatedAt, health) SELECT slotId, x, y, updatedAt, health FROM player_positions");
                 db.execSQL("DROP TABLE player_positions");
                 db.execSQL("ALTER TABLE player_positions_v6 RENAME TO player_positions");
+            }
+        };
+
+    public static final androidx.room.migration.Migration MIGRATION_6_7 =
+        new androidx.room.migration.Migration(6, 7) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE equipment (slotId INTEGER NOT NULL, weaponSlot INTEGER NOT NULL, itemId TEXT NOT NULL, selected INTEGER NOT NULL, PRIMARY KEY(slotId, weaponSlot))");
+                db.execSQL("CREATE TABLE world_pickups (slotId INTEGER NOT NULL, pickupId INTEGER NOT NULL, itemId TEXT NOT NULL, quantity INTEGER NOT NULL, x REAL NOT NULL, y REAL NOT NULL, remainingTicks INTEGER NOT NULL, PRIMARY KEY(slotId, pickupId))");
             }
         };
 
@@ -230,10 +241,11 @@ public class GameSaveRepository {
 
     /** All mutable arguments are snapshots owned by this queued operation. */
     public void saveSnapshot(PlayerPositionEntity position, PlayerStatsEntity stats,
-            List<QuestProgressEntity> quests, List<InventoryItemEntity> inventory) {
+            List<QuestProgressEntity> quests, List<InventoryItemEntity> inventory,
+            List<EquipmentEntity> equipment, List<WorldPickupEntity> pickups) {
         if (!Double.isFinite(position.x) || !Double.isFinite(position.y)) return;
         submit(() -> {
-            try { writeSnapshot(database, position, stats, quests, inventory); }
+            try { writeSnapshot(database, position, stats, quests, inventory, equipment, pickups); }
             catch (RuntimeException e) { Log.e(TAG, "Unable to save snapshot", e); }
         });
     }
@@ -241,6 +253,13 @@ public class GameSaveRepository {
     static void writeSnapshot(GameDatabase db, PlayerPositionEntity position,
             PlayerStatsEntity stats, List<QuestProgressEntity> quests,
             List<InventoryItemEntity> inventory) {
+        writeSnapshot(db, position, stats, quests, inventory, java.util.Collections.emptyList(), java.util.Collections.emptyList());
+    }
+
+    static void writeSnapshot(GameDatabase db, PlayerPositionEntity position,
+            PlayerStatsEntity stats, List<QuestProgressEntity> quests,
+            List<InventoryItemEntity> inventory, List<EquipmentEntity> equipment,
+            List<WorldPickupEntity> pickups) {
         db.runInTransaction(() -> {
             db.playerPositionDao().save(position);
             db.playerStatsDao().save(stats);
@@ -248,6 +267,10 @@ public class GameSaveRepository {
             db.questProgressDao().upsertAll(quests);
             db.inventoryItemDao().deleteForSlot(position.slotId);
             db.inventoryItemDao().upsertAll(inventory);
+            db.worldStateDao().deleteEquipment(position.slotId);
+            db.worldStateDao().saveEquipment(equipment);
+            db.worldStateDao().deletePickups(position.slotId);
+            db.worldStateDao().savePickups(pickups);
         });
     }
 
@@ -256,6 +279,8 @@ public class GameSaveRepository {
             db.questProgressDao().deleteForSlot(id);
             db.playerStatsDao().deleteForSlot(id);
             db.inventoryItemDao().deleteForSlot(id);
+            db.worldStateDao().deleteEquipment(id);
+            db.worldStateDao().deletePickups(id);
             db.playerPositionDao().delete(id);
         });
     }

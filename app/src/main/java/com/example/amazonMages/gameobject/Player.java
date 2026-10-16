@@ -101,6 +101,14 @@ public class Player extends Circle {
         preciseHealth = Math.min(preciseHealth, maximumHealth);
     }
 
+    public double getPreciseHealth() { return preciseHealth; }
+    public boolean heal(double amount) {
+        if (!Double.isFinite(amount) || amount <= 0 || preciseHealth <= 0 || preciseHealth >= maximumHealth) return false;
+        preciseHealth = Math.min(maximumHealth, preciseHealth + amount);
+        healthPoints = (int) Math.ceil(preciseHealth);
+        return true;
+    }
+
     public int getHealthPoint() {
         return healthPoints;
     }

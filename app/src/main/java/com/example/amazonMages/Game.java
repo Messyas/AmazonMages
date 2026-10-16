@@ -126,8 +126,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                     return "Domínio dos Cocos equipado no slot 1.";
                 }
                 if ("cajado".equals(item)) {
-                    weapons.equip(1, new WeaponDefinition("Cajado de Teste",
-                        WeaponType.INTRINSIC, new DamageEvent(1, 10, DamageType.MAGIC)));
+                    inventory.add("cajado", 1);
+                    weapons.equip(1, com.example.amazonMages.items.ItemCatalog.STAFF);
+                    saveNow();
                     return "Cajado de Teste equipado no slot 2. Use TROCA.";
                 }
                 if ("erva".equals(item)) {
@@ -191,8 +192,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final GameEventBus eventBus = new GameEventBus();
     private final World pickupWorld = new World();
     private final PickupSystem pickupSystem = new PickupSystem();
-    private final ItemRegistry itemRegistry = new ItemRegistry()
-        .register(new ItemDefinition("erva", "Erva do Pantano", 99));
+    private final ItemRegistry itemRegistry = com.example.amazonMages.items.ItemCatalog.create();
+    private final com.example.amazonMages.ui.InventoryPanel inventoryPanel = new com.example.amazonMages.ui.InventoryPanel(itemRegistry);
+    private String inventoryNotice;
     private final Inventory inventory = new Inventory(itemRegistry);
     private final ConsumableService consumables = new ConsumableService();
     private final GameRenderer renderer;
@@ -261,7 +263,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         enemyManager = new EnemyManager(context, player, tilemap);
         renderer = new GameRenderer(tilemap, player, enemyManager, projectileWorld, pickupWorld, gameDisplay);
         saveCoordinator = new com.example.amazonMages.save.SaveCoordinator(
-            saves, inventory, progression, questJournal, player);
+            saves, inventory, progression, questJournal, player, pickupWorld, weapons, itemRegistry);
         questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
         eventBus.subscribe(event -> questJournal.onEvent(event.id));
@@ -276,13 +278,16 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             if (reward > 0) progression.gainExperience(reward);
             saveQuestProgress();
         });
+        enemyManager.setDropListener((template, x, y) ->
+            com.example.amazonMages.items.DropTable.forEnemy(template == null ? "acid_ghost" : template.id)
+                .roll(coconutRandom, (item, quantity) -> spawnPickup(item, quantity, x, y)));
         enemyManager.setKillListener(event -> eventBus.publish(new GameEvent(event, 0)));
 
         dialogue.setEventListener(this::handleDialogueEvent);
 
 
         setFocusable(true);
-        saves.loadSnapshot((position, stats, quests, items) -> {
+        saves.loadSnapshot((position, stats, quests, items, equipment, pickups) -> {
             if (position != null && Double.isFinite(position.x) && Double.isFinite(position.y)) {
                 player.restorePosition(position.x, position.y);
                 gameDisplay.update();
@@ -294,6 +299,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             Map<String, Integer> loaded = new LinkedHashMap<>();
             for (InventoryItemEntity row : items) loaded.put(row.itemId, row.quantity);
             inventory.restore(loaded);
+            if (inventory.count("coco") == 0) inventory.add("coco", 1);
+            saveCoordinator.restoreWorld(equipment, pickups);
             saveCoordinator.ready();
             saveLoaded = true;
             startIfReady();
@@ -309,6 +316,29 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
             resetInput();
             return true;
+        }
+        if (inventoryPanel.isOpen()) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                int action = inventoryPanel.touch(event.getX(), event.getY(), getWidth(), getHeight());
+                ItemDefinition item = inventoryPanel.selected();
+                if (action == -1) {
+                    boolean applied = false;
+                    if ("erva".equals(item.id) && inventory.count(item.id) > 0) applied = player.heal(2);
+                    if ("mana".equals(item.id) && inventory.count(item.id) > 0 && progression.mana < progression.maxMana) {
+                        progression.mana = Math.min(progression.maxMana, progression.mana + 25); applied = true;
+                    }
+                    if (applied) { inventory.remove(item.id, 1); saveNow(); }
+                    inventoryNotice = applied ? "Item utilizado." : "O item nao pode ser usado agora.";
+                } else if (action >= 0 && item.weapon != null && inventory.count(item.id) > 0) {
+                    weapons.equip(action, item.weapon); weapons.select(action); saveNow();
+                    inventoryNotice = "Arma equipada.";
+                }
+            }
+            return true;
+        }
+        if (!dialogue.isActive() && !attributesPanel.isOpen() && event.getActionMasked() == MotionEvent.ACTION_DOWN &&
+                event.getX() > getWidth() * .70f && event.getY() > getHeight() * .20f && event.getY() < getHeight() * .36f) {
+            resetInput(); inventoryPanel.open(); return true;
         }
         if (attributesPanel.isOpen()) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
@@ -450,6 +480,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             canvas.drawText("ATRIBUTOS", 16, getHeight() * .11f, hudPaint);
         }
         attributesPanel.draw(canvas, getWidth(), getHeight(), progression);
+        hudPaint.setColor(0xFFF5EACD); hudPaint.setTextSize(getHeight() * .035f);
+        canvas.drawText("INVENTARIO", getWidth() * .72f, getHeight() * .29f, hudPaint);
+        inventoryPanel.draw(canvas, getWidth(), getHeight(), inventory, weapons, inventoryNotice);
 
         // Desenha "Game Over" se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
@@ -460,7 +493,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     public synchronized void update() {
         if (debugOverlay && isDebuggable()) deviceMonitor.sampleIfDue();
-        if (attributesPanel.isOpen()) return;
+        if (attributesPanel.isOpen() || inventoryPanel.isOpen()) return;
         if (dialogue.isActive()) { dialogue.update(); return; }
         // Para de atualizar o jogo se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
@@ -470,9 +503,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Atualiza o estado do jogo
         joystick.update();
         player.update();
+        for (Entity entity : pickupWorld.with(com.example.amazonMages.ecs.LifetimeComponent.class)) {
+            if (--entity.get(com.example.amazonMages.ecs.LifetimeComponent.class).remainingTicks <= 0) pickupWorld.destroy(entity.id());
+        }
         int collected = pickupSystem.collect(pickupWorld, player.getPositionX(),
             player.getPositionY(), player.getRadius(), inventory);
         if (collected > 0) {
+            inventoryNotice = "Itens coletados: " + collected;
             eventBus.publish(new GameEvent("item.erva.collected", 0));
             saveInventory();
         }
@@ -507,11 +544,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
 
     private void spawnPickup(String itemId, int quantity, double x, double y) {
-        if (itemRegistry.get(itemId) == null) throw new IllegalArgumentException("item");
+        if (itemRegistry.get(itemId) == null || quantity < 1 || !Double.isFinite(x) || !Double.isFinite(y)) throw new IllegalArgumentException("item");
+        if (pickupWorld.size() >= 64) { inventoryNotice = "Limite de itens no chao atingido."; return; }
         pickupWorld.create()
             .add(TransformComponent.class, new TransformComponent(x, y))
             .add(ColliderComponent.class, new ColliderComponent(13))
-            .add(PickupComponent.class, new PickupComponent(itemId, quantity));
+            .add(PickupComponent.class, new PickupComponent(itemId, quantity))
+            .add(com.example.amazonMages.ecs.LifetimeComponent.class, new com.example.amazonMages.ecs.LifetimeComponent(36000));
     }
 
     private void startElderDialogue() {

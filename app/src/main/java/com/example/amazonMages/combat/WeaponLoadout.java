@@ -8,8 +8,17 @@ public final class WeaponLoadout {
     private int specialCooldown;
     public WeaponLoadout() { slots[0] = COCONUT; }
     public WeaponDefinition current() { return slots[selected]; }
+    public WeaponDefinition at(int slot) { return slots[slot]; }
+    public void select(int slot) {
+        if (slot >= 0 && slot < slots.length && slots[slot] != null) selected = slot;
+    }
+    public void reset() {
+        java.util.Arrays.fill(slots, null);
+        slots[0] = COCONUT;
+        selected = 0;
+    }
     public int selectedSlot() { return selected; }
-    public void equip(int index, WeaponDefinition item) { if (index < 0 || index >= 4) throw new IllegalArgumentException("slot"); slots[index] = item; }
+    public void equip(int index, WeaponDefinition item) { if (index < 0 || index >= 4) throw new IllegalArgumentException("slot"); slots[index] = item; if (current() == null) next(); if (current() == null) { slots[0] = COCONUT; selected = 0; } }
     public void next() { for (int i = 1; i <= 4; i++) { int n = (selected + i) % 4; if (slots[n] != null) { selected = n; return; } } }
     public boolean basic(double speed) { if (current() == null || basicCooldown > 0) return false; basicCooldown = Math.max(5, (int)Math.ceil(15 / Math.max(.1, speed))); return true; }
     public boolean basic() { if (current() == null || basicCooldown > 0) return false; basicCooldown = 15; return true; }

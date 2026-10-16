@@ -11,6 +11,6 @@ public final class ConsumableService {
         if (health >= maximumHealth || inventory.count(HEALING_HERB) == 0)
             return health;
         if (!inventory.remove(HEALING_HERB, 1)) return health;
-        return Math.min(maximumHealth, health + HERB_HEAL);
+        return (int) Math.min(maximumHealth, (long) health + HERB_HEAL);
     }
 }
