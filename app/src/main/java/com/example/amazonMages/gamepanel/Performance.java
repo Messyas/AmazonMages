@@ -10,7 +10,7 @@ import com.example.amazonMages.GameLoop;
 import com.example.androidstudio2dgamedevelopment.R;
 
 public class Performance {
-    private final GameLoop gameLoop; // Instância do loop de jogo para acessar informações de desempenho
+    private GameLoop gameLoop; // Instância do loop de jogo para acessar informações de desempenho
     private final Context context;
     private final Paint paint = new Paint(); // Contexto da aplicação
 
@@ -20,6 +20,10 @@ public class Performance {
         paint.setColor(getColor(context, R.color.magenta));
         paint.setTextSize(50);
         this.gameLoop = gameLoop; // Associa o GameLoop à classe Performance
+    }
+
+    public void setGameLoop(GameLoop gameLoop) {
+        this.gameLoop = gameLoop;
     }
 
     // Método para desenhar informações de desempenho no canvas
