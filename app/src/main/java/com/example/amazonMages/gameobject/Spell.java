@@ -6,6 +6,8 @@ import android.graphics.Canvas;
 import androidx.core.content.ContextCompat;
 
 import com.example.amazonMages.GameDisplay;
+import com.example.amazonMages.combat.DamageEvent;
+import com.example.amazonMages.combat.DamageType;
 import com.example.amazonMages.GameLoop;
 import com.example.androidstudio2dgamedevelopment.R;
 
@@ -13,6 +15,9 @@ public class Spell extends Circle {
     public static final double SPEED_PIXELS_PER_SECOND = 800.0;
     private static final double MAX_SPEED = SPEED_PIXELS_PER_SECOND / GameLoop.MAX_UPS;
     private static Bitmap spellBitmap;
+    private final DamageEvent hit = new DamageEvent(1, 10, DamageType.MAGIC);
+
+    public DamageEvent getHit() { return hit; }
 
     public Spell(Context context, Player spellcaster) {
         super(
