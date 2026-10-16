@@ -51,3 +51,14 @@ Criar `DialogueRenderer` Canvas: card inferior responsivo, retrato e nome do fal
 - Próximos passos: NPC no mapa com detecção de proximidade; transições de fechamento; escolhas ramificadas; persistência Room por slot com transação atômica de recompensa; assets de retrato; testes em Android.
 
 **Atenção:** a integração foi commitada, mas não compilada/testada em aparelho nesta sessão.
+
+## Persistência Room v3 — implementação
+
+- `QuestProgressEntity`: tabela `quest_progress`, chave composta `(slotId, questId)`, colunas `state` e `progress`.
+- `QuestProgressDao`: leitura por slot, upsert e exclusão por slot.
+- `GameDatabase` passa da versão 2 para 3; `GameSaveRepository.MIGRATION_2_3` cria a tabela sem destruir saves existentes.
+- `QuestJournal.snapshot(slotId)` e `restore(rows)` fazem conversão com validação de estados e limites de progresso; IDs desconhecidos são ignorados.
+- `Game` carrega posição e depois missões antes de iniciar o loop. Salva em eventos de objetivo/diálogo, no autosave e na pausa.
+- `deleteSlot` apaga posição e missões em uma transação Room.
+- **Limitação:** a recompensa demonstrativa ainda é somente uma flag de missão `REWARDED` e aviso de texto, sem item/habilidade real; transação de entrega de recompensa real fica para o inventário. Falhas de I/O são registradas em log, não notificadas no HUD.
+- **Validar:** upgrade de base v1/v2 para v3, independência dos três slots, progresso parcial, estado REWARDED, exclusão, reinício e fechamento da Activity. Build Android não executado nesta sessão.
