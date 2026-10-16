@@ -30,7 +30,7 @@ public class GameSaveRepository {
         this.slotId = slotId;
         database = Room.databaseBuilder(context.getApplicationContext(),
             GameDatabase.class, "amazon_mages_saves.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build();
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build();
     }
 
     public static final androidx.room.migration.Migration MIGRATION_1_2 =
@@ -53,6 +53,42 @@ public class GameSaveRepository {
                 db.execSQL("CREATE TABLE IF NOT EXISTS player_stats (slotId INTEGER NOT NULL, level INTEGER NOT NULL, experience INTEGER NOT NULL, attributePoints INTEGER NOT NULL, skillPoints INTEGER NOT NULL, vigor INTEGER NOT NULL, mente INTEGER NOT NULL, resistencia INTEGER NOT NULL, inteligencia INTEGER NOT NULL, destreza INTEGER NOT NULL, arcano INTEGER NOT NULL, forca INTEGER NOT NULL, mana REAL NOT NULL, maxMana REAL NOT NULL, PRIMARY KEY(slotId))");
             }
         };
+
+    public static final androidx.room.migration.Migration MIGRATION_4_5 =
+        new androidx.room.migration.Migration(4, 5) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS inventory_items (slotId INTEGER NOT NULL, itemId TEXT NOT NULL, quantity INTEGER NOT NULL, PRIMARY KEY(slotId, itemId))");
+            }
+        };
+
+    public interface InventoryLoadCallback {
+        void onLoaded(List<InventoryItemEntity> items);
+    }
+
+    public void loadInventory(InventoryLoadCallback callback) {
+        io.execute(() -> {
+            List<InventoryItemEntity> rows;
+            try { rows = database.inventoryItemDao().loadForSlot(slotId); }
+            catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load inventory", e);
+                rows = new ArrayList<>();
+            }
+            List<InventoryItemEntity> result = rows;
+            main.post(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void saveInventory(List<InventoryItemEntity> snapshot) {
+        final List<InventoryItemEntity> rows = new ArrayList<>(snapshot);
+        io.execute(() -> {
+            try {
+                database.runInTransaction(() -> {
+                    database.inventoryItemDao().deleteForSlot(slotId);
+                    database.inventoryItemDao().upsertAll(rows);
+                });
+            } catch (RuntimeException e) { Log.e(TAG, "Unable to save inventory", e); }
+        });
+    }
 
     public interface StatsLoadCallback { void onLoaded(PlayerStatsEntity stats); }
 
@@ -126,6 +162,7 @@ public class GameSaveRepository {
                 database.runInTransaction(() -> {
                     database.questProgressDao().deleteForSlot(id);
                     database.playerStatsDao().deleteForSlot(id);
+                    database.inventoryItemDao().deleteForSlot(id);
                     database.playerPositionDao().delete(id);
                 });
             } catch (RuntimeException e) {
