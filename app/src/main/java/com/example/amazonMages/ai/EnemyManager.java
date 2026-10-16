@@ -135,9 +135,10 @@ public final class EnemyManager {
             if (enemy.isDead()) continue;
             Iterator<Spell> shotIterator = spells.iterator();
             while (shotIterator.hasNext()) {
-                if (Circle.isColliding(shotIterator.next(), enemy)) {
+                Spell spell = shotIterator.next();
+                if (Circle.isColliding(spell, enemy)) {
                     shotIterator.remove();
-                    enemy.takeDamage(1);
+                    enemy.receiveHit(spell.getHit());
                     if (enemy.isDead()) break;
                 }
             }
