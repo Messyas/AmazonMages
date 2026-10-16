@@ -65,7 +65,7 @@ public class GameLoop extends Thread {
             if (catchUp > 0 && isRunning && surfaceHolder.getSurface().isValid()) {
                 Canvas canvas = null;
                 try {
-                    canvas = surfaceHolder.lockCanvas();
+                    canvas = surfaceHolder.lockHardwareCanvas();
                     if (canvas != null) {
                         long drawStart = System.nanoTime();
                         game.draw(canvas);
