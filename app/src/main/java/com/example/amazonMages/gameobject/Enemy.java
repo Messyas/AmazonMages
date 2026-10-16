@@ -9,6 +9,7 @@ import android.graphics.Canvas;
 
 import com.example.amazonMages.GameDisplay;
 import com.example.amazonMages.GameLoop;
+import com.example.amazonMages.graphics.Direction;
 import com.example.androidstudio2dgamedevelopment.R;
 
 
@@ -25,6 +26,8 @@ public class Enemy extends Circle {
     private static final double UPDATES_PER_SPAWN = GameLoop.MAX_UPS / SPAWNS_PER_SECOND;
     private static double updatesUntilNextSpawn = UPDATES_PER_SPAWN;
     private final Player player;
+    private Direction facing = Direction.SOUTH;
+    private Direction attackFacing = Direction.SOUTH;
     private static Bitmap enemyBitmap;
 
     public Enemy(Context context, Player player) {
@@ -65,6 +68,13 @@ public class Enemy extends Circle {
     }
 
 
+    public Direction getFacing() { return facing; }
+    public Direction getAttackFacing() { return attackFacing; }
+
+    public void aim(double x, double y) {
+        attackFacing = Direction.fromVector(x, y, attackFacing);
+    }
+
     public void update() {
         // =========================================================================================
         //   Update velocity of the enemy so that the velocity is in the direction of the player
@@ -77,13 +87,15 @@ public class Enemy extends Circle {
         double distanceToPlayer = GameObject.getDistanceBetweenObjects(this, player);
 
         // Calculate direction from enemy to player
-        double directionX = distanceToPlayerX/distanceToPlayer;
-        double directionY = distanceToPlayerY/distanceToPlayer;
+        double directionX = distanceToPlayer > 0 ? distanceToPlayerX / distanceToPlayer : 0;
+        double directionY = distanceToPlayer > 0 ? distanceToPlayerY / distanceToPlayer : 0;
 
         // Set velocity in the direction to the player
         if(distanceToPlayer > 0) { // Avoid division by zero
             velocityX = directionX*MAX_SPEED;
             velocityY = directionY*MAX_SPEED;
+            facing = Direction.fromVector(directionX, directionY, facing);
+            attackFacing = Direction.fromVector(distanceToPlayerX, distanceToPlayerY, attackFacing);
         } else {
             velocityX = 0;
             velocityY = 0;
