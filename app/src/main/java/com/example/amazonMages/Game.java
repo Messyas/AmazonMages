@@ -114,7 +114,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
         enemyManager.setKillListener(event -> {
             questJournal.onEvent(event);
+            if ("enemy.acid_ghost.defeated".equals(event)) progression.gainExperience(10);
             saveQuestProgress();
+            if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
         });
         dialogue.setEventListener(this::handleDialogueEvent);
 
@@ -361,6 +363,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 left, bottom + 28, hudPaint);
         }
         if (lastRewardNotice != null) canvas.drawText(lastRewardNotice, left, bottom + 55, hudPaint);
+        hudPaint.setTextSize(14 * getResources().getDisplayMetrics().density);
+        canvas.drawText("Nv " + progression.level + "  XP " + progression.experience + "/" +
+            PlayerProgression.experienceToNextLevel(progression.level) +
+            "  Pontos " + progression.attributePoints, left, bottom + 83, hudPaint);
     }
 
     private void activateCoconutStorm() {
