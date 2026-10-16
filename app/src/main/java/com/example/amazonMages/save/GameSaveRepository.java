@@ -13,7 +13,7 @@ import java.util.concurrent.Executors;
 /** Single-threaded persistence: loading and saves execute in submission order. */
 public class GameSaveRepository {
     private static final String TAG = "GameSaveRepository";
-    private static final int DEFAULT_SLOT = 1;
+    private final int slotId;
     private final GameDatabase database;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -22,16 +22,54 @@ public class GameSaveRepository {
         void onLoaded(PlayerPositionEntity position);
     }
 
-    public GameSaveRepository(Context context) {
+    public GameSaveRepository(Context context, int slotId) {
+        this.slotId = slotId;
         database = Room.databaseBuilder(context.getApplicationContext(),
-            GameDatabase.class, "amazon_mages_saves.db").build();
+            GameDatabase.class, "amazon_mages_saves.db")
+            .addMigrations(MIGRATION_1_2).build();
+    }
+
+    public static final androidx.room.migration.Migration MIGRATION_1_2 =
+        new androidx.room.migration.Migration(1, 2) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("ALTER TABLE player_positions ADD COLUMN health INTEGER NOT NULL DEFAULT 5");
+            }
+        };
+
+    public interface SlotsCallback {
+        void onLoaded(java.util.List<PlayerPositionEntity> slots);
+    }
+
+    public void loadSlots(SlotsCallback callback) {
+        io.execute(() -> {
+            java.util.List<PlayerPositionEntity> slots;
+            try {
+                slots = database.playerPositionDao().loadAll();
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load slots", e);
+                slots = new java.util.ArrayList<>();
+            }
+            java.util.List<PlayerPositionEntity> result = slots;
+            main.post(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void deleteSlot(int id, Runnable done) {
+        io.execute(() -> {
+            try {
+                database.playerPositionDao().delete(id);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to delete slot", e);
+            }
+            main.post(done);
+        });
     }
 
     public void loadPosition(LoadCallback callback) {
         io.execute(() -> {
             PlayerPositionEntity position = null;
             try {
-                position = database.playerPositionDao().load(DEFAULT_SLOT);
+                position = database.playerPositionDao().load(slotId);
             } catch (RuntimeException e) {
                 Log.e(TAG, "Unable to load player position", e);
             }
@@ -40,10 +78,10 @@ public class GameSaveRepository {
         });
     }
 
-    public void savePosition(double x, double y) {
+    public void savePosition(double x, double y, int health) {
         if (!Double.isFinite(x) || !Double.isFinite(y)) return;
         PlayerPositionEntity snapshot =
-            new PlayerPositionEntity(DEFAULT_SLOT, x, y, System.currentTimeMillis());
+            new PlayerPositionEntity(slotId, x, y, health, System.currentTimeMillis());
         io.execute(() -> {
             try {
                 database.playerPositionDao().save(snapshot);
