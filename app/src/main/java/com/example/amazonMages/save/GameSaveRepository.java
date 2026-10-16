@@ -29,9 +29,13 @@ public class GameSaveRepository {
     }
 
     public GameSaveRepository(Context context, int slotId) {
+        this(context, slotId, "amazon_mages_saves.db");
+    }
+
+    GameSaveRepository(Context context, int slotId, String databaseName) {
         this.slotId = slotId;
         database = Room.databaseBuilder(context.getApplicationContext(),
-            GameDatabase.class, "amazon_mages_saves.db")
+            GameDatabase.class, databaseName)
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build();
     }
 

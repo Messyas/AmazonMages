@@ -108,6 +108,27 @@ public class GameDatabaseTest {
         } finally { db.close(); }
     }
 
+    @Test public void equipmentAndGroundShareSlotTransactions() {
+        GameDatabase db=Room.inMemoryDatabaseBuilder(context,GameDatabase.class).build();
+        try {
+            for(int slot=1;slot<=2;slot++) {
+                GameSaveRepository.writeSnapshot(db,new PlayerPositionEntity(slot,100,200,4,1),
+                    new PlayerStatsEntity(slot,1,0,0,0,1,1,1,1,1,1,1,50,100),
+                    Collections.emptyList(),Collections.singletonList(new InventoryItemEntity(slot,"cajado",1)),
+                    Collections.singletonList(new EquipmentEntity(slot,3,"cajado",true)),
+                    Collections.singletonList(new WorldPickupEntity(slot,1,"erva",3,200,300,120)));
+                assertEquals(3,db.worldStateDao().equipment(slot).get(0).weaponSlot);
+                assertTrue(db.worldStateDao().equipment(slot).get(0).selected);
+                assertEquals(3,db.worldStateDao().pickups(slot).get(0).quantity);
+            }
+            GameSaveRepository.deleteSlotData(db,1);
+            assertTrue(db.worldStateDao().equipment(1).isEmpty());
+            assertTrue(db.worldStateDao().pickups(1).isEmpty());
+            assertEquals(1,db.worldStateDao().equipment(2).size());
+            assertEquals(1,db.worldStateDao().pickups(2).size());
+        } finally { db.close(); }
+    }
+
     private void assertRoundTripAndDeletion(GameDatabase db) {
         for (int slot = 1; slot <= 2; slot++) {
             PlayerPositionEntity position = new PlayerPositionEntity(slot, 101, 202, 3, 99);
