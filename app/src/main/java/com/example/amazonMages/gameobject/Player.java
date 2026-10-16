@@ -36,6 +36,7 @@ public class Player extends Circle {
     private double preciseHealth = MAX_HEALTH_POINTS;
     private final HealthBar healthBar;
     private int healthPoints = MAX_HEALTH_POINTS;
+    private int maximumHealth = MAX_HEALTH_POINTS;
     private final SpriteAnimator animator;
     private Direction facing = Direction.SOUTH;
     private Direction attackFacing = Direction.SOUTH;
@@ -90,6 +91,13 @@ public class Player extends Circle {
         positionY = y;
     }
 
+    public int getMaximumHealth() { return maximumHealth; }
+    public void setMaximumHealth(int value) {
+        maximumHealth = Math.max(1, value);
+        healthPoints = Math.min(healthPoints, maximumHealth);
+        preciseHealth = Math.min(preciseHealth, maximumHealth);
+    }
+
     public int getHealthPoint() {
         return healthPoints;
     }
@@ -97,7 +105,7 @@ public class Player extends Circle {
     public void setHealthPoint(int healthPoints) {
         // Only allow positive values
         if (healthPoints >= 0) {
-            this.healthPoints = Math.min(MAX_HEALTH_POINTS, healthPoints);
+            this.healthPoints = Math.min(maximumHealth, healthPoints);
             preciseHealth = this.healthPoints;
         }
     }
