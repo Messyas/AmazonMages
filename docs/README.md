@@ -10,6 +10,7 @@ Esta pasta reúne o contexto de design e o estado real do código na branch `fix
 | [Arquitetura de combate](combat-refactor.md) | Classes Java atuais e migração gradual |
 | [Contrato dos fantasmas](ghost-animation-atlases.md) | Layout e nomenclatura dos atlases de animação |
 | [Validação](testing-checklist.md) | Compilação e testes manuais antes do merge |
+| [Diálogos e missões](dialogue-quests.md) | Eventos, estados, recompensas, cards e retratos pendentes |
 
 ## Diretrizes
 
