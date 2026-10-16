@@ -62,3 +62,13 @@ O `events/GameEventBus` é síncrono e simples. No jogo, derrotas dos inimigos a
 ## Correção de compatibilidade geométrica
 
 O `ProjectileCollisionSystem` agora usa `Math.hypot(dx, dy) < somaDosRaios`, equivalente à regra estrita de `Circle.isColliding`. O teste `tangentCirclesDoNotCollide` cobre tangência exata e sobreposição mínima. Alteração apenas na branch `fix/android-performance`; testes ainda não executados.
+
+## Sexta etapa: inventário persistido no Room
+
+- Room atualizado da versão 4 para 5, com migração `MIGRATION_4_5` e tabela `inventory_items` de chave composta (`slotId`, `itemId`).
+- `GameSaveRepository.loadInventory` carrega o slot pela fila de I/O e devolve o resultado na thread principal.
+- `GameSaveRepository.saveInventory` substitui o snapshot do slot em transação; exclusão do slot também apaga o inventário.
+- `Inventory.restore` descarta IDs desconhecidos e quantidades inválidas e limita pilhas ao máximo cadastrado.
+- `Game` aguarda o carregamento do inventário antes de liberar o início da partida; coletas e `give erva` persistem alterações.
+- `InventoryTest` cobre restauração defensiva e remoção de pilhas.
+- **Pendente:** teste de migração Room em ambiente Android, execução de build/testes, UI de inventário e persistência de itens ainda no chão. Os comandos de desenvolvimento são destinados apenas a builds debuggable.
