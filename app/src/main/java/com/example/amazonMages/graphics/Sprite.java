@@ -6,7 +6,8 @@ import android.graphics.Rect;
 public class Sprite {
 
     private final SpriteSheet spriteSheet; // Referência à sprite sheet que contém este sprite
-    private final Rect rect; // Retângulo que define a posição e o tamanho do sprite na sprite sheet
+    private final Rect rect;
+    private final Rect destinationRect = new Rect(); // Retângulo que define a posição e o tamanho do sprite na sprite sheet
 
     public Sprite(SpriteSheet spriteSheet, Rect rect) {
         this.spriteSheet = spriteSheet; // Inicializa a sprite sheet
@@ -15,10 +16,11 @@ public class Sprite {
 
     // Método que desenha o sprite no canvas em uma posição específica (x, y)
     public void draw(Canvas canvas, int x, int y) {
+        destinationRect.set(x, y, x + getWidth(), y + getHeight());
         canvas.drawBitmap(
                 spriteSheet.getBitmap(), // Bitmap da sprite sheet
                 rect, // A área do sprite na sprite sheet
-                new Rect(x, y, x + getWidth(), y + getHeight()), // Retângulo de destino onde o sprite será desenhado
+                destinationRect, // Retângulo de destino onde o sprite será desenhado
                 null // Opções de pintura (null indica que não há opções especiais)
         );
     }
