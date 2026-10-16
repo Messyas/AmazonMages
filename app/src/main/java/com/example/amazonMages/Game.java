@@ -14,7 +14,7 @@ import android.view.SurfaceView;
 import androidx.annotation.NonNull;
 
 import com.example.amazonMages.gameobject.Circle;
-import com.example.amazonMages.ai.EnemyProjectile;
+import com.example.amazonMages.ai.EnemyManager;
 import com.example.amazonMages.gameobject.Enemy;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.Spell;
@@ -45,9 +45,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final Player player;
     private GameLoop gameLoop;
     private volatile boolean activityResumed = false;
-    private final List<Enemy> enemyList = new ArrayList<>();
+    private final EnemyManager enemyManager;
     private final List<Spell> spellList = new ArrayList<>();
-    private final List<EnemyProjectile> hostileProjectiles = new ArrayList<>();
     private int numberOfSpellsToCast = 0;
     private final GameOver gameOver;
     private final Performance performance;
@@ -77,6 +76,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         SpriteAnimator animator = new SpriteAnimator(spriteSheet.getPlayerAnimations());
         player = new Player(context, joystick, 2*500, 500, 32, animator);
         saves = new GameSaveRepository(context, slotId);
+        enemyManager = new EnemyManager(context, player);
 
 
         // Initialize display and center it around the player
@@ -187,15 +187,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Desenha os objetos do jogo
         player.draw(canvas, gameDisplay);
 
-        for (Enemy enemy : enemyList) {
-            enemy.draw(canvas, gameDisplay);
-        }
-
-        for (Spell spell : spellList) {
-            spell.draw(canvas, gameDisplay);
-        }
-
-        for (EnemyProjectile shot : hostileProjectiles) shot.draw(canvas, gameDisplay);
+        enemyManager.draw(canvas, gameDisplay);
+        for (Spell spell : spellList) spell.draw(canvas, gameDisplay);
 
         // Desenha os painéis do jogo
         joystick.draw(canvas);
@@ -218,28 +211,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         joystick.update();
         player.update();
 
-        // Gera inimigo
-        if (Enemy.readyToSpawn()) {
-            enemyList.add(new Enemy(getContext(), player));
-        }
-
-        // Atualiza o estado de todos os inimigos
-        for (Enemy enemy : enemyList) {
-            enemy.update();
-            EnemyProjectile shot = enemy.fireProjectile();
-            if (shot != null) hostileProjectiles.add(shot);
-        }
-
-        Iterator<EnemyProjectile> hostileShots = hostileProjectiles.iterator();
-        while (hostileShots.hasNext()) {
-            EnemyProjectile shot = hostileShots.next();
-            shot.update();
-            if (shot.expired()) hostileShots.remove();
-            else if (Circle.isColliding(shot, player)) {
-                player.setHealthPoint(player.getHealthPoint() - 1);
-                hostileShots.remove();
-            }
-        }
+        // Coordinate AI updates, enemy population and staggered ranged attacks.
+        enemyManager.update();
 
         // Atualiza o estado de todos os feitiços
         while (numberOfSpellsToCast > 0) {
@@ -257,21 +230,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             }
         }
 
-        Iterator<Enemy> enemies = enemyList.iterator();
-        while (enemies.hasNext()) {
-            Enemy enemy = enemies.next();
-            Iterator<Spell> spells = spellList.iterator();
-            while (spells.hasNext()) {
-                if (Circle.isColliding(spells.next(), enemy)) {
-                    spells.remove();
-                    enemy.takeDamage(1);
-                    if (enemy.isDead()) {
-                        enemies.remove();
-                        break;
-                    }
-                }
-            }
-        }
+        enemyManager.collideWithPlayerSpells(spellList);
 
         // Atualiza o gameDisplay para que seu centro seja definido para o novo centro das
         // coordenadas do jogador no jogo
