@@ -468,9 +468,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             numberOfSpellsToCast--;
         }
         projectileWorld.update();
-        List<Spell> activeProjectiles = projectileWorld.collisionSnapshot();
-        enemyManager.collideWithPlayerSpells(activeProjectiles);
-        projectileWorld.reconcileCollisions(activeProjectiles);
+        enemyManager.collideWithPlayerProjectiles(projectileWorld);
 
         // Atualiza o gameDisplay para que seu centro seja definido para o novo centro das
         // coordenadas do jogador no jogo
