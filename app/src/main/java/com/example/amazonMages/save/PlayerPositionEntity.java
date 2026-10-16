@@ -10,11 +10,13 @@ public class PlayerPositionEntity {
     public double x;
     public double y;
     public long updatedAt;
+    public int health;
 
-    public PlayerPositionEntity(int slotId, double x, double y, long updatedAt) {
+    public PlayerPositionEntity(int slotId, double x, double y, int health, long updatedAt) {
         this.slotId = slotId;
         this.x = x;
         this.y = y;
         this.updatedAt = updatedAt;
+        this.health = health;
     }
 }
