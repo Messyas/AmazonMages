@@ -2,6 +2,9 @@ package com.example.amazonMages.quest;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import com.example.amazonMages.save.QuestProgressEntity;
 
 /** Runtime quest state. Persist a snapshot per save slot before using in production. */
 public final class QuestJournal {
@@ -9,6 +12,26 @@ public final class QuestJournal {
     private final Map<String, QuestState> states = new HashMap<>();
     private final Map<String, Integer> progress = new HashMap<>();
 
+    public List<QuestProgressEntity> snapshot(int slotId) {
+        List<QuestProgressEntity> rows = new ArrayList<>();
+        for (String id : definitions.keySet())
+            rows.add(new QuestProgressEntity(slotId, id, states.get(id).name(), progress.get(id)));
+        return rows;
+    }
+    public void restore(List<QuestProgressEntity> rows) {
+        if (rows == null) return;
+        for (QuestProgressEntity row : rows) {
+            QuestDefinition definition = definitions.get(row.questId);
+            if (definition == null) continue;
+            try {
+                QuestState state = QuestState.valueOf(row.state);
+                states.put(row.questId, state);
+                progress.put(row.questId, Math.max(0, Math.min(definition.targetCount, row.progress)));
+            } catch (IllegalArgumentException | NullPointerException ignored) {
+                // Unknown future/legacy quest state: retain default.
+            }
+        }
+    }
     public void register(QuestDefinition quest) {
         if (definitions.containsKey(quest.id)) throw new IllegalArgumentException("Duplicate quest id");
         definitions.put(quest.id, quest);
