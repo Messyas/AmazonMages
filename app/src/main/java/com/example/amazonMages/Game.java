@@ -195,7 +195,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         .register(new ItemDefinition("erva", "Erva do Pantano", 99));
     private final Inventory inventory = new Inventory(itemRegistry);
     private final ConsumableService consumables = new ConsumableService();
-    private final Paint pickupPaint = new Paint(3);
+    private final GameRenderer renderer;
+    private final com.example.amazonMages.save.SaveCoordinator saveCoordinator;
     private final DialogueManager dialogue = new DialogueManager();
     private final DialogueRenderer dialogueRenderer = new DialogueRenderer();
     private final QuestJournal questJournal = new QuestJournal();
@@ -258,6 +259,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Initialize Tilemap
         tilemap = new Tilemap(spriteSheet);
         enemyManager = new EnemyManager(context, player, tilemap);
+        renderer = new GameRenderer(tilemap, player, enemyManager, projectileWorld, pickupWorld, gameDisplay);
+        saveCoordinator = new com.example.amazonMages.save.SaveCoordinator(
+            saves, inventory, progression, questJournal, player);
         questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
         eventBus.subscribe(event -> questJournal.onEvent(event.id));
@@ -290,6 +294,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             Map<String, Integer> loaded = new LinkedHashMap<>();
             for (InventoryItemEntity row : items) loaded.put(row.itemId, row.quantity);
             inventory.restore(loaded);
+            saveCoordinator.ready();
             saveLoaded = true;
             startIfReady();
         }, () -> android.widget.Toast.makeText(getContext(),
@@ -429,15 +434,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     public synchronized void draw(Canvas canvas) {
         super.draw(canvas);
 
-        // Desenha o Tilemap
-        tilemap.draw(canvas, gameDisplay);
-
-        // Desenha os objetos do jogo
-        player.draw(canvas, gameDisplay);
-
-        enemyManager.draw(canvas, gameDisplay);
-        projectileWorld.draw(canvas, gameDisplay);
-        drawPickups(canvas);
+        renderer.draw(canvas);
 
         // Desenha os painéis do jogo
         joystick.draw(canvas);
@@ -515,15 +512,6 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             .add(TransformComponent.class, new TransformComponent(x, y))
             .add(ColliderComponent.class, new ColliderComponent(13))
             .add(PickupComponent.class, new PickupComponent(itemId, quantity));
-    }
-
-    private void drawPickups(Canvas canvas) {
-        pickupPaint.setColor(0xFF8CD87B);
-        for (Entity entity : pickupWorld.with(PickupComponent.class, TransformComponent.class)) {
-            TransformComponent position = entity.get(TransformComponent.class);
-            canvas.drawCircle((float) gameDisplay.gameToDisplayCoordinatesX(position.x),
-                (float) gameDisplay.gameToDisplayCoordinatesY(position.y), 13, pickupPaint);
-        }
     }
 
     private void startElderDialogue() {
@@ -694,16 +682,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     /** Explicit save action used by the in-game pause menu. */
-    public synchronized void saveNow() {
-        if (!saveLoaded) return;
-        List<InventoryItemEntity> rows = new ArrayList<>();
-        for (Map.Entry<String, Integer> item : inventory.snapshot().entrySet())
-            rows.add(new InventoryItemEntity(saves.getSlotId(), item.getKey(), item.getValue()));
-        saves.saveSnapshot(new com.example.amazonMages.save.PlayerPositionEntity(
-                saves.getSlotId(), player.getPositionX(), player.getPositionY(),
-                player.getHealthPoint(), System.currentTimeMillis()),
-            progression.snapshot(saves.getSlotId()), questJournal.snapshot(saves.getSlotId()), rows);
-    }
+    public synchronized void saveNow() { saveCoordinator.save(); }
 
     private void resetInput() {
         joystick.setIsPressed(false);
