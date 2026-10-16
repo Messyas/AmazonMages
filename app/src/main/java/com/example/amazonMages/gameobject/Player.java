@@ -6,6 +6,11 @@ import android.content.Context;
 import android.graphics.Canvas;
 
 import com.example.amazonMages.GameDisplay;
+import com.example.amazonMages.combat.CombatStats;
+import com.example.amazonMages.combat.DamageEvent;
+import com.example.amazonMages.combat.DamageResolver;
+import com.example.amazonMages.combat.Posture;
+import com.example.amazonMages.combat.StatusEffects;
 import com.example.amazonMages.GameLoop;
 import com.example.amazonMages.gamepanel.HealthBar;
 import com.example.amazonMages.gamepanel.Joystick;
@@ -25,6 +30,10 @@ public class Player extends Circle {
     private static final double MAX_SPEED = SPEED_PIXELS_PER_SECOND / GameLoop.MAX_UPS;
     public static final int MAX_HEALTH_POINTS = 5;
     private final Joystick joystick;
+    private final CombatStats combatStats = new CombatStats();
+    private final StatusEffects statusEffects = new StatusEffects();
+    private final Posture posture = new Posture(100);
+    private double preciseHealth = MAX_HEALTH_POINTS;
     private final HealthBar healthBar;
     private int healthPoints = MAX_HEALTH_POINTS;
     private final SpriteAnimator animator;
@@ -43,8 +52,11 @@ public class Player extends Circle {
     public void update() {
 
         // Update velocity based on actuator of joystick
-        velocityX = joystick.getActuatorX()*MAX_SPEED;
-        velocityY = joystick.getActuatorY()*MAX_SPEED;
+        double movement = MAX_SPEED * combatStats.getMovementMultiplier() * statusEffects.speedMultiplier();
+        velocityX = joystick.getActuatorX()*movement;
+        velocityY = joystick.getActuatorY()*movement;
+        statusEffects.update();
+        posture.update();
 
         // Update position
         positionX += velocityX;
@@ -82,9 +94,23 @@ public class Player extends Circle {
 
     public void setHealthPoint(int healthPoints) {
         // Only allow positive values
-        if (healthPoints >= 0)
-            this.healthPoints = healthPoints;
+        if (healthPoints >= 0) {
+            this.healthPoints = Math.min(MAX_HEALTH_POINTS, healthPoints);
+            preciseHealth = this.healthPoints;
+        }
     }
+
+    /** Apply typed damage without rounding away fractional resistance. */
+    public void receiveHit(DamageEvent hit) {
+        if (healthPoints <= 0) return;
+        preciseHealth = Math.max(0, preciseHealth - DamageResolver.resolve(hit, combatStats, statusEffects));
+        healthPoints = (int) Math.ceil(preciseHealth);
+        posture.applyPressure(hit.postureDamage);
+    }
+
+    public CombatStats getCombatStats() { return combatStats; }
+    public StatusEffects getStatusEffects() { return statusEffects; }
+    public Posture getPosture() { return posture; }
 
     /** Aim can be set separately from movement by future combat controls. */
     public void aim(double x, double y) {
