@@ -50,6 +50,15 @@ public class Spell extends Circle {
         velocityY = dy * MAX_SPEED;
     }
 
+    /** ECS motion is authoritative; legacy object only mirrors the transform for Canvas/collision. */
+    public void syncPosition(double x, double y) {
+        positionX = x;
+        positionY = y;
+    }
+
+    public double getVelocityX() { return velocityX; }
+    public double getVelocityY() { return velocityY; }
+
     @Override
     public void update() {
         positionX += velocityX;
