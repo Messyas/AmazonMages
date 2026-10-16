@@ -38,3 +38,16 @@ Criar `DialogueRenderer` Canvas: card inferior responsivo, retrato e nome do fal
 - Recompensa e flag de missão são persistidas atomicamente.
 - Gameplay não recebe toques durante card modal; loop continua desenhando o diálogo.
 - Testes com 30/60 UPS, acessibilidade, fontes grandes e diferentes proporções de tela.
+
+## Integração demonstrativa atual (outubro de 2026)
+
+- `Game.java` instancia `DialogueManager`, `DialogueRenderer` e `QuestJournal`.
+- Botão **FALAR (NPC)** desenhado no topo abre conversa de demonstração com Ancião da Floresta; **não há entidade NPC no mapa nem interação por proximidade ainda**.
+- `DialogueRenderer` desenha card animado, nome, retrato-placeholder, quebra de linha e texto progressivo; não usa PNG de retrato.
+- Durante o diálogo, `Game.update()` atualiza somente a conversa; toque no card completa ou avança falas.
+- A missão de demonstração `first_ghosts` exige 3 mortes de fantasmas ácidos. `EnemyManager` emite evento na transição de vivo para morto por projétil ou Tempestade de Cocos.
+- O evento final marca `REWARDED` e mostra aviso textual **História arcana descoberta**; **não concede habilidade, item ou magia real**.
+- **Tudo permanece em memória:** missões, recompensa e diálogo são reiniciados ao reabrir a jogatina; saves Room ainda armazenam somente posição e vida. Não há migração de banco nesta etapa.
+- Próximos passos: NPC no mapa com detecção de proximidade; transições de fechamento; escolhas ramificadas; persistência Room por slot com transação atômica de recompensa; assets de retrato; testes em Android.
+
+**Atenção:** a integração foi commitada, mas não compilada/testada em aparelho nesta sessão.
