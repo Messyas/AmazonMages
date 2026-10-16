@@ -133,8 +133,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Verifica se o loop do jogo está no estado TERMINATED
         if (gameLoop.getState().equals(Thread.State.TERMINATED)) {
             SurfaceHolder surfaceHolder = getHolder();
-            surfaceHolder.addCallback(this); // Adiciona a classe atual como callback
             gameLoop = new GameLoop(this, surfaceHolder); // Cria uma nova instância de GameLoop
+            performance.setGameLoop(gameLoop);
         }
 
         gameLoop.startLoop(); // Inicia o loop do jogo
