@@ -33,8 +33,31 @@ public final class EnemyManager {
     public interface KillListener { void onEnemyDefeated(String eventId); }
     private KillListener killListener;
     public void setKillListener(KillListener listener) { killListener = listener; }
-    private void reportDefeat() {
-        if (killListener != null) killListener.onEnemyDefeated("enemy.acid_ghost.defeated");
+    private void reportDefeat(Enemy enemy) {
+        EnemyTemplate template = enemy.getTemplate();
+        String event = template == null ? "enemy.acid_ghost.defeated" : template.defeatEvent;
+        if (killListener != null) killListener.onEnemyDefeated(event);
+    }
+
+    /** Bosses are explicit encounters, never added by the ambient spawn loop. */
+    public Enemy spawnEncounter(EnemyTemplate template, double x, double y) {
+        if (template == null || !template.isBossEncounter() ||
+            !Double.isFinite(x) || !Double.isFinite(y)) return null;
+        for (Enemy enemy : enemies) {
+            if (!enemy.isDead() && enemy.getTemplate() != null &&
+                enemy.getTemplate().id.equals(template.id)) return null;
+        }
+        Enemy enemy = new Enemy(context, player, template, x, y);
+        enemies.add(enemy);
+        return enemy;
+    }
+
+    public Enemy activeBoss() {
+        for (Enemy enemy : enemies) {
+            if (!enemy.isDead() && enemy.getTemplate() != null &&
+                enemy.getTemplate().isBossEncounter()) return enemy;
+        }
+        return null;
     }
     private int tick;
     private int spawnTicks;
@@ -62,10 +85,10 @@ public final class EnemyManager {
         // Social ghosts select nearby unfused ghosts of the same species.
         for (Enemy enemy : enemies) {
             Enemy target = null;
-            if (enemy.getPersonality() == EnemyPersonality.SOCIAL && !enemy.isFused() && !enemy.isDead()) {
+            if (enemy.getPersonality() == EnemyPersonality.SOCIAL && !enemy.isFused() && !enemy.isDead() && enemy.getRank() == EnemyRank.NORMAL) {
                 double best = 320;
                 for (Enemy other : enemies) {
-                    if (enemy == other || other.isFused() || other.isDead()) continue;
+                    if (enemy == other || other.isFused() || other.isDead() || other.getRank() != EnemyRank.NORMAL) continue;
                     double distance = Math.hypot(enemy.getPositionX() - other.getPositionX(),
                         enemy.getPositionY() - other.getPositionY());
                     if (distance < best) { best = distance; target = other; }
@@ -80,7 +103,8 @@ public final class EnemyManager {
             double distance = Math.hypot(
                 enemy.getPositionX() - player.getPositionX(),
                 enemy.getPositionY() - player.getPositionY());
-            if (enemy.finishedDeath() || distance > DESPAWN_DISTANCE) {
+            if (enemy.finishedDeath() || (distance > DESPAWN_DISTANCE &&
+                (enemy.getTemplate() == null || !enemy.getTemplate().isBossEncounter()))) {
                 iterator.remove();
                 continue;
             }
@@ -92,10 +116,10 @@ public final class EnemyManager {
         // Fuse nearby unfused ghosts once; the survivor keeps both remaining HP.
         for (int i = 0; i < enemies.size(); i++) {
             Enemy first = enemies.get(i);
-            if (first.isFused() || first.isDead() || first.getPersonality() != EnemyPersonality.SOCIAL) continue;
+            if (first.isFused() || first.isDead() || first.getRank() != EnemyRank.NORMAL || first.getPersonality() != EnemyPersonality.SOCIAL) continue;
             for (int j = i + 1; j < enemies.size(); j++) {
                 Enemy second = enemies.get(j);
-                if (second.isFused() || second.isDead()) continue;
+                if (second.isFused() || second.isDead() || second.getRank() != EnemyRank.NORMAL) continue;
                 if (Math.hypot(first.getPositionX() - second.getPositionX(),
                         first.getPositionY() - second.getPositionY()) < 52) {
                     first.fuseWith(second);
@@ -145,7 +169,7 @@ public final class EnemyManager {
                 if (Circle.isColliding(spell, enemy)) {
                     shotIterator.remove();
                     enemy.receiveHit(spell.getHit());
-                    if (enemy.isDead()) { reportDefeat(); break; }
+                    if (enemy.isDead()) { reportDefeat(enemy); break; }
                 }
             }
         }
@@ -162,7 +186,7 @@ public final class EnemyManager {
             double distance = Math.hypot(enemy.getPositionX() - x, enemy.getPositionY() - y);
             if (distance < radius + enemy.getRadius()) {
                 enemy.receiveHit(new DamageEvent(Math.max(0, damageMultiplier), 18, DamageType.PHYSICAL));
-                if (enemy.isDead()) reportDefeat();
+                if (enemy.isDead()) reportDefeat(enemy);
             }
         }
     }
