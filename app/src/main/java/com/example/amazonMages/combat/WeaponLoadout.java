@@ -11,6 +11,7 @@ public final class WeaponLoadout {
     public int selectedSlot() { return selected; }
     public void equip(int index, WeaponDefinition item) { if (index < 0 || index >= 4) throw new IllegalArgumentException("slot"); slots[index] = item; }
     public void next() { for (int i = 1; i <= 4; i++) { int n = (selected + i) % 4; if (slots[n] != null) { selected = n; return; } } }
+    public boolean basic(double speed) { if (current() == null || basicCooldown > 0) return false; basicCooldown = Math.max(5, (int)Math.ceil(15 / Math.max(.1, speed))); return true; }
     public boolean basic() { if (current() == null || basicCooldown > 0) return false; basicCooldown = 15; return true; }
     public boolean special() { if (current() != COCONUT || specialCooldown > 0) return false; specialCooldown = 1080; return true; }
     public void update() { if (basicCooldown > 0) basicCooldown--; if (specialCooldown > 0) specialCooldown--; }
