@@ -1,0 +1,19 @@
+# Núcleo modular incremental: ECS e eventos
+
+## Escopo da primeira etapa
+A implementação introduz um ECS **leve e opcional**, sem reescrever os objetos Canvas existentes. O `ecs/World` administra entidades por IDs locais, `ecs/Entity` permite composição de componentes e consultas por tipo. Os primeiros dados são `TransformComponent` e `HealthComponent`. Não há ainda sincronização entre `World` e `Player`/`Enemy`; o ECS é uma fundação, **não** um substituto já integrado ao gameplay.
+
+O `events/GameEventBus` é síncrono e simples. No jogo, derrotas dos inimigos agora publicam `GameEvent` e três assinantes processam progresso de missões, áudio e recompensas/salvamento. A ordem atual de assinantes preserva a sequência anterior de efeitos. Os IDs de eventos existentes permanecem iguais.
+
+## Limites
+- Event bus deve ser utilizado na thread de jogo; ainda não tem fila, política de exceções, filtros ou assinatura por tipo.
+- `GameEvent.entityId` fica em zero para eventos legados de derrota, porque os inimigos atuais não têm ID ECS.
+- A migração de objetos deve ser gradual e orientada por testes. Evitar duplicar estado de vida/posição em `Player` e componentes até existir um adaptador bem definido.
+- Não houve build Android nem execução dos testes nesta sessão.
+
+## Próximas etapas
+1. Validar build e testes unitários (`WorldTest`, `GameEventBusTest`) e corrigir regressões pré-existentes.
+2. Introduzir ciclo de vida e `System`/scheduler com ordem determinística e orçamento de atualização.
+3. Migrar primeiro entidades simples e efêmeras (projéteis ou itens coletáveis), com renderização Canvas mantida.
+4. Criar catálogo de itens, inventário e habilidades orientados a dados.
+5. Adicionar transições de cenas, recursos compartilhados e persistência de entidades relevantes.
