@@ -17,6 +17,8 @@ import com.example.amazonMages.quest.QuestDefinition;
 import com.example.amazonMages.quest.QuestJournal;
 import com.example.amazonMages.quest.QuestState;
 import com.example.amazonMages.progression.PlayerProgression;
+import com.example.amazonMages.progression.AttributesPanel;
+import com.example.amazonMages.combat.DamageType;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -53,6 +55,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final DialogueRenderer dialogueRenderer = new DialogueRenderer();
     private final QuestJournal questJournal = new QuestJournal();
     private final PlayerProgression progression = new PlayerProgression();
+    private final AttributesPanel attributesPanel = new AttributesPanel();
     private String lastRewardNotice;
     private final Tilemap tilemap;
     private final GameSaveRepository saves;
@@ -135,6 +138,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 questJournal.restore(rows);
                 saves.loadStats(stats -> {
                     progression.restore(stats);
+                    applyProgressionEffects();
                     saveLoaded = true;
                     startIfReady();
                 });
@@ -145,6 +149,24 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (attributesPanel.isOpen()) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                if (attributesPanel.touch(event.getX(), event.getY(), getWidth(), getHeight(), progression)) {
+                    applyProgressionEffects();
+                    if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
+                }
+            }
+            return true;
+        }
+        if (!dialogue.isActive() && event.getActionMasked() == MotionEvent.ACTION_DOWN &&
+            event.getX() < getWidth() * .38f && event.getY() < getHeight() * .18f) {
+            attributesPanel.toggle();
+            joystick.setIsPressed(false);
+            joystick.resetActuator();
+            attackPointerId = -1;
+            numberOfSpellsToCast = 0;
+            return true;
+        }
         if (dialogue.isActive()) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) dialogue.advance();
             return true;
@@ -264,6 +286,12 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (!dialogue.isActive()) drawTalkPrompt(canvas);
         dialogueRenderer.draw(canvas, dialogue, getWidth(), getHeight(),
             getResources().getDisplayMetrics().density);
+        if (!dialogue.isActive() && !attributesPanel.isOpen()) {
+            hudPaint.setColor(0xFFDDCCA1);
+            hudPaint.setTextSize(17 * getResources().getDisplayMetrics().density);
+            canvas.drawText("ATRIBUTOS", 16, getHeight() * .11f, hudPaint);
+        }
+        attributesPanel.draw(canvas, getWidth(), getHeight(), progression);
 
         // Desenha "Game Over" se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
@@ -273,6 +301,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
 
     public void update() {
+        if (attributesPanel.isOpen()) return;
         if (dialogue.isActive()) { dialogue.update(); return; }
         // Para de atualizar o jogo se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
@@ -333,6 +362,16 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             dialogue.start(new DialogueSequence("elder_progress", Arrays.asList(
                 new DialogueLine("elder", "Fantasmas enfrentados: " + questJournal.progress(INTRO_QUEST) + " de 3.", "neutral", null))));
         }
+    }
+
+    private void applyProgressionEffects() {
+        // Small provisional resistance bonuses; physical strength never scales magic.
+        player.getCombatStats().setResistance(DamageType.PHYSICAL,
+            Math.min(.40, (progression.resistencia - 1) * .025));
+        player.getCombatStats().setResistance(DamageType.ACID,
+            Math.min(.25, (progression.arcano - 1) * .015));
+        progression.maxMana = 100 + (progression.mente - 1) * 10;
+        progression.mana = Math.min(progression.mana, progression.maxMana);
     }
 
     private void saveQuestProgress() {
