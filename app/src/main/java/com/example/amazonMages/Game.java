@@ -30,6 +30,8 @@ import androidx.annotation.NonNull;
 
 import com.example.amazonMages.gameobject.Circle;
 import com.example.amazonMages.ai.EnemyManager;
+import com.example.amazonMages.ai.EnemyTemplate;
+import com.example.amazonMages.ai.EnemyTemplates;
 import com.example.amazonMages.gameobject.Enemy;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.Spell;
@@ -123,7 +125,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         enemyManager.setKillListener(event -> {
             questJournal.onEvent(event);
             sound("ghost_defeat");
-            if ("enemy.acid_ghost.defeated".equals(event)) progression.gainExperience(10);
+            int reward = 0;
+            if (EnemyTemplates.ACID_GHOST.defeatEvent.equals(event)) reward = EnemyTemplates.ACID_GHOST.experienceReward;
+            else if (EnemyTemplates.SWAMP_SENTINEL.defeatEvent.equals(event)) reward = EnemyTemplates.SWAMP_SENTINEL.experienceReward;
+            else if (EnemyTemplates.ANCIENT_WRAITH.defeatEvent.equals(event)) reward = EnemyTemplates.ANCIENT_WRAITH.experienceReward;
+            if (reward > 0) progression.gainExperience(reward);
             saveQuestProgress();
             if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
         });
@@ -287,6 +293,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         joystick.draw(canvas);
         performance.draw(canvas);
         drawCombatHud(canvas);
+        drawBossHud(canvas);
         if (!dialogue.isActive()) drawTalkPrompt(canvas);
         dialogueRenderer.draw(canvas, dialogue, getWidth(), getHeight(),
             getResources().getDisplayMetrics().density);
@@ -440,6 +447,28 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             enemyManager.coconutImpact(stormX + Math.cos(angle) * distance,
                 stormY + Math.sin(angle) * distance, 45, progression.physicalMultiplier());
         }
+    }
+
+    /** Called by future quests, arena triggers or scripted encounters. */
+    public boolean startBossEncounter(EnemyTemplate template, double x, double y) {
+        return enemyManager.spawnEncounter(template, x, y) != null;
+    }
+
+    private void drawBossHud(Canvas canvas) {
+        Enemy boss = enemyManager.activeBoss();
+        if (boss == null) return;
+        float width = getWidth() * .7f;
+        float left = (getWidth() - width) / 2;
+        float top = getHeight() * .89f;
+        hudPaint.setColor(0xDD18241F);
+        canvas.drawRoundRect(left, top, left + width, top + 24, 8, 8, hudPaint);
+        hudPaint.setColor(0xFFD4A46C);
+        canvas.drawRoundRect(left, top, left + width * (float) boss.getHealthRatio(),
+            top + 24, 8, 8, hudPaint);
+        hudPaint.setColor(0xFFFFFFFF);
+        hudPaint.setTextSize(15 * getResources().getDisplayMetrics().density);
+        canvas.drawText(boss.getTemplate().displayName + " - Fase " + (boss.getPhase() + 1),
+            left, top - 12, hudPaint);
     }
 
     private void drawCombatHud(Canvas canvas) {
