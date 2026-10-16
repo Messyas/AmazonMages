@@ -110,7 +110,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         enemyManager = new EnemyManager(context, player, tilemap);
         questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
-        enemyManager.setKillListener(questJournal::onEvent);
+        enemyManager.setKillListener(event -> {
+            questJournal.onEvent(event);
+            saveQuestProgress();
+        });
         dialogue.setEventListener(this::handleDialogueEvent);
 
         // Inicia o serviço de música
@@ -124,8 +127,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 player.setHealthPoint(position.health);
                 gameDisplay.update();
             }
-            saveLoaded = true;
-            startIfReady();
+            saves.loadQuests(rows -> {
+                questJournal.restore(rows);
+                saveLoaded = true;
+                startIfReady();
+            });
         });
     }
 
@@ -298,7 +304,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         gameDisplay.update();
         if (++updatesSinceSave >= 600) {
             updatesSinceSave = 0;
-            saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
+            saveNow();
         }
     }
 
@@ -322,6 +328,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+    private void saveQuestProgress() {
+        if (saveLoaded) saves.saveQuests(questJournal.snapshot(saves.getSlotId()));
+    }
+
     private void handleDialogueEvent(String event) {
         if ("quest.offer.first_ghosts".equals(event)) questJournal.offer(INTRO_QUEST);
         else if ("quest.accept.first_ghosts".equals(event)) questJournal.accept(INTRO_QUEST);
@@ -329,6 +339,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             String unlock = questJournal.claimReward(INTRO_QUEST);
             if (unlock != null) lastRewardNotice = "Historia arcana descoberta";
         }
+        saveQuestProgress();
     }
 
     private void drawTalkPrompt(Canvas canvas) {
@@ -392,7 +403,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     /** Explicit save action used by the in-game pause menu. */
     public void saveNow() {
-        if (saveLoaded) saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
+        if (!saveLoaded) return;
+        saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
+        saveQuestProgress();
     }
 
     public synchronized void pause() {
