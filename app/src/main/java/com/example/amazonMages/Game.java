@@ -11,6 +11,8 @@ import com.example.amazonMages.combat.WeaponDefinition;
 import com.example.amazonMages.combat.WeaponType;
 import com.example.amazonMages.combat.DamageEvent;
 import com.example.amazonMages.dev.DevConsole;
+import com.example.amazonMages.events.GameEvent;
+import com.example.amazonMages.events.GameEventBus;
 import com.example.amazonMages.dev.DevicePerformanceMonitor;
 import com.example.amazonMages.map.MapLayout;
 import com.example.amazonMages.audio.GameAudioManager;
@@ -149,6 +151,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private static final String INTRO_QUEST = "first_ghosts";
+    private final GameEventBus eventBus = new GameEventBus();
     private final DialogueManager dialogue = new DialogueManager();
     private final DialogueRenderer dialogueRenderer = new DialogueRenderer();
     private final QuestJournal questJournal = new QuestJournal();
@@ -213,17 +216,21 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         enemyManager = new EnemyManager(context, player, tilemap);
         questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
-        enemyManager.setKillListener(event -> {
-            questJournal.onEvent(event);
-            sound("ghost_defeat");
+        eventBus.subscribe(event -> questJournal.onEvent(event.id));
+        eventBus.subscribe(event -> {
+            if (event.id.startsWith("enemy.")) sound("ghost_defeat");
+        });
+        eventBus.subscribe(event -> {
             int reward = 0;
-            if (EnemyTemplates.ACID_GHOST.defeatEvent.equals(event)) reward = EnemyTemplates.ACID_GHOST.experienceReward;
-            else if (EnemyTemplates.SWAMP_SENTINEL.defeatEvent.equals(event)) reward = EnemyTemplates.SWAMP_SENTINEL.experienceReward;
-            else if (EnemyTemplates.ANCIENT_WRAITH.defeatEvent.equals(event)) reward = EnemyTemplates.ANCIENT_WRAITH.experienceReward;
+            if (EnemyTemplates.ACID_GHOST.defeatEvent.equals(event.id)) reward = EnemyTemplates.ACID_GHOST.experienceReward;
+            else if (EnemyTemplates.SWAMP_SENTINEL.defeatEvent.equals(event.id)) reward = EnemyTemplates.SWAMP_SENTINEL.experienceReward;
+            else if (EnemyTemplates.ANCIENT_WRAITH.defeatEvent.equals(event.id)) reward = EnemyTemplates.ANCIENT_WRAITH.experienceReward;
             if (reward > 0) progression.gainExperience(reward);
             saveQuestProgress();
             if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
         });
+        enemyManager.setKillListener(event -> eventBus.publish(new GameEvent(event, 0)));
+
         dialogue.setEventListener(this::handleDialogueEvent);
 
 
