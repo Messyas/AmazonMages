@@ -39,6 +39,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final Joystick joystick;
     private final Player player;
     private GameLoop gameLoop;
+    private volatile boolean activityResumed = false;
     private final List<Enemy> enemyList = new ArrayList<>();
     private final List<Spell> spellList = new ArrayList<>();
     private int numberOfSpellsToCast = 0;
@@ -129,12 +130,17 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceCreated(@NonNull SurfaceHolder holder) {
         Log.d("Game.java", "surfaceCreated()");
-        resume();
+        startIfReady();
     }
 
     /** Resume only if a surface exists; never restart an already-running Thread. */
-    public void resume() {
-        if (!getHolder().getSurface().isValid()) return;
+    public synchronized void resume() {
+        activityResumed = true;
+        startIfReady();
+    }
+
+    private synchronized void startIfReady() {
+        if (!activityResumed || !getHolder().getSurface().isValid()) return;
         if (gameLoop.getState() == Thread.State.TERMINATED) {
             gameLoop = new GameLoop(this, getHolder());
             performance.setGameLoop(gameLoop);
@@ -250,7 +256,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
 
-    public void pause() {
+    public synchronized void pause() {
+        activityResumed = false;
         gameLoop.stopLoop();
     }
 
