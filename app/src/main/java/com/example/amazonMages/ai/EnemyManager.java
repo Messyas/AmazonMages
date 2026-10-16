@@ -30,6 +30,12 @@ public final class EnemyManager {
     private final Player player;
     private final Tilemap tilemap;
     private final Random random = new Random();
+    public interface KillListener { void onEnemyDefeated(String eventId); }
+    private KillListener killListener;
+    public void setKillListener(KillListener listener) { killListener = listener; }
+    private void reportDefeat() {
+        if (killListener != null) killListener.onEnemyDefeated("enemy.acid_ghost.defeated");
+    }
     private int tick;
     private int spawnTicks;
 
@@ -139,7 +145,7 @@ public final class EnemyManager {
                 if (Circle.isColliding(spell, enemy)) {
                     shotIterator.remove();
                     enemy.receiveHit(spell.getHit());
-                    if (enemy.isDead()) break;
+                    if (enemy.isDead()) { reportDefeat(); break; }
                 }
             }
         }
@@ -152,6 +158,7 @@ public final class EnemyManager {
             double distance = Math.hypot(enemy.getPositionX() - x, enemy.getPositionY() - y);
             if (distance < radius + enemy.getRadius()) {
                 enemy.receiveHit(new DamageEvent(1, 18, DamageType.PHYSICAL));
+                if (enemy.isDead()) reportDefeat();
             }
         }
     }
