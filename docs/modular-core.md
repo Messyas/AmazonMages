@@ -17,3 +17,16 @@ O `events/GameEventBus` é síncrono e simples. No jogo, derrotas dos inimigos a
 3. Migrar primeiro entidades simples e efêmeras (projéteis ou itens coletáveis), com renderização Canvas mantida.
 4. Criar catálogo de itens, inventário e habilidades orientados a dados.
 5. Adicionar transições de cenas, recursos compartilhados e persistência de entidades relevantes.
+
+## Segunda etapa: scheduler e projéteis do jogador
+
+- `ecs/GameSystem` define `update(World, ticks)`.
+- `ecs/SystemScheduler` executa sistemas em ordem de registro, sem criar threads.
+- `ecs/VelocityComponent` prepara o movimento orientado a dados.
+- `ecs/ProjectileComponent` faz a ponte com o `Spell` atual.
+- `ecs/ProjectileMovementSystem` atualiza projéteis e remove os que saem do mundo.
+- `ecs/ProjectileWorld` encapsula criação, atualização, renderização, snapshot para colisão e reconciliação dos projéteis consumidos.
+- `Game` deixa de manter a lista de `Spell` diretamente e delega seu ciclo de vida ao `ProjectileWorld`.
+- `SystemSchedulerTest` cobre ordem dos sistemas e remoção durante consulta snapshot.
+
+**Limitação importante:** `Spell` ainda contém sua própria velocidade e movimento. O `VelocityComponent` não dirige projéteis nesta etapa, evitando estado duplicado. O sistema de colisões dos inimigos continua legado e usa uma lista temporária de projéteis. Não houve compilação nem execução de testes Android.
