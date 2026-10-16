@@ -38,3 +38,13 @@ O `events/GameEventBus` é síncrono e simples. No jogo, derrotas dos inimigos a
 - `ProjectileCollisionSystem` introduz consulta geométrica reutilizável sem dependências Android; o combate atual ainda chama `EnemyManager.collideWithPlayerSpells` e **não foi migrado** para esse sistema.
 - Testes unitários novos verificam consultas circulares e atualização de posição por componentes. Não foram executados.
 - Próximo passo: integrar o sistema de colisões ao combate com entidades de inimigos, garantindo eventos de dano únicos, e introduzir itens coletáveis usando os mesmos componentes.
+
+## Quarta etapa: itens coletáveis (protótipo)
+
+- `items/ItemDefinition`, `ItemRegistry` e `Inventory` implementam catálogo, quantidades e limite de pilha por tipo.
+- `ecs/PickupComponent` representa uma pilha coletável; `PickupSystem` usa consultas geométricas ECS e mantém o restante no mundo quando o inventário está cheio.
+- `Game` cria um `World` de itens e coleta por proximidade do jogador; os itens são círculos provisórios no Canvas.
+- Comandos debug: `spawn erva [1-10]` cria itens próximos; `give erva` adiciona uma unidade ao inventário.
+- A coleta publica `item.erva.collected` no Event Bus. Ainda não há interface de inventário, persistência de itens nem tabela de drops.
+- `PickupSystemTest` cobre coleta por proximidade e capacidade parcial.
+- **Não foi executado build nem teste Android.** A migração de colisões de projéteis contra inimigos continua pendente: `ProjectileCollisionSystem` é reutilizado para pickups, mas o combate ainda usa `EnemyManager.collideWithPlayerSpells`.
