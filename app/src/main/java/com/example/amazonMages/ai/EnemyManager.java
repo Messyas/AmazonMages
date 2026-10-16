@@ -27,7 +27,7 @@ public final class EnemyManager {
     private static final int MID_UPDATE_TICKS = 6;
     private static final int FAR_UPDATE_TICKS = 60;
     private final List<Enemy> enemies = new ArrayList<>();
-    private final List<EnemyProjectile> projectiles = new ArrayList<>();
+    private final com.example.amazonMages.ecs.HostileProjectileWorld projectiles = new com.example.amazonMages.ecs.HostileProjectileWorld();
     private final AttackDirector attacks = new AttackDirector();
     private final Context context;
     private final Player player;
@@ -135,30 +135,21 @@ public final class EnemyManager {
         // Rotating priority prevents the same ghost from monopolizing the firing budget.
         int size = enemies.size();
         int start = attacks.firstCandidate(size);
-        if (attacks.canFire(tick, projectiles.size())) {
+        if (attacks.canFire(tick, projectiles.count())) {
             for (int offset = 0; offset < size; offset++) {
                 int index = (start + offset) % size;
                 Enemy enemy = enemies.get(index);
                 if (enemy.isDead()) continue;
                 EnemyProjectile shot = enemy.fireProjectile();
                 if (shot != null) {
-                    projectiles.add(shot);
+                    projectiles.spawn(shot);
                     attacks.recordShot(tick, index, size);
                     break;
                 }
             }
         }
 
-        Iterator<EnemyProjectile> shots = projectiles.iterator();
-        while (shots.hasNext()) {
-            EnemyProjectile shot = shots.next();
-            shot.update();
-            if (shot.expired()) shots.remove();
-            else if (Circle.isColliding(shot, player)) {
-                player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, DamageType.ACID));
-                shots.remove();
-            }
-        }
+        projectiles.update(player);
     }
 
     /** ECS projectile collision; each projectile can hit only one enemy. */
@@ -213,7 +204,7 @@ public final class EnemyManager {
 
     public void draw(Canvas canvas, GameDisplay display) {
         for (Enemy enemy : enemies) enemy.draw(canvas, display);
-        for (EnemyProjectile shot : projectiles) shot.draw(canvas, display);
+        projectiles.draw(canvas, display);
     }
 
     /** Debug only: removes active enemies and projectiles without kill rewards. */
@@ -231,5 +222,5 @@ public final class EnemyManager {
     }
 
     public int getEnemyCount() { return enemies.size(); }
-    public int getProjectileCount() { return projectiles.size(); }
+    public int getProjectileCount() { return projectiles.count(); }
 }

@@ -73,7 +73,8 @@ public class Spell extends Circle {
 
         // Desenha o Bitmap do feitiço centralizado
         if (coconut) {
-            android.graphics.Paint husk = new android.graphics.Paint(3);
+            android.graphics.Paint husk = paint;
+            husk.setAntiAlias(true);
             husk.setColor(0xFF79502D);
             canvas.drawCircle(displayX, displayY, 17, husk);
             husk.setColor(0xFFB88C50);

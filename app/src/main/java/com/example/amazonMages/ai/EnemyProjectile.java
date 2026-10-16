@@ -26,6 +26,10 @@ public final class EnemyProjectile extends Circle {
         ticksRemaining--;
     }
 
+    public double getVelocityX() { return vx; }
+    public double getVelocityY() { return vy; }
+    public void syncPosition(double x, double y) { positionX = x; positionY = y; }
+
     public int getDamage() { return damage; }
 
     public boolean expired() { return ticksRemaining <= 0; }

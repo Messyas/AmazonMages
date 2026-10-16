@@ -17,16 +17,24 @@ public final class World {
     }
     public boolean destroy(long id) { return entities.remove(id) != null; }
     public Entity find(long id) { return entities.get(id); }
+    public void clear() { entities.clear(); }
     public int size() { return entities.size(); }
     @SafeVarargs
     public final List<Entity> with(Class<? extends Component>... types) {
         List<Entity> result = new ArrayList<>();
+        queryInto(result, types);
+        return Collections.unmodifiableList(result);
+    }
+
+    /** Caller-owned snapshot; safe destruction during iteration without per-query list allocation. */
+    @SafeVarargs
+    public final void queryInto(List<Entity> result, Class<? extends Component>... types) {
+        result.clear();
         for (Entity entity : entities.values()) {
             boolean matches = true;
             for (Class<? extends Component> type : types)
                 if (!entity.has(type)) { matches = false; break; }
             if (matches) result.add(entity);
         }
-        return Collections.unmodifiableList(result);
     }
 }
