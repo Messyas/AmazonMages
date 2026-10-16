@@ -242,10 +242,15 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
 
+    /** Explicit save action used by the in-game pause menu. */
+    public void saveNow() {
+        if (saveLoaded) saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
+    }
+
     public synchronized void pause() {
         activityResumed = false;
         gameLoop.stopLoop();
-        if (saveLoaded) saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
+        saveNow();
     }
 
     public void closeSaveRepository() {
