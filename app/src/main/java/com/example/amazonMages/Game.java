@@ -8,6 +8,14 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import com.example.amazonMages.combat.WeaponLoadout;
 import java.util.Random;
+import java.util.Arrays;
+import com.example.amazonMages.dialogue.DialogueLine;
+import com.example.amazonMages.dialogue.DialogueSequence;
+import com.example.amazonMages.dialogue.DialogueManager;
+import com.example.amazonMages.dialogue.DialogueRenderer;
+import com.example.amazonMages.quest.QuestDefinition;
+import com.example.amazonMages.quest.QuestJournal;
+import com.example.amazonMages.quest.QuestState;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -39,6 +47,11 @@ import java.util.List;
  */
 class Game extends SurfaceView implements SurfaceHolder.Callback {
 
+    private static final String INTRO_QUEST = "first_ghosts";
+    private final DialogueManager dialogue = new DialogueManager();
+    private final DialogueRenderer dialogueRenderer = new DialogueRenderer();
+    private final QuestJournal questJournal = new QuestJournal();
+    private String lastRewardNotice;
     private final Tilemap tilemap;
     private final GameSaveRepository saves;
     private volatile boolean saveLoaded = false;
@@ -95,6 +108,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Initialize Tilemap
         tilemap = new Tilemap(spriteSheet);
         enemyManager = new EnemyManager(context, player, tilemap);
+        questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
+            "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
+        enemyManager.setKillListener(questJournal::onEvent);
+        dialogue.setEventListener(this::handleDialogueEvent);
 
         // Inicia o serviço de música
         Intent musicIntent = new Intent(context, MusicService.class);
@@ -115,6 +132,16 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (dialogue.isActive()) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) dialogue.advance();
+            return true;
+        }
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN &&
+            event.getX() > getWidth() * 0.38f && event.getX() < getWidth() * 0.70f &&
+            event.getY() < getHeight() * 0.22f) {
+            startElderDialogue();
+            return true;
+        }
         // Lida com ações de eventos de toque do usuário
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
@@ -221,6 +248,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         joystick.draw(canvas);
         performance.draw(canvas);
         drawCombatHud(canvas);
+        if (!dialogue.isActive()) drawTalkPrompt(canvas);
+        dialogueRenderer.draw(canvas, dialogue, getWidth(), getHeight(),
+            getResources().getDisplayMetrics().density);
 
         // Desenha "Game Over" se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
@@ -230,6 +260,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
 
     public void update() {
+        if (dialogue.isActive()) { dialogue.update(); return; }
         // Para de atualizar o jogo se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
             return;
@@ -271,6 +302,50 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+
+    private void startElderDialogue() {
+        QuestState state = questJournal.state(INTRO_QUEST);
+        if (state == QuestState.LOCKED) {
+            dialogue.start(new DialogueSequence("elder_intro", Arrays.asList(
+                new DialogueLine("elder", "Os fantasmas acidos estao agitados. Voce pode nos ajudar?", "neutral", "quest.offer.first_ghosts"),
+                new DialogueLine("player", "Vou enfrentar tres deles. Me espere aqui!", "neutral", "quest.accept.first_ghosts"))));
+        } else if (state == QuestState.COMPLETED) {
+            dialogue.start(new DialogueSequence("elder_reward", Arrays.asList(
+                new DialogueLine("elder", "Voce conseguiu! O pantano esta mais tranquilo.", "happy", "quest.claim.first_ghosts"),
+                new DialogueLine("player", "Mais um misterio da floresta resolvido!", "neutral", null))));
+        } else if (state == QuestState.REWARDED) {
+            dialogue.start(new DialogueSequence("elder_done", Arrays.asList(
+                new DialogueLine("elder", "Obrigado pela ajuda, jovem mago.", "neutral", null))));
+        } else {
+            dialogue.start(new DialogueSequence("elder_progress", Arrays.asList(
+                new DialogueLine("elder", "Fantasmas enfrentados: " + questJournal.progress(INTRO_QUEST) + " de 3.", "neutral", null))));
+        }
+    }
+
+    private void handleDialogueEvent(String event) {
+        if ("quest.offer.first_ghosts".equals(event)) questJournal.offer(INTRO_QUEST);
+        else if ("quest.accept.first_ghosts".equals(event)) questJournal.accept(INTRO_QUEST);
+        else if ("quest.claim.first_ghosts".equals(event)) {
+            String unlock = questJournal.claimReward(INTRO_QUEST);
+            if (unlock != null) lastRewardNotice = "Historia arcana descoberta";
+        }
+    }
+
+    private void drawTalkPrompt(Canvas canvas) {
+        hudPaint.setColor(0xCC2B493C);
+        float left = getWidth() * 0.38f, right = getWidth() * 0.70f;
+        float top = getHeight() * 0.07f, bottom = getHeight() * 0.19f;
+        canvas.drawRoundRect(left, top, right, bottom, 18, 18, hudPaint);
+        hudPaint.setColor(0xFFF5E9CE);
+        hudPaint.setTextSize(17 * getResources().getDisplayMetrics().density);
+        canvas.drawText("FALAR (NPC)", left + 12, (top + bottom) / 2, hudPaint);
+        QuestState state = questJournal.state(INTRO_QUEST);
+        if (state == QuestState.ACTIVE || state == QuestState.COMPLETED) {
+            canvas.drawText("Missao: " + questJournal.progress(INTRO_QUEST) + "/3",
+                left, bottom + 28, hudPaint);
+        }
+        if (lastRewardNotice != null) canvas.drawText(lastRewardNotice, left, bottom + 55, hudPaint);
+    }
 
     private void activateCoconutStorm() {
         if (!weapons.special()) return;
