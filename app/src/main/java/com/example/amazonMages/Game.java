@@ -20,7 +20,7 @@ import com.example.amazonMages.gameobject.Spell;
 import com.example.amazonMages.gamepanel.GameOver;
 import com.example.amazonMages.gamepanel.Joystick;
 import com.example.amazonMages.gamepanel.Performance;
-import com.example.amazonMages.graphics.Animator;
+import com.example.amazonMages.graphics.SpriteAnimator;
 import com.example.amazonMages.graphics.SpriteSheet;
 import com.example.amazonMages.map.Tilemap;
 import com.example.amazonMages.save.GameSaveRepository;
@@ -72,7 +72,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
         // Initialize game objects
         SpriteSheet spriteSheet = new SpriteSheet(context);
-        Animator animator = new Animator(spriteSheet.getPlayerSpriteArray());
+        SpriteAnimator animator = new SpriteAnimator(spriteSheet.getPlayerAnimations());
         player = new Player(context, joystick, 2*500, 500, 32, animator);
         saves = new GameSaveRepository(context, slotId);
 
@@ -277,7 +277,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     public synchronized void pause() {
         activityResumed = false;
         gameLoop.stopLoop();
-        if (saveLoaded) saves.savePosition(player.getPositionX(), player.getPositionY());
+        if (saveLoaded) saves.savePosition(player.getPositionX(), player.getPositionY(), player.getHealthPoint());
     }
 
     public void closeSaveRepository() {
