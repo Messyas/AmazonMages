@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import com.example.amazonMages.combat.WeaponLoadout;
+import com.example.amazonMages.audio.GameAudioManager;
 import java.util.Random;
 import java.util.Arrays;
 import com.example.amazonMages.dialogue.DialogueLine;
@@ -49,6 +50,10 @@ import java.util.List;
  * e renderizar todos os objetos na tela.
  */
 class Game extends SurfaceView implements SurfaceHolder.Callback {
+
+    private GameAudioManager audio;
+    public void setAudioManager(GameAudioManager manager) { this.audio = manager; }
+    private void sound(String event) { if (audio != null) audio.play(event); }
 
     private static final String INTRO_QUEST = "first_ghosts";
     private final DialogueManager dialogue = new DialogueManager();
@@ -117,15 +122,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
         enemyManager.setKillListener(event -> {
             questJournal.onEvent(event);
+            sound("ghost_defeat");
             if ("enemy.acid_ghost.defeated".equals(event)) progression.gainExperience(10);
             saveQuestProgress();
             if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
         });
         dialogue.setEventListener(this::handleDialogueEvent);
 
-        // Inicia o serviço de música
-        Intent musicIntent = new Intent(context, MusicService.class);
-        context.startService(musicIntent); // Inicia o serviço de música em segundo plano
 
         setFocusable(true);
         saves.loadPosition(position -> {
@@ -175,6 +178,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             event.getX() > getWidth() * 0.38f && event.getX() < getWidth() * 0.70f &&
             event.getY() < getHeight() * 0.22f) {
             startElderDialogue();
+            sound("dialogue");
             return true;
         }
         // Lida com ações de eventos de toque do usuário
@@ -321,6 +325,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Atualiza o estado de todos os feitiços
         while (numberOfSpellsToCast > 0) {
             if (weapons.basic(progression.castSpeed())) {
+                sound("attack");
                 boolean coconut = weapons.current() == WeaponLoadout.COCONUT;
                 spellList.add(new Spell(getContext(), player, coconut,
                     coconut ? progression.physicalMultiplier() : progression.magicMultiplier()));
@@ -417,6 +422,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private void activateCoconutStorm() {
         if (progression.mana < 35 || !weapons.special()) return;
         progression.spendMana(35);
+        sound("storm");
         if (saveLoaded) saves.saveStats(progression.snapshot(saves.getSlotId()));
         coconutStormTicks = 150;
         double dx = player.getAttackDirectionX(), dy = player.getAttackDirectionY();
