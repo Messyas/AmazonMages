@@ -14,6 +14,7 @@ import android.view.SurfaceView;
 import androidx.annotation.NonNull;
 
 import com.example.amazonMages.gameobject.Circle;
+import com.example.amazonMages.ai.EnemyProjectile;
 import com.example.amazonMages.gameobject.Enemy;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.Spell;
@@ -46,6 +47,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private volatile boolean activityResumed = false;
     private final List<Enemy> enemyList = new ArrayList<>();
     private final List<Spell> spellList = new ArrayList<>();
+    private final List<EnemyProjectile> hostileProjectiles = new ArrayList<>();
     private int numberOfSpellsToCast = 0;
     private final GameOver gameOver;
     private final Performance performance;
@@ -193,6 +195,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             spell.draw(canvas, gameDisplay);
         }
 
+        for (EnemyProjectile shot : hostileProjectiles) shot.draw(canvas, gameDisplay);
+
         // Desenha os painéis do jogo
         joystick.draw(canvas);
         performance.draw(canvas);
@@ -222,6 +226,19 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Atualiza o estado de todos os inimigos
         for (Enemy enemy : enemyList) {
             enemy.update();
+            EnemyProjectile shot = enemy.fireProjectile();
+            if (shot != null) hostileProjectiles.add(shot);
+        }
+
+        Iterator<EnemyProjectile> hostileShots = hostileProjectiles.iterator();
+        while (hostileShots.hasNext()) {
+            EnemyProjectile shot = hostileShots.next();
+            shot.update();
+            if (shot.expired()) hostileShots.remove();
+            else if (Circle.isColliding(shot, player)) {
+                player.setHealthPoint(player.getHealthPoint() - 1);
+                hostileShots.remove();
+            }
         }
 
         // Atualiza o estado de todos os feitiços
