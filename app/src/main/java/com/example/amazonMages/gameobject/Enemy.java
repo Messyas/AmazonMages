@@ -128,6 +128,11 @@ public class Enemy extends Circle {
                 velocityY = dy / distance * config.speed / 60.0 * elapsedTicks;
             }
         }
+        if (template != null && template.isBossEncounter() && phase > 0) {
+            double speedBonus = 1 + .12 * phase;
+            velocityX *= speedBonus;
+            velocityY *= speedBonus;
+        }
         if (previousState == EnemyState.IDLE && brain.getState() == EnemyState.ALERT) {
             animation.react(hasSeenPlayer ? GhostAnimation.STARTLED : GhostAnimation.SPOTTED_PLAYER);
             hasSeenPlayer = true;
@@ -154,7 +159,8 @@ public class Enemy extends Circle {
         animation.react(GhostAnimation.ATTACK);
         brain.onShotFired(health);
         return new EnemyProjectile(positionX, positionY,
-            brain.getShotX(), brain.getShotY(), config.projectileSpeed, damage);
+            brain.getShotX(), brain.getShotY(), config.projectileSpeed,
+            template != null && template.isBossEncounter() ? damage + phase : damage);
     }
 
     public void setGroupTarget(Enemy other) {
