@@ -29,7 +29,9 @@ public class Performance {
     // Método para desenhar informações de desempenho no canvas
     public void draw(Canvas canvas) {
         drawUPS(canvas); // Desenha o UPS (Updates Per Second)
-        drawFPS(canvas); // Desenha o FPS (Frames Per Second)
+        drawFPS(canvas);
+        canvas.drawText(String.format(java.util.Locale.US, "Update: %.2f ms", gameLoop.getAverageUpdateMs()), 100, 300, paint);
+        canvas.drawText(String.format(java.util.Locale.US, "Draw: %.2f ms", gameLoop.getAverageDrawMs()), 100, 400, paint); // Desenha o FPS (Frames Per Second)
     }
 
     // Método para desenhar o UPS no canvas
