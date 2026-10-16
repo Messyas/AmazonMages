@@ -3,6 +3,8 @@ package com.example.amazonMages.ai;
 import android.content.Context;
 import android.graphics.Canvas;
 import com.example.amazonMages.GameDisplay;
+import com.example.amazonMages.combat.DamageEvent;
+import com.example.amazonMages.combat.DamageType;
 import com.example.amazonMages.gameobject.Circle;
 import com.example.amazonMages.gameobject.Enemy;
 import com.example.amazonMages.gameobject.Player;
@@ -120,7 +122,7 @@ public final class EnemyManager {
             shot.update();
             if (shot.expired()) shots.remove();
             else if (Circle.isColliding(shot, player)) {
-                player.setHealthPoint(player.getHealthPoint() - shot.getDamage());
+                player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, DamageType.ACID));
                 shots.remove();
             }
         }
