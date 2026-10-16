@@ -46,8 +46,9 @@ public class GameDatabaseTest {
                     }).build());
             helper.getWritableDatabase();
             helper.close();
-            try (GameDatabase db = Room.databaseBuilder(context, GameDatabase.class, name)
-                    .addMigrations(MIGRATIONS).build()) {
+            GameDatabase db = Room.databaseBuilder(context, GameDatabase.class, name)
+                    .addMigrations(MIGRATIONS).build();
+            try {
                 PlayerPositionEntity position = db.playerPositionDao().load(1);
                 assertEquals(100, position.x, 0);
                 assertEquals(5, position.health);
@@ -55,7 +56,7 @@ public class GameDatabaseTest {
                 if (version >= 3) assertEquals(2, db.questProgressDao().loadForSlot(1).get(0).progress);
                 if (version >= 4) assertEquals(2, db.playerStatsDao().load(1).level);
                 assertRoundTripAndDeletion(db);
-            } finally { context.deleteDatabase(name); }
+            } finally { db.close(); context.deleteDatabase(name); }
         }
     }
 
@@ -72,21 +73,24 @@ public class GameDatabaseTest {
             legacy.execSQL("INSERT INTO inventory_items VALUES (1, 'erva', 7)");
             legacy.setVersion(5);
         }
-        try (GameDatabase db = Room.databaseBuilder(context, GameDatabase.class, name)
-                .addMigrations(MIGRATIONS).build()) {
+        GameDatabase db = Room.databaseBuilder(context, GameDatabase.class, name)
+                .addMigrations(MIGRATIONS).build();
+        try {
             assertEquals(3, db.playerPositionDao().load(1).health);
             assertEquals(7, db.inventoryItemDao().loadForSlot(1).get(0).quantity);
-        } finally { context.deleteDatabase(name); }
+        } finally { db.close(); context.deleteDatabase(name); }
     }
 
     @Test public void freshDatabaseMatchesMigratedSchemaAndTransactions() {
-        try (GameDatabase db = Room.inMemoryDatabaseBuilder(context, GameDatabase.class).build()) {
+        GameDatabase db = Room.inMemoryDatabaseBuilder(context, GameDatabase.class).build();
+        try {
             assertRoundTripAndDeletion(db);
-        }
+        } finally { db.close(); }
     }
 
     @Test public void failedInventoryWriteRollsBackEntireSnapshot() {
-        try (GameDatabase db = Room.inMemoryDatabaseBuilder(context, GameDatabase.class).build()) {
+        GameDatabase db = Room.inMemoryDatabaseBuilder(context, GameDatabase.class).build();
+        try {
             db.playerPositionDao().save(new PlayerPositionEntity(1, 10, 20, 5, 1));
             try {
                 GameSaveRepository.writeSnapshot(db,
@@ -101,7 +105,7 @@ public class GameDatabaseTest {
                 assertNull(db.playerStatsDao().load(1));
                 assertTrue(db.questProgressDao().loadForSlot(1).isEmpty());
             }
-        }
+        } finally { db.close(); }
     }
 
     private void assertRoundTripAndDeletion(GameDatabase db) {
