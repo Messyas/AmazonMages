@@ -7,6 +7,8 @@ import android.util.Log;
 
 import androidx.room.Room;
 
+import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -26,7 +28,7 @@ public class GameSaveRepository {
         this.slotId = slotId;
         database = Room.databaseBuilder(context.getApplicationContext(),
             GameDatabase.class, "amazon_mages_saves.db")
-            .addMigrations(MIGRATION_1_2).build();
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3).build();
     }
 
     public static final androidx.room.migration.Migration MIGRATION_1_2 =
@@ -35,6 +37,42 @@ public class GameSaveRepository {
                 db.execSQL("ALTER TABLE player_positions ADD COLUMN health INTEGER NOT NULL DEFAULT 5");
             }
         };
+
+    public static final androidx.room.migration.Migration MIGRATION_2_3 =
+        new androidx.room.migration.Migration(2, 3) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS quest_progress (slotId INTEGER NOT NULL, questId TEXT NOT NULL, state TEXT NOT NULL, progress INTEGER NOT NULL, PRIMARY KEY(slotId, questId))");
+            }
+        };
+
+    public interface QuestLoadCallback {
+        void onLoaded(List<QuestProgressEntity> progress);
+    }
+
+    public void loadQuests(QuestLoadCallback callback) {
+        io.execute(() -> {
+            List<QuestProgressEntity> rows;
+            try {
+                rows = database.questProgressDao().loadForSlot(slotId);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to load quests", e);
+                rows = new ArrayList<>();
+            }
+            List<QuestProgressEntity> result = rows;
+            main.post(() -> callback.onLoaded(result));
+        });
+    }
+
+    public void saveQuests(List<QuestProgressEntity> snapshot) {
+        final List<QuestProgressEntity> rows = new ArrayList<>(snapshot);
+        io.execute(() -> {
+            try {
+                database.questProgressDao().upsertAll(rows);
+            } catch (RuntimeException e) {
+                Log.e(TAG, "Unable to save quests", e);
+            }
+        });
+    }
 
     public interface SlotsCallback {
         void onLoaded(java.util.List<PlayerPositionEntity> slots);
@@ -57,7 +95,10 @@ public class GameSaveRepository {
     public void deleteSlot(int id, Runnable done) {
         io.execute(() -> {
             try {
-                database.playerPositionDao().delete(id);
+                database.runInTransaction(() -> {
+                    database.questProgressDao().deleteForSlot(id);
+                    database.playerPositionDao().delete(id);
+                });
             } catch (RuntimeException e) {
                 Log.e(TAG, "Unable to delete slot", e);
             }
