@@ -1,5 +1,7 @@
 # AmazonMages UI kit — etapa 5.1
 
+> Versão atual: [kit v3 — etapa 6.1](../../art/ui-kit-v3/README.md), com 15 atlas, estados, medidas, PNGs HD/nativos e mockup sobre a captura do aparelho. O conteúdo abaixo registra o conceito anterior.
+
 `ui_kit_atlas_concept.png` é a prancha de direção visual para aprovação. Ela reúne moldura de painel, faixa de título, botões, slots, abas, divisores, barras, stepper, ícones e cursor de seleção, usando madeira, pedra musgosa, folhas e dourado.
 
 ## Especificação para os PNGs finais

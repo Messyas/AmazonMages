@@ -1,0 +1,131 @@
+{
+ "_comment": "AmazonMages master palette. Ramps go from shadow to light with hue shift. To lock the palette to approved art use: pixelize.py palette-extract",
+ "always": [
+  "ink",
+  "neutral"
+ ],
+ "ramps": {
+  "ink": [
+   "#0B1A12",
+   "#14261C",
+   "#1B1008"
+  ],
+  "neutral": [
+   "#F4F7E8",
+   "#B8C99A",
+   "#6B7A62"
+  ],
+  "grass": [
+   "#1D5A2C",
+   "#2C8A3A",
+   "#46B144",
+   "#74D25A",
+   "#B4EC78"
+  ],
+  "foliage": [
+   "#123F2A",
+   "#1E6436",
+   "#2F8B3E",
+   "#55B24A",
+   "#94D768"
+  ],
+  "dirt": [
+   "#5A3A24",
+   "#86593A",
+   "#B38455",
+   "#D6AF78",
+   "#EED7A4"
+  ],
+  "cliff": [
+   "#4A2E2A",
+   "#7A4A3C",
+   "#A8705A",
+   "#C99A7C"
+  ],
+  "water": [
+   "#1A3E7A",
+   "#2861B0",
+   "#3E8FD6",
+   "#7CC4F0",
+   "#D2F2FF"
+  ],
+  "leaf_magic": [
+   "#0F4A2E",
+   "#1E8A4A",
+   "#3DC45E",
+   "#9BF06A",
+   "#F4F7A0"
+  ],
+  "acid": [
+   "#4A6E12",
+   "#8FD12A",
+   "#C6F032",
+   "#5A2A8A",
+   "#8A3FD0",
+   "#B98AF0"
+  ],
+  "lava": [
+   "#3A1210",
+   "#7A2418",
+   "#C4452A",
+   "#F08A38",
+   "#FFD05A"
+  ],
+  "hero_outfit": [
+   "#5A1226",
+   "#9A2438",
+   "#D43E48",
+   "#F07A6A"
+  ],
+  "hero_skin": [
+   "#8A4F3A",
+   "#C98660",
+   "#F0BE94"
+  ],
+  "hero_hair": [
+   "#3A2216",
+   "#6B4328"
+  ],
+  "hero_shirt": [
+   "#1C4A52",
+   "#2D7C80"
+  ],
+  "wood_ui": [
+   "#2B1A12",
+   "#4A2E1F",
+   "#6B4529",
+   "#8F6238"
+  ],
+  "stone_ui": [
+   "#2E3B2A",
+   "#4A5E3C",
+   "#6F8A52",
+   "#A8C27A"
+  ],
+  "gold": [
+   "#7A5A1E",
+   "#C99A2E",
+   "#F2D36B",
+   "#FFF1B0"
+  ],
+  "panel": [
+   "#10241A",
+   "#17321F",
+   "#1F4228"
+  ],
+  "danger": [
+   "#5A1E1A",
+   "#9C3A2E",
+   "#E06A4E"
+  ],
+  "text": [
+   "#F4EBC8"
+  ],
+  "monitor": [
+   "#5CC8FF",
+   "#06233A",
+   "#FFE066",
+   "#FF6A5E"
+  ]
+ }
+}

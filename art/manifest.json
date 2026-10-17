@@ -1,0 +1,1125 @@
+{
+ "_comment": "Art manifest. Per asset: frame grid (cols x rows), cell = frame size in LOGICAL pixels, scale = final integer upscale. HD source in art/hd/<name>.png or art/hd/<name>/r{row}c{col}.png or art/hd/<name>/r{row}.png (row strips).",
+ "palette": "amazon",
+ "kinds": {
+  "anim": {
+   "scale": 2,
+   "fit": "cell",
+   "despeckle": true,
+   "min_island": 3,
+   "alpha_thr": 0.5
+  },
+  "vfx": {
+   "scale": 2,
+   "fit": "cell",
+   "soft_alpha": true,
+   "despeckle": false,
+   "min_island": 0,
+   "allow_empty": false
+  },
+  "tile": {
+   "scale": 2,
+   "fit": "cell",
+   "despeckle": false,
+   "alpha_thr": 0.5
+  },
+  "object": {
+   "scale": 2,
+   "fit": "cell",
+   "despeckle": true,
+   "min_island": 2
+  },
+  "hud": {
+   "scale": 1,
+   "fit": "trim",
+   "shared": false,
+   "fill": 0.92,
+   "despeckle": false,
+   "alpha_thr": 0.5,
+   "outline_bias": 0.5
+  },
+  "ui": {
+   "downsample": 4,
+   "scale": 1,
+   "fit": "cell",
+   "despeckle": false,
+   "alpha_thr": 0.5,
+   "outline_bias": 0.5
+  },
+  "smooth": {
+   "smooth": true
+  }
+ },
+ "assets": {
+  "player_idle": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet"
+  },
+  "player_move": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet"
+  },
+  "player_attack": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet"
+  },
+  "player_hurt": {
+   "kind": "anim",
+   "cols": 3,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet"
+  },
+  "player_death": {
+   "kind": "anim",
+   "cols": 8,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet"
+  },
+  "player_special": {
+   "kind": "anim",
+   "cols": 8,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet"
+  },
+  "player_parry": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet"
+  },
+  "player_dodge": {
+   "kind": "anim",
+   "cols": 5,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet"
+  },
+  "player_turnaround": {
+   "kind": "anim",
+   "cols": 8,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ],
+   "directions": 8,
+   "stabilize": "feet"
+  },
+  "acid_ghost_alert": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_attack": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_chase": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_death": {
+   "kind": "anim",
+   "cols": 8,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_enraged": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_flee": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_alert": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_attack": {
+   "kind": "anim",
+   "cols": 9,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_chase": {
+   "kind": "anim",
+   "cols": 9,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_death": {
+   "kind": "anim",
+   "cols": 12,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_enraged": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_flee": {
+   "kind": "anim",
+   "cols": 9,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_fusion": {
+   "kind": "anim",
+   "cols": 12,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_hurt": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_idle": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_move": {
+   "kind": "anim",
+   "cols": 9,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_social": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_spotted_ally": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_spotted_player": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fused_startled": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_fusion": {
+   "kind": "anim",
+   "cols": 8,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_hurt": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_idle": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_move": {
+   "kind": "anim",
+   "cols": 6,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_social": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_spotted_ally": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_spotted_player": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "acid_ghost_startled": {
+   "kind": "anim",
+   "cols": 4,
+   "rows": 8,
+   "directions": 5,
+   "cell": [
+    32,
+    32
+   ],
+   "stabilize": "feet",
+   "ramps": [
+    "acid",
+    "foliage"
+   ]
+  },
+  "leaf_projectile": {
+   "kind": "vfx",
+   "cols": 4,
+   "rows": 8,
+   "cell": [
+    24,
+    24
+   ],
+   "ramps": [
+    "leaf_magic"
+   ],
+   "directions": 5
+  },
+  "leaf_shield": {
+   "kind": "vfx",
+   "cols": 4,
+   "rows": 8,
+   "cell": [
+    32,
+    32
+   ],
+   "ramps": [
+    "leaf_magic",
+    "foliage"
+   ],
+   "directions": 5
+  },
+  "leaf_cast_flash": {
+   "kind": "vfx",
+   "cols": 5,
+   "rows": 1,
+   "cell": [
+    24,
+    24
+   ],
+   "ramps": [
+    "leaf_magic",
+    "foliage",
+    "gold"
+   ]
+  },
+  "leaf_impact": {
+   "kind": "vfx",
+   "cols": 6,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ],
+   "ramps": [
+    "leaf_magic",
+    "foliage",
+    "gold"
+   ]
+  },
+  "leaf_storm": {
+   "kind": "vfx",
+   "cols": 10,
+   "rows": 1,
+   "cell": [
+    64,
+    64
+   ],
+   "ramps": [
+    "leaf_magic",
+    "foliage",
+    "gold"
+   ]
+  },
+  "leaf_storm_warning": {
+   "kind": "vfx",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ],
+   "ramps": [
+    "leaf_magic",
+    "foliage",
+    "gold"
+   ]
+  },
+  "parry_flash": {
+   "kind": "vfx",
+   "cols": 5,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "posture_break": {
+   "kind": "vfx",
+   "cols": 6,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "status_rooted": {
+   "kind": "vfx",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    16,
+    16
+   ]
+  },
+  "tile_acid_swamp": {
+   "kind": "tile",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "tile_cliff": {
+   "kind": "tile",
+   "cols": 13,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "tile_grass": {
+   "kind": "tile",
+   "cols": 8,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "tile_ground": {
+   "kind": "tile",
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "tile_lava": {
+   "kind": "tile",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "tile_ledge": {
+   "kind": "tile",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "tile_path": {
+   "kind": "tile",
+   "cols": 13,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "tile_tall_grass": {
+   "kind": "tile",
+   "cols": 5,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "tile_water": {
+   "kind": "tile",
+   "cols": 17,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "obj_bush": {
+   "kind": "object",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "obj_fence": {
+   "kind": "object",
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "obj_flowers": {
+   "kind": "object",
+   "cols": 6,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "obj_rock": {
+   "kind": "object",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "obj_sign": {
+   "kind": "object",
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "obj_tree_giant": {
+   "kind": "object",
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    96,
+    96
+   ]
+  },
+  "obj_tree_palm": {
+   "kind": "object",
+   "cols": 2,
+   "rows": 1,
+   "cell": [
+    64,
+    96
+   ]
+  },
+  "obj_tree_round": {
+   "kind": "object",
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    64,
+    64
+   ]
+  },
+  "hud_button": {
+   "kind": "hud",
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "hud_element_icons": {
+   "kind": "hud",
+   "cols": 5,
+   "rows": 1,
+   "cell": [
+    12,
+    12
+   ]
+  },
+  "hud_heart": {
+   "kind": "hud",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    9,
+    9
+   ]
+  },
+  "hud_mana": {
+   "kind": "hud",
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    9,
+    9
+   ]
+  },
+  "hud_slot": {
+   "kind": "hud",
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    24,
+    24
+   ]
+  },
+  "hud_icons": {
+   "kind": "hud",
+   "cols": 12,
+   "rows": 1,
+   "cell": [
+    16,
+    16
+   ]
+  },
+  "hud_weapon_icons": {
+   "kind": "hud",
+   "cols": 6,
+   "rows": 1,
+   "cell": [
+    16,
+    16
+   ]
+  },
+  "hud_hotbar_frame": {
+   "kind": "hud",
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    28,
+    112
+   ]
+  },
+  "hud_panel": {
+   "kind": "hud",
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    24,
+    24
+   ]
+  },
+  "hud_joystick": {
+   "kind": "hud",
+   "size": [
+    72,
+    48
+   ],
+   "parts": [
+    {
+     "name": "hud_joystick_base",
+     "at": [
+      0,
+      0
+     ],
+     "cell": [
+      48,
+      48
+     ]
+    },
+    {
+     "name": "hud_joystick_knob",
+     "at": [
+      48,
+      0
+     ],
+     "cell": [
+      24,
+      24
+     ]
+    }
+   ]
+  },
+  "ui_panel": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "ui_panel_title": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    48,
+    20
+   ]
+  },
+  "ui_button": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    32,
+    20
+   ]
+  },
+  "ui_button_round": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    32,
+    32
+   ]
+  },
+  "ui_close": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 2,
+   "rows": 1,
+   "cell": [
+    20,
+    20
+   ]
+  },
+  "ui_slot": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    24,
+    24
+   ]
+  },
+  "ui_tab": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 2,
+   "rows": 1,
+   "cell": [
+    40,
+    16
+   ]
+  },
+  "ui_divider_h": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    64,
+    6
+   ]
+  },
+  "ui_divider_v": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    6,
+    64
+   ]
+  },
+  "ui_bar_frame": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    64,
+    12
+   ]
+  },
+  "ui_bar_fill": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    16,
+    6
+   ]
+  },
+  "ui_stepper": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 3,
+   "rows": 1,
+   "cell": [
+    20,
+    20
+   ]
+  },
+  "ui_icons": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 18,
+   "rows": 1,
+   "cell": [
+    16,
+    16
+   ]
+  },
+  "ui_cursor_select": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 2,
+   "rows": 1,
+   "cell": [
+    28,
+    28
+   ]
+  },
+  "ui_perf_overlay": {
+   "kind": "ui",
+   "downsample": 8,
+   "cols": 1,
+   "rows": 1,
+   "cell": [
+    16,
+    16
+   ]
+  },
+  "ui_logo": {
+   "kind": "smooth",
+   "size": [
+    840,
+    180
+   ]
+  },
+  "bg_menu": {
+   "kind": "tile",
+   "cols": 1,
+   "rows": 1,
+   "source_cell": [1200, 540],
+   "downsample": 3,
+   "cell": [400, 180],
+   "scale": 1,
+   "key": null,
+   "despeckle": true,
+   "outline_bias": 0
+  },
+  "portrait_player": {
+   "kind": "smooth",
+   "size": [
+    1024,
+    1024
+   ]
+  }
+ }
+}

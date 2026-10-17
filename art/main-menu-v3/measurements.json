@@ -1,0 +1,83 @@
+{
+  "stage": "6.2",
+  "device": "Moto G52",
+  "capture_size": [
+    2400,
+    1080
+  ],
+  "preview_size": [
+    1200,
+    540
+  ],
+  "safe_area": [
+    105,
+    0,
+    2400,
+    1020
+  ],
+  "button_nine_slice_ltrb": [
+    8,
+    6,
+    8,
+    6
+  ],
+  "button_frames": 3,
+  "button_cell": [
+    32,
+    20
+  ],
+  "button_touch_size_px": [
+    602,
+    120
+  ],
+  "font_scales_verified": [
+    1.0,
+    1.3
+  ],
+  "buttons": [
+    {
+      "label": "Jogar",
+      "bounds": "[951,467][1553,587]"
+    },
+    {
+      "label": "Opções",
+      "bounds": "[951,613][1553,733]"
+    },
+    {
+      "label": "Sair",
+      "bounds": "[951,759][1553,879]"
+    }
+  ],
+  "background": {
+    "logical_size": [
+      400,
+      180
+    ],
+    "hd_source_size": [
+      1200,
+      540
+    ],
+    "downsample": 3,
+    "palette": "menu_dusk",
+    "colors": 48,
+    "render": "integer cover, nearest neighbor"
+  },
+  "hd_assets_preserved": [
+    "ui_logo",
+    "portrait_player"
+  ],
+  "assets": {
+    "bg_menu.png": [
+      400,
+      180
+    ],
+    "portrait_player.png": [
+      1024,
+      1024
+    ],
+    "ui_logo.png": [
+      840,
+      180
+    ]
+  }
+}

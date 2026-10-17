@@ -144,9 +144,14 @@ public class GameSaveRepository {
     public interface StatsLoadCallback { void onLoaded(PlayerStatsEntity stats); }
 
     public void loadStats(StatsLoadCallback callback) {
+        loadStats(slotId, callback);
+    }
+
+    /** Loads the summary level for a menu slot without creating one repository per card. */
+    public void loadStats(int targetSlotId, StatsLoadCallback callback) {
         submit(() -> {
             PlayerStatsEntity row = null;
-            try { row = database.playerStatsDao().load(slotId); }
+            try { row = database.playerStatsDao().load(targetSlotId); }
             catch (RuntimeException e) { Log.e(TAG, "Unable to load stats", e); }
             PlayerStatsEntity result = row;
             postIfOpen(() -> callback.onLoaded(result));

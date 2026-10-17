@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""pixelize: converte arte HD (gerada por IA) em atlas pixel art de forma 100% determinística.
+"""pixelize: deterministic HD -> pixel-art atlas converter (for AI-generated HD art).
 
-Fluxo:  art/hd/<nome>.png  ->  recorte em grade  ->  chave de cor (fundo magenta)  ->
-        redução por supersample + paleta mestra + moda por bloco  ->  limpeza  ->  alinhamento
-        ->  atlas em art/build/<nome>.png  ->  (opcional) --install em drawable-nodpi.
+Flow:  art/hd/<name>.png  ->  grid slicing  ->  chroma key (magenta background)  ->
+       supersampled reduction + master palette + per-block mode  ->  cleanup  ->  alignment
+       ->  atlas in art/build/<name>.png  ->  (optional) --install into drawable-nodpi.
 
-Mesma entrada + mesma paleta + mesmo manifesto = mesma saída, byte a byte.
-Uso:  python tools/pixelize/pixelize.py --help
+Same input + same palette + same manifest = same output, byte for byte.
+Usage:  python tools/pixelize/pixelize.py --help
 """
 import argparse, json, shutil, sys
 from collections import Counter
@@ -18,11 +18,11 @@ from PIL import Image, ImageFilter
 ROOT = Path(__file__).resolve().parents[2]
 ART = ROOT / "art"
 RES = ROOT / "app/src/main/res/drawable-nodpi"
-SUPER = 4  # cada pixel lógico é decidido por um bloco SUPER x SUPER do HD reduzido
-SOFT_LEVELS = [(0.75, 255), (0.45, 160), (0.20, 80)]  # alfa permitido em VFX "soft_alpha"
+SUPER = 4  # each logical pixel is decided by a SUPER x SUPER block of the downscaled HD image
+SOFT_LEVELS = [(0.75, 255), (0.45, 160), (0.20, 80)]  # alpha levels allowed in "soft_alpha" VFX
 
 
-# ----------------------------------------------------------------------------- cor / paleta
+# ----------------------------------------------------------------------------- colour / palette
 def srgb_to_oklab(rgb):
     c = np.asarray(rgb, dtype=np.float64) / 255.0
     lin = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
@@ -45,7 +45,7 @@ class Palette:
         self.hex = list(dict.fromkeys("#" + h.lstrip("#").upper() for h in hexes))
         self.rgb = np.array([hex_to_rgb(h) for h in self.hex], np.uint8)
         self.lab = srgb_to_oklab(self.rgb)
-        self.ink = self.lab[:, 0] < 0.34  # tons escuros: ganham peso para preservar contornos
+        self.ink = self.lab[:, 0] < 0.34  # dark tones get extra weight so outlines survive
 
     @classmethod
     def load(cls, name, ramps=None):
@@ -56,11 +56,11 @@ class Palette:
             if ramps is None or ramp in ramps or ramp in always:
                 hexes += colors
         if not hexes:
-            raise SystemExit(f"paleta '{name}' vazia para ramps={ramps}")
+            raise SystemExit(f"palette '{name}' is empty for ramps={ramps}")
         return cls(hexes)
 
     def quantize(self, rgb):
-        """(...,3) uint8 -> índices da cor mais próxima (OKLab). Cacheia cores únicas."""
+        """(...,3) uint8 -> index of the nearest palette colour (OKLab). Caches unique colours."""
         flat = rgb.reshape(-1, 3)
         packed = (flat[:, 0].astype(np.uint32) << 16) | (flat[:, 1].astype(np.uint32) << 8) | flat[:, 2]
         uniq, inv = np.unique(packed, return_inverse=True)
@@ -69,36 +69,43 @@ class Palette:
         return d.argmin(1)[inv].reshape(rgb.shape[:-1]).astype(np.int32)
 
 
-# ----------------------------------------------------------------------------- fonte HD
+# ----------------------------------------------------------------------------- HD source
 def key_out(img, key, tol):
-    """Remove o fundo de cor chapada (padrão magenta). Se a imagem já tem transparência, respeita."""
+    """Remove the flat-colour background (default magenta). Images that already have transparency are kept as they are."""
     img = img.convert("RGBA")
     a = np.asarray(img).copy()
     if a[..., 3].min() < 250 or key is None:
         return Image.fromarray(a)
     d = np.linalg.norm(a[..., :3].astype(np.float64) - np.array(hex_to_rgb(key), np.float64), axis=-1)
     mask = Image.fromarray(((d > tol) * 255).astype(np.uint8))
-    mask = mask.filter(ImageFilter.MinFilter(3))  # come a franja rosada da borda
+    mask = mask.filter(ImageFilter.MinFilter(3))  # eats the pink fringe on the edge
     a[..., 3] = np.asarray(mask)
     return Image.fromarray(a)
 
 
 def source_cells(name, spec):
-    """Devolve {(linha, coluna): Image RGBA} do HD, de folha única ou de pasta r{R}c{C}.png."""
+    """Returns {(row, col): RGBA Image} from the HD source: a single sheet, a folder of r{R}c{C}.png frames, or r{R}.png row strips."""
     cols, rows = spec["cols"], spec["rows_src"]
     key, tol = spec.get("key", "#FF00FF"), spec.get("key_tol", 90)
     folder, sheet = ART / "hd" / name, ART / "hd" / f"{name}.png"
     cells = {}
     if folder.is_dir():
         for r in range(rows):
+            strip = folder / f"r{r}.png"  # a whole row (all frames of one direction) in a single image
+            if strip.exists():
+                row_img = key_out(Image.open(strip), key, tol)
+                W, H = row_img.size
+                for c in range(cols):
+                    cells[(r, c)] = row_img.crop((round(c * W / cols), 0, round((c + 1) * W / cols), H))
+                continue
             for c in range(cols):
                 f = folder / f"r{r}c{c}.png"
                 if not f.exists():
-                    raise FileNotFoundError(f"falta {f.relative_to(ROOT)}")
+                    raise FileNotFoundError(f"missing {f.relative_to(ROOT)}")
                 cells[(r, c)] = key_out(Image.open(f), key, tol)
         return cells
     if not sheet.exists():
-        raise FileNotFoundError(f"falta {sheet.relative_to(ROOT)} (ou a pasta {folder.relative_to(ROOT)}/)")
+        raise FileNotFoundError(f"missing {sheet.relative_to(ROOT)} (or the folder {folder.relative_to(ROOT)}/)")
     full = key_out(Image.open(sheet), key, tol)
     W, H = full.size
     for r in range(rows):
@@ -108,9 +115,9 @@ def source_cells(name, spec):
     return cells
 
 
-# ----------------------------------------------------------------------------- redução
+# ----------------------------------------------------------------------------- reduction
 def place_on_canvas(img, spec, shared_scale):
-    """Coloca o HD num canvas (cw*S, ch*S) já na escala final de supersample."""
+    """Places the HD cell on a (cw*S, ch*S) canvas already at the supersample scale."""
     cw, ch = spec["cell"]
     S = SUPER
     canvas = Image.new("RGBA", (cw * S, ch * S), (0, 0, 0, 0))
@@ -137,7 +144,7 @@ def place_on_canvas(img, spec, shared_scale):
         y = (round(base * S - th) // S) * S
     else:
         y = ((ch * S - th) // 2 // S) * S
-    # recorta o que sair do canvas (nunca deveria, mas evita exceção por arredondamento)
+    # crop anything that falls outside the canvas (should not happen; guards against rounding)
     sx, sy = max(0, -x), max(0, -y)
     scaled = scaled.crop((sx, sy, min(tw, cw * S - x), min(th, ch * S - y)))
     canvas.alpha_composite(scaled, (max(0, x), max(0, y)))
@@ -145,7 +152,7 @@ def place_on_canvas(img, spec, shared_scale):
 
 
 def reduce_canvas(canvas, spec, pal):
-    """Canvas supersample -> (idx, alpha8) na grade lógica, por moda ponderada dentro de cada bloco."""
+    """Supersampled canvas -> (idx, alpha8) on the logical grid, by weighted mode inside each block."""
     S = SUPER
     a = np.asarray(canvas)
     H, W = a.shape[0] // S, a.shape[1] // S
@@ -169,7 +176,7 @@ def reduce_canvas(canvas, spec, pal):
     return out_idx, alpha
 
 
-# ----------------------------------------------------------------------------- limpeza
+# ----------------------------------------------------------------------------- cleanup
 NEI8 = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
 
@@ -183,7 +190,7 @@ def shifted(arr, dy, dx, fill):
 
 
 def despeckle(idx, alpha):
-    """Pixel opaco cuja cor não aparece em nenhum dos 8 vizinhos opacos vira a moda dos vizinhos."""
+    """An opaque pixel whose colour appears in none of its 8 opaque neighbours becomes the neighbours' mode."""
     out = idx.copy()
     H, W = idx.shape
     for y in range(H):
@@ -197,7 +204,7 @@ def despeckle(idx, alpha):
 
 
 def drop_islands(idx, alpha, min_size):
-    """Remove ilhas opacas (4-conexas) menores que min_size pixels."""
+    """Removes opaque islands (4-connected) smaller than min_size pixels."""
     H, W = idx.shape
     seen = np.zeros((H, W), bool)
     for y in range(H):
@@ -222,7 +229,7 @@ def drop_islands(idx, alpha, min_size):
 
 
 def auto_outline(idx, alpha, pal):
-    """Contorno de 1 px, na cor do vizinho escurecida e ajustada à paleta, onde a silhueta não tem contorno escuro."""
+    """1 px outline in the neighbour colour, darkened and snapped to the palette, where the silhouette has no dark outline."""
     H, W = idx.shape
     out_idx, out_a = idx.copy(), alpha.copy()
     for y in range(H):
@@ -241,7 +248,7 @@ def auto_outline(idx, alpha, pal):
 
 
 def stabilize_feet(frames, spec, warn):
-    """Alinha os pés de todos os quadros: mesma linha de base e mesmo centro (limitado a max_shift)."""
+    """Aligns the feet of all frames: same baseline and same centre (limited to max_shift)."""
     bottoms, cxs = {}, {}
     for k, (idx, alpha) in frames.items():
         ys, xs = np.nonzero(alpha > 0)
@@ -262,14 +269,16 @@ def stabilize_feet(frames, spec, warn):
             continue
         dy, dx = tb - bottoms[k], int(round(tx - cxs[k]))
         if abs(dy) > lim or abs(dx) > lim:
-            warn(f"quadro {k}: pés fora do pivô ({dy:+d},{dx:+d}px); corrigido só até {lim}px")
+            warn(f"frame {k}: feet off the pivot ({dy:+d},{dx:+d}px); corrected only up to {lim}px")
         dy, dx = max(-lim, min(lim, dy)), max(-lim, min(lim, dx))
         out[k] = (shifted(idx, dy, dx, -1), shifted(alpha, dy, dx, 0))
     return out
 
 
-# ----------------------------------------------------------------------------- montagem
+# ----------------------------------------------------------------------------- assembly
 def build_asset(name, spec, palette_name, log):
+    if spec.get("smooth"):  # portraits, backgrounds, logos: only remove the background and resize, no palette
+        return build_smooth(name, spec, log)
     pal = Palette.load(palette_name, spec.get("ramps"))
     warns = []
     if "parts" in spec:
@@ -300,7 +309,7 @@ def build_asset(name, spec, palette_name, log):
         frames[(r, c)] = (idx, alpha)
     if spec.get("stabilize") == "feet":
         for r in range(rows_src):
-            sub = stabilize_feet({k: v for k, v in frames.items() if k[0] == r}, spec, lambda m, r=r: warns.append(f"linha {r}: {m}"))
+            sub = stabilize_feet({k: v for k, v in frames.items() if k[0] == r}, spec, lambda m, r=r: warns.append(f"row {r}: {m}"))
             frames.update(sub)
     if spec.get("directions") == 5 and rows_out == 8:  # S SE E NE N -> + NW W SW por espelho
         for dst, src in ((5, 3), (6, 2), (7, 1)):
@@ -317,8 +326,20 @@ def build_asset(name, spec, palette_name, log):
     if s > 1:
         sheet = sheet.repeat(s, 0).repeat(s, 1)
     for w in warns:
-        log(f"  aviso: {w}")
+        log(f"  warning: {w}")
     return Image.fromarray(sheet, "RGBA")
+
+
+def build_smooth(name, spec, log):
+    src = ART / "hd" / f"{name}.png"
+    if not src.exists():
+        raise FileNotFoundError(f"missing {src.relative_to(ROOT)}")
+    key = spec.get("key", "#FF00FF")
+    img = key_out(Image.open(src), key, spec.get("key_tol", 90)) if key else Image.open(src).convert("RGBA")
+    w, h = spec["size"]
+    if abs(img.width / img.height - w / h) > 0.03:
+        log(f"  warning: {name}: source aspect {img.width}x{img.height} differs from {w}x{h}; image will be stretched")
+    return img.resize((w, h), Image.LANCZOS)
 
 
 def build_parts(name, spec, palette_name, log):
@@ -334,11 +355,13 @@ def build_parts(name, spec, palette_name, log):
     return out
 
 
-# ----------------------------------------------------------------------------- verificação
+# ----------------------------------------------------------------------------- verification
 def verify(name, spec, png, palette_name):
-    """Devolve lista de problemas do PNG já gerado (vazia = ok)."""
-    pal = Palette.load(palette_name, spec.get("ramps"))
+    """Returns the list of problems of an already built PNG (empty = ok)."""
     img = Image.open(png).convert("RGBA")
+    if spec.get("smooth"):
+        return [] if img.size == tuple(spec["size"]) else [f"size {img.size}, expected {tuple(spec['size'])}"]
+    pal = Palette.load(palette_name, spec.get("ramps"))
     a = np.asarray(img)
     s = spec.get("scale", 1)
     problems = []
@@ -347,34 +370,45 @@ def verify(name, spec, png, palette_name):
     else:
         exp = (spec["cols"] * spec["cell"][0] * s, spec.get("rows", spec["rows_src"]) * spec["cell"][1] * s)
     if img.size != exp:
-        problems.append(f"tamanho {img.size}, esperado {exp}")
+        problems.append(f"size {img.size}, expected {exp}")
     allowed = {0, 255} | ({v for _, v in SOFT_LEVELS} if spec.get("soft_alpha") else set())
     bad_alpha = set(np.unique(a[..., 3]).tolist()) - allowed
     if bad_alpha:
-        problems.append(f"alfa fora do permitido: {sorted(bad_alpha)}")
+        problems.append(f"alpha outside the allowed set: {sorted(bad_alpha)}")
     op = a[a[..., 3] > 0][:, :3]
     if len(op):
         pk = {tuple(c) for c in pal.rgb.tolist()}
         off = {tuple(c) for c in np.unique(op, axis=0).tolist()} - pk
         if off:
-            problems.append(f"{len(off)} cor(es) fora da paleta")
+            problems.append(f"{len(off)} colour(s) outside the palette")
     blocks = spec["cell"][0] * s, spec["cell"][1] * s
     if "parts" not in spec:
         rows_out = spec.get("rows", spec["rows_src"])
         empty = [(r, c) for r in range(rows_out) for c in range(spec["cols"])
                  if not a[r * blocks[1]:(r + 1) * blocks[1], c * blocks[0]:(c + 1) * blocks[0], 3].any()]
         if empty and spec.get("kind") != "tile" and not spec.get("allow_empty"):
-            problems.append(f"{len(empty)} quadro(s) vazio(s), ex.: {empty[:3]}")
+            problems.append(f"{len(empty)} empty frame(s), e.g. {empty[:3]}")
     return problems
 
 
-# ----------------------------------------------------------------------------- manifesto / CLI
+# ----------------------------------------------------------------------------- manifest / CLI
 def load_manifest():
     m = json.loads((ART / "manifest.json").read_text(encoding="utf-8"))
     assets = {}
     for name, spec in m["assets"].items():
         merged = dict(m["kinds"].get(spec.get("kind"), {}))
         merged.update(spec)
+        if "source_cell" in merged:
+            factor = merged.get("downsample")
+            source = merged["source_cell"]
+            if (not isinstance(factor, int) or isinstance(factor, bool) or factor < 1
+                    or not isinstance(source, list) or len(source) != 2
+                    or any(not isinstance(v, int) or isinstance(v, bool) or v < 1 or v % factor for v in source)):
+                raise ValueError(f"{name}: source_cell needs two positive dimensions divisible by a positive integer downsample")
+            cell = [v // factor for v in source]
+            if "cell" in spec and spec["cell"] != cell:
+                raise ValueError(f"{name}: cell must match source_cell / downsample ({cell})")
+            merged["cell"] = cell
         merged.setdefault("rows_src", 5 if merged.get("directions") == 5 else merged.get("rows", 1))
         assets[name] = merged
     return m, assets
@@ -384,14 +418,14 @@ def select(assets, names, prefix):
     if names:
         missing = [n for n in names if n not in assets]
         if missing:
-            raise SystemExit("não está no manifesto: " + ", ".join(missing))
+            raise SystemExit("not in the manifest: " + ", ".join(missing))
         return names
     return [n for n in assets if not prefix or n.startswith(prefix)]
 
 
 def has_source(name, spec):
     if "parts" in spec:
-        return all(has_source(p["name"], spec) for p in spec["parts"])
+        return all(has_source(p["name"], {}) for p in spec["parts"])
     return (ART / "hd" / f"{name}.png").exists() or (ART / "hd" / name).is_dir()
 
 
@@ -413,19 +447,19 @@ def cmd_build(args):
             img.save(dst, optimize=True)
             problems = verify(name, spec, dst, pal)
         except Exception as e:  # noqa: BLE001
-            print(f"[ERRO] {name}: {e}")
+            print(f"[ERROR] {name}: {e}")
             failed += 1
             continue
         if problems:
             failed += 1
-            print(f"[FALHOU] {name}: " + "; ".join(problems))
+            print(f"[FAILED] {name}: " + "; ".join(problems))
             continue
         ok += 1
         print(f"[ok] {name}  {img.size[0]}x{img.size[1]}")
         if args.install:
             RES.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(dst, RES / f"{name}.png")
-    print(f"\n{ok} gerado(s), {skipped} sem fonte HD, {failed} com problema" + (" (instalados em drawable-nodpi)" if args.install and ok else ""))
+    print(f"\n{ok} built, {skipped} without HD source, {failed} with problems" + (" (installed into drawable-nodpi)" if args.install and ok else ""))
     return 1 if failed else 0
 
 
@@ -438,7 +472,7 @@ def cmd_check(args):
         if not f.exists():
             continue
         p = verify(name, assets[name], f, pal)
-        print(("[ok] " if not p else "[FALHOU] ") + name + ("" if not p else ": " + "; ".join(p)))
+        print(("[ok] " if not p else "[FAILED] ") + name + ("" if not p else ": " + "; ".join(p)))
         bad += bool(p)
     return 1 if bad else 0
 
@@ -449,16 +483,16 @@ def cmd_status(args):
     for name, spec in assets.items():
         hd = has_source(name, spec)
         built = (ART / "build" / f"{name}.png").exists()
-        rows.append((name, "HD ok" if hd else "falta HD", "gerado" if built else "-"))
+        rows.append((name, "HD ok" if hd else "no HD", "built" if built else "-"))
     w = max(len(r[0]) for r in rows)
     for r in rows:
         print(f"{r[0]:<{w}}  {r[1]:<8}  {r[2]}")
-    print(f"\n{sum(r[1] == 'HD ok' for r in rows)}/{len(rows)} com fonte HD")
+    print(f"\n{sum(r[1] == 'HD ok' for r in rows)}/{len(rows)} with HD source")
     return 0
 
 
 def cmd_preview(args):
-    """Lado a lado: HD reduzido | resultado ampliado 3x (e repetição 3x3 para tiles)."""
+    """Side by side: downscaled HD | result enlarged 3x (and a 3x3 repetition for tiles)."""
     m, assets = load_manifest()
     pal = args.palette or m.get("palette", "amazon")
     (ART / "preview").mkdir(parents=True, exist_ok=True)
@@ -492,7 +526,7 @@ def cmd_preview(args):
 
 
 def cmd_palette_extract(args):
-    """Extrai N cores de imagens HD aprovadas (mediana de corte) e escreve uma paleta nova."""
+    """Extracts N colours from approved HD images (median cut) and writes a new palette."""
     imgs = []
     for p in args.images:
         im = Image.open(p).convert("RGBA")
@@ -507,8 +541,8 @@ def cmd_palette_extract(args):
     pal = sorted((tuple(c) for c in pal), key=lambda c: srgb_to_oklab(np.array(c))[0])
     hexes = ["#%02X%02X%02X" % c for c in pal]
     out = ART / "palettes" / f"{args.name}.json"
-    out.write_text(json.dumps({"always": ["extraida"], "ramps": {"extraida": hexes}}, indent=1), encoding="utf-8")
-    print(f"{len(hexes)} cores -> {out.relative_to(ROOT)}")
+    out.write_text(json.dumps({"always": ["extracted"], "ramps": {"extracted": hexes}}, indent=1), encoding="utf-8")
+    print(f"{len(hexes)} colours -> {out.relative_to(ROOT)}")
     return 0
 
 
@@ -517,22 +551,22 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def common(p):
-        p.add_argument("names", nargs="*", help="assets do manifesto (vazio = todos com fonte HD)")
-        p.add_argument("--prefix", help="só assets que começam com este prefixo, ex.: player_")
-        p.add_argument("--palette", help="paleta em art/palettes (padrão: a do manifesto)")
+        p.add_argument("names", nargs="*", help="manifest assets (empty = all that have an HD source)")
+        p.add_argument("--prefix", help="only assets whose name starts with this prefix, e.g. player_")
+        p.add_argument("--palette", help="palette in art/palettes (default: the manifest one)")
 
-    b = sub.add_parser("build", help="gera art/build/<nome>.png")
+    b = sub.add_parser("build", help="builds art/build/<name>.png")
     common(b)
-    b.add_argument("--install", action="store_true", help="copia para app/src/main/res/drawable-nodpi")
-    c = sub.add_parser("check", help="valida PNGs gerados (tamanho, paleta, alfa, quadros vazios)")
+    b.add_argument("--install", action="store_true", help="copies into app/src/main/res/drawable-nodpi")
+    c = sub.add_parser("check", help="validates built PNGs (size, palette, alpha, empty frames)")
     common(c)
-    c.add_argument("--installed", action="store_true", help="valida os que estão em drawable-nodpi")
-    common(sub.add_parser("status", help="mostra o que tem fonte HD e o que já foi gerado"))
-    common(sub.add_parser("preview", help="gera comparação HD x pixel em art/preview"))
-    pe = sub.add_parser("palette-extract", help="cria paleta a partir de imagens HD aprovadas")
+    c.add_argument("--installed", action="store_true", help="validates the ones installed in drawable-nodpi")
+    common(sub.add_parser("status", help="shows which assets have an HD source and which are built"))
+    common(sub.add_parser("preview", help="writes HD vs pixel comparisons to art/preview"))
+    pe = sub.add_parser("palette-extract", help="creates a palette from approved HD images")
     pe.add_argument("images", nargs="+")
     pe.add_argument("--colors", type=int, default=48)
-    pe.add_argument("--name", default="extraida")
+    pe.add_argument("--name", default="extracted")
     args = ap.parse_args(argv)
     return {"build": cmd_build, "check": cmd_check, "status": cmd_status, "preview": cmd_preview,
             "palette-extract": cmd_palette_extract}[args.cmd](args)

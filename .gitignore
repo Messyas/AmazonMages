@@ -12,3 +12,7 @@
 /captures
 .externalNativeBuild
 /.idea/
+
+# art pipeline (regenerable outputs)
+/art/build/
+/art/preview/

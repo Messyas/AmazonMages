@@ -19,7 +19,7 @@ import android.widget.ScrollView;
 import android.content.pm.ApplicationInfo;
 import android.content.SharedPreferences;
 import com.example.amazonMages.audio.GameAudioManager;
-import com.example.amazonMages.gamepanel.ForestMenuBackgroundDrawable;
+import com.example.amazonMages.ui.MainMenuView;
 import com.example.amazonMages.gamepanel.PixelMenuButtonDrawable;
 import com.example.amazonMages.gamepanel.WoodlandPanelDrawable;
 
@@ -130,58 +130,10 @@ public class MainActivity extends Activity {
     private void showMainMenu() {
         states.menu();
         menuGeneration++;
-        FrameLayout screen = new FrameLayout(this);
-        screen.setBackground(new ForestMenuBackgroundDrawable(this));
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(dp(28), dp(24), dp(28), dp(24));
-        root.setBackground(menuPanelBackground());
-
-        TextView title = new TextView(this);
-        title.setText("AMAZON MAGES");
-        title.setTextColor(Color.rgb(242, 211, 107));
-        title.setTextSize(27);
-        title.setTypeface(android.graphics.Typeface.create("monospace", android.graphics.Typeface.BOLD));
-        title.setLetterSpacing(.06f);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, dp(4));
-        root.addView(title, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        TextView subtitle = new TextView(this);
-        subtitle.setText("Sua aventura na floresta começa aqui");
-        subtitle.setTextColor(Color.rgb(244, 235, 200));
-        subtitle.setTextSize(15);
-        subtitle.setTypeface(android.graphics.Typeface.create("monospace", android.graphics.Typeface.NORMAL));
-        subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, 0, 0, dp(12));
-        root.addView(subtitle);
-
-        int actionWidth = Math.min(dp(320), getResources().getDisplayMetrics().widthPixels - dp(144));
-        Button play = button(root, "Jogar", v -> showSlots());
-        play.setTextSize(20);
-        play.setLayoutParams(centeredMenuAction(actionWidth, dp(58)));
-        Button options = button(root, "Opções", v -> showAudioSettings());
-        options.setTextSize(20);
-        options.setLayoutParams(centeredMenuAction(actionWidth, dp(58)));
-        Button exit = button(root, "Sair", v -> finish());
-        exit.setTextSize(20);
-        exit.setLayoutParams(centeredMenuAction(actionWidth, dp(58)));
-
-        int panelWidth = Math.min(dp(440), getResources().getDisplayMetrics().widthPixels - dp(64));
-        FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(
-            panelWidth, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-        panelParams.setMargins(dp(16), dp(16), dp(16), dp(16));
-        screen.addView(root, panelParams);
-        setContentView(screen);
-    }
-
-    private LinearLayout.LayoutParams centeredMenuAction(int width, int height) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(width, height);
-        params.gravity = Gravity.CENTER_HORIZONTAL;
-        params.topMargin = dp(8);
-        return params;
+        setContentView(new MainMenuView(this,
+            v -> { audio.play("menu"); showSlots(); },
+            v -> { audio.play("menu"); showAudioSettings(); },
+            v -> finish()));
     }
 
     private void showAudioSettings() {

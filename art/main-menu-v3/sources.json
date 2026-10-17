@@ -1,0 +1,20 @@
+{
+  "generator": "built-in image_gen",
+  "assets": [
+    {
+      "name": "bg_menu",
+      "source": "C:\\Users\\User\\.codex\\generated_images\\01a147b3-7726-7b41-b670-a4bb2a3497c3\\exec-95ad0e42-7df2-4188-ba53-a5d44b0e322c.png",
+      "prompt": "Use case: illustration-story. Asset bg_menu for AmazonMages, original fantasy Amazon rainforest RPG Android title screen. Paint a polished anime HD environment at dusk, 1200x540 landscape aspect ratio 20:9, opaque image entirely filled, no letterboxing. Enormous Amazonian kapok trees with buttress roots framing left and right edges, lush broad tropical foliage, hanging lianas, a quiet river meander in distant right background, tiny warm fireflies, distant twilight sky. Teal forest shadows, emerald leaves, soft warm golden light above the treeline, painterly cel shading allowed. Camera at the edge of a forest clearing, inviting path receding into the central distance. Visually quiet central area at x400..800 to hold overlaid buttons, quiet upper centre for logo. Detailed foliage concentrated along edges; no brightly lit objects directly behind centre buttons. Rich beautiful game illustration with clear large shapes, restrained detail, warm magical atmosphere, not a realistic photo. No people, no characters, no text, no lettering, no logo, no UI, no frames or buttons, no magenta. All illustration original; no assets copied from existing games."
+    },
+    {
+      "name": "ui_logo",
+      "source": "C:\\Users\\User\\.codex\\generated_images\\01a147b3-7726-7b41-b670-a4bb2a3497c3\\exec-56d67adc-a5c4-4ebe-9b6d-351c799d07fc.png",
+      "prompt": "Use case: logo-brand. Create the original TITLE LOGO bitmap for fantasy Amazon rainforest action RPG AmazonMages. Exactly the text 'AMAZON MAGES' on ONE LINE, spelled A M A Z O N space M A G E S. Only those words. Wide aspect ratio intended final840x180. Large legible handcrafted fantasy RPG capital letters in rich warm gold and pale golden highlights, dark forest-green thick outline and subtle dark wood depth, emerald leaves growing at the first A and the final S, a small curved vine along lower baseline. Polished anime HD graphic; clean flat cel-shaded shapes, not photoreal 3D. Strong readability at420x90 screen size. Letters occupy at least85% width, generous flat PURE MAGENTA #FF00FF background surrounding the entire artwork for chroma-key extraction. No magenta/pink inside drawing. Entire logo visible with breathing room, never clipped, no outer frame, no drop shadow on the magenta background, no taglines, no additional text. Original artwork, do not copy any game logo."
+    },
+    {
+      "name": "portrait_player",
+      "source": "C:\\Users\\User\\.codex\\generated_images\\01a147b3-7726-7b41-b670-a4bb2a3497c3\\exec-44071862-18b9-47ae-9bf8-3591ff09ce83.png",
+      "prompt": "Use case: illustration-story. Asset portrait_player for the original fantasy Amazon rainforest RPG AmazonMages. Square 1024x1024 HD anime cel-shaded character portrait, waist-up bust of a youthful Leaf/nature mage. Messy brown hair, bright AQUA-GREEN irises, clearly visible WHITE sclera and small dark aligned pupils, both eyes gazing straight ahead naturally, no cross-eyed pupils. Youthful confident friendly expression, front-facing face, slight three-quarter torso. Large broad-brim RED wizard hat with a floppy bent tip and small GOLD STARS on the crown, one emerald leaf sprout attached to its golden ribbon. Long open red coat/robe, dark TEAL shirt underneath, vine bracelet on one wrist. One hand holds a simple small emerald leaf, NOT a giant staff. Detailed enough for clear HD anime portrait but no hyper-real skin, no gritty realism. All hat including floppy tip and brim inside canvas with at least40px space; all shoulders included. Strong clean lineart, tasteful soft cel shading, top-left light. Solid PURE MAGENTA #FF00FF background for chroma key, no magenta or hot pink inside drawing, no background objects, no text, no border, no UI. Original character artwork inspired by portable16/32-bit RPG archetypes, not any existing character. This is a HD portrait and must NOT be pixelated."
+    }
+  ]
+}
