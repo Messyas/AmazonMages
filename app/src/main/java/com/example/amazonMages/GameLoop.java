@@ -41,6 +41,7 @@ public class GameLoop extends Thread {
         long accumulator = 0L;
         int updates = 0;
         int frames = 0;
+        int updatesSincePresent = 0;
         long updateNanos = 0L;
         long drawNanos = 0L;
         while (isRunning) {
@@ -62,11 +63,16 @@ public class GameLoop extends Thread {
                 accumulator %= STEP_NANOS;
             }
 
-            if (catchUp > 0 && isRunning && surfaceHolder.getSurface().isValid()) {
+            updatesSincePresent += catchUp;
+            // The frame cap presents every Nth simulation tick (60 FPS: every tick, 30 FPS: every 2nd).
+            if (updatesSincePresent >= game.getFrameInterval() && isRunning
+                    && surfaceHolder.getSurface().isValid()) {
                 Canvas canvas = null;
                 try {
                     canvas = surfaceHolder.lockHardwareCanvas();
                     if (canvas != null) {
+                        updatesSincePresent = 0;
+                        fitToViewCoordinates(canvas);
                         long drawStart = System.nanoTime();
                         game.draw(canvas);
                         drawNanos += System.nanoTime() - drawStart;
@@ -104,6 +110,20 @@ public class GameLoop extends Thread {
             } else {
                 Thread.yield();
             }
+        }
+    }
+
+    /**
+     * With a reduced render resolution the surface buffer is smaller than the view. The game keeps
+     * drawing in view (native) coordinates, so scale the canvas to the buffer; the compositor then
+     * stretches the buffer back to the screen. The ratio comes from the real buffer size, so it is
+     * always consistent, even for the frame drawn while a resolution change is being applied.
+     */
+    private void fitToViewCoordinates(Canvas canvas) {
+        int viewWidth = game.getWidth(), viewHeight = game.getHeight();
+        if (viewWidth <= 0 || viewHeight <= 0) return;
+        if (canvas.getWidth() != viewWidth || canvas.getHeight() != viewHeight) {
+            canvas.scale(canvas.getWidth() / (float) viewWidth, canvas.getHeight() / (float) viewHeight);
         }
     }
 

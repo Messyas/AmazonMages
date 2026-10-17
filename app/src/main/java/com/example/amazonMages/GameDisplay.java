@@ -16,6 +16,7 @@ public class GameDisplay {
     private double gameToDisplayCoordinatesOffsetY;
     private double gameCenterX;
     private double gameCenterY;
+    private double zoom = 1.0;
 
     public GameDisplay(int widthPixels, int heightPixels, GameObject centerObject) {
         this.widthPixels = widthPixels;
@@ -36,6 +37,13 @@ public class GameDisplay {
         DISPLAY_RECT.set(0,0,widthPixels,heightPixels); update();
     }
 
+    public double getZoom() { return zoom; }
+
+    public void setZoom(double value) {
+        zoom = Math.max(1.0, Math.min(3.0, value));
+        update();
+    }
+
     public void update() {
         gameCenterX = centerObject.getPositionX();
         gameCenterY = centerObject.getPositionY();
@@ -53,11 +61,12 @@ public class GameDisplay {
     }
 
     public Rect getGameRect() {
+        // A couple of pixels of slack: after the zoom scale, rounding must never expose an empty edge.
         gameRect.set(
-                (int) (gameCenterX - (double) widthPixels /2),
-                (int) (gameCenterY - (double) heightPixels /2),
-                (int) (gameCenterX + (double) widthPixels /2),
-                (int) (gameCenterY + (double) heightPixels /2)
+                (int) Math.floor(gameCenterX - (double) widthPixels /(2 * zoom)) - 2,
+                (int) Math.floor(gameCenterY - (double) heightPixels /(2 * zoom)) - 2,
+                (int) Math.ceil(gameCenterX + (double) widthPixels /(2 * zoom)) + 2,
+                (int) Math.ceil(gameCenterY + (double) heightPixels /(2 * zoom)) + 2
         );
         return gameRect;
     }

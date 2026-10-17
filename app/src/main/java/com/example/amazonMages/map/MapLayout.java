@@ -4,8 +4,13 @@ public class MapLayout {
     public static final int ACID_SWAMP = 5;
     public static final int TILE_WIDTH_PIXELS = 64;
     public static final int TILE_HEIGHT_PIXELS = 64;
-    public static final int NUMBER_OF_ROW_TILES = 70;
-    public static final int NUMBER_OF_COLUMN_TILES = 100;
+    /** Hand-authored starting area (kept intact in the top-left corner of the world). */
+    static final int HAND_MADE_ROWS = 70;
+    static final int HAND_MADE_COLUMNS = 100;
+    public static final int NUMBER_OF_ROW_TILES = 140;
+    public static final int NUMBER_OF_COLUMN_TILES = 200;
+    /** Fixed seed: the same world on every run, so benchmarks are comparable. Change to reshuffle. */
+    public static final long WORLD_SEED = 20261017L;
 
     private int[][] layout;
 
@@ -18,7 +23,7 @@ public class MapLayout {
     }
 
     private void initializeLayout() {
-        layout = new int[][] {
+        final int[][] base = new int[][] {
                 {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
                 {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
                 {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
@@ -102,5 +107,63 @@ public class MapLayout {
 
 
         };
+        layout = expand(base);
+    }
+
+    // ------------------------------------------------------------------------------------
+    // Procedural expansion
+    // ------------------------------------------------------------------------------------
+    private static final int WATER = 0, LAVA = 1, GROUND = 2, GRASS = 3, TREE = 4;
+
+    /** Copies the hand-made block into a larger world and fills the rest with seeded terrain. */
+    private static int[][] expand(int[][] base) {
+        int[][] world = new int[NUMBER_OF_ROW_TILES][NUMBER_OF_COLUMN_TILES];
+        for (int row = 0; row < NUMBER_OF_ROW_TILES; row++) {
+            for (int col = 0; col < NUMBER_OF_COLUMN_TILES; col++) {
+                world[row][col] = generated(row, col);
+            }
+        }
+        for (int row = 0; row < HAND_MADE_ROWS; row++) {
+            System.arraycopy(base[row], 0, world[row], 0, HAND_MADE_COLUMNS);
+        }
+        return world;
+    }
+
+    /** Biome for a tile outside the hand-made area: lakes, forests, dirt and lava pools over grass. */
+    private static int generated(int row, int col) {
+        // Water/lava stay clear of the spawn point so the beginning is a safe meadow.
+        double fromStart = Math.hypot(col - 15, row - 7);
+        double lake = noise(col, row, 14, 1);
+        double heat = noise(col, row, 18, 2);
+        double forest = noise(col, row, 10, 3);
+        double dirt = noise(col, row, 16, 4);
+        if (lake > 0.78 && fromStart > 24) return WATER;
+        if (heat > 0.82 && fromStart > 40) return LAVA;
+        if (dirt > 0.74) return GROUND;
+        if (forest > 0.58 && hash(col, row, 5) < 0.10 + (forest - 0.58) * 0.9) return TREE;
+        if (hash(col, row, 6) < 0.006) return TREE;
+        return GRASS;
+    }
+
+    /** Smooth value noise in [0,1): bilinear blend of hashed lattice points every {@code cell} tiles. */
+    private static double noise(int col, int row, int cell, int salt) {
+        int x0 = Math.floorDiv(col, cell), y0 = Math.floorDiv(row, cell);
+        double fx = (col - x0 * cell) / (double) cell, fy = (row - y0 * cell) / (double) cell;
+        fx = fx * fx * (3 - 2 * fx);
+        fy = fy * fy * (3 - 2 * fy);
+        double top = lerp(hash(x0, y0, salt), hash(x0 + 1, y0, salt), fx);
+        double bottom = lerp(hash(x0, y0 + 1, salt), hash(x0 + 1, y0 + 1, salt), fx);
+        return lerp(top, bottom, fy);
+    }
+
+    private static double lerp(double a, double b, double t) { return a + (b - a) * t; }
+
+    /** Deterministic pseudo-random value in [0,1) for a lattice point. */
+    private static double hash(int x, int y, int salt) {
+        long h = WORLD_SEED ^ (x * 0x9E3779B97F4A7C15L) ^ (y * 0xC2B2AE3D27D4EB4FL) ^ (salt * 0x165667B19E3779F9L);
+        h ^= h >>> 33; h *= 0xFF51AFD7ED558CCDL;
+        h ^= h >>> 33; h *= 0xC4CEB9FE1A85EC53L;
+        h ^= h >>> 33;
+        return (h >>> 11) / (double) (1L << 53);
     }
 }

@@ -1,6 +1,6 @@
 # Fantasma de ácido — contrato de sprites
 
-O código já suporta as animações abaixo; os PNGs individuais ainda precisam ser produzidos.
+O código suporta e carrega os atlases individuais abaixo. Os arquivos atuais ficam em `drawable-nodpi` e são gerados por `tools/generate_ghost_assets.py`.
 Os recursos devem ficar em `app/src/main/res/drawable-nodpi/` para evitar escalonamento automático do Android.
 
 ## Convenção
@@ -40,6 +40,8 @@ Os recursos devem ficar em `app/src/main/res/drawable-nodpi/` para evitar escalo
 Caso uma ação não tenha PNG, usa-se `acid_ghost_atlas.png` / `acid_ghost_fused_atlas.png`
 (grade antiga 4 × 8) se estiverem presentes, ou `ghost.png` original.
 **As artes faltantes não são sintetizadas automaticamente pelo código.**
+
+Os 14 atlases normais e os 14 fundidos agora existem com as grades e tamanhos definidos acima. O gerador recria os PNGs, e os nomes coincidem com o contrato do renderer.
 
 A morte mantém a entidade desenhada até a conclusão da animação, mas já bloqueia
 novos ataques, fusões e colisões com feitiços.

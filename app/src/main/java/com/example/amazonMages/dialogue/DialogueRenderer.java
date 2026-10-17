@@ -4,11 +4,15 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import com.example.amazonMages.gamepanel.ForestHud;
 
 /** Canvas-only dialogue card with portrait placeholder and automatic word wrapping. */
 public final class DialogueRenderer {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF panel = new RectF();
+    private final ForestHud hud;
+
+    public DialogueRenderer(ForestHud hud) { this.hud = hud; }
 
     public void draw(Canvas canvas, DialogueManager dialogue, int width, int height, float density) {
         if (!dialogue.isActive()) return;
@@ -19,13 +23,16 @@ public final class DialogueRenderer {
         float top = height - cardHeight - margin + (1f - dialogue.openingProgress()) * 45 * scale;
         int alpha = Math.min(255, Math.round(255 * dialogue.openingProgress()));
         panel.set(margin, top, width - margin, height - margin);
-        paint.setColor(Color.argb(alpha * 225 / 255, 19, 33, 30));
-        canvas.drawRoundRect(panel, 15 * scale, 15 * scale, paint);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(2 * scale);
-        paint.setColor(Color.argb(alpha, 174, 147, 91));
-        canvas.drawRoundRect(panel, 15 * scale, 15 * scale, paint);
-        paint.setStyle(Paint.Style.FILL);
+        if (hud != null) hud.drawPanel(canvas, panel.left, panel.top, panel.right, panel.bottom, alpha);
+        else {
+            paint.setColor(Color.argb(alpha * 225 / 255, 19, 33, 30));
+            canvas.drawRoundRect(panel, 15 * scale, 15 * scale, paint);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(2 * scale);
+            paint.setColor(Color.argb(alpha, 174, 147, 91));
+            canvas.drawRoundRect(panel, 15 * scale, 15 * scale, paint);
+            paint.setStyle(Paint.Style.FILL);
+        }
 
         float portraitSize = Math.min(cardHeight * 0.58f, 84 * scale);
         float portraitX = margin + 12 * scale;

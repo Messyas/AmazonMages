@@ -8,7 +8,5 @@
     <color name="player">#FF0000</color>
     <color name="enemy">#00FFFF</color>
     <color name="spell">#FF9400</color>
-    <color name="healthBarBorder">#A0A0A0</color>
-    <color name="healthBarHealth">#00FFD9</color>
     <color name="gameOver">#FC5245</color>
 </resources>

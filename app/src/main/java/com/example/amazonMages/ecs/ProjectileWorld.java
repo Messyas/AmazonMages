@@ -9,6 +9,7 @@ import java.util.List;
 /** Bridges ECS projectiles to the existing collision interface. */
 public final class ProjectileWorld {
     private final List<Entity> renderEntities = new ArrayList<>();
+    private final List<Spell> impacts = new ArrayList<>();
     private final World world = new World();
     private final SystemScheduler scheduler = new SystemScheduler();
     private final ProjectileCollisionSystem collisions = new ProjectileCollisionSystem();
@@ -27,7 +28,11 @@ public final class ProjectileWorld {
             .add(ColliderComponent.class, new ColliderComponent(spell.getRadius()));
     }
 
-    public void update() { scheduler.update(world, 1); }
+    public void update() {
+        scheduler.update(world, 1);
+        for (int i = impacts.size() - 1; i >= 0; i--)
+            if (!impacts.get(i).updateImpact()) impacts.remove(i);
+    }
 
     /** Returns live projectiles overlapping a target, in deterministic spawn order. */
     public List<Entity> overlapping(double x, double y, double radius) {
@@ -38,7 +43,14 @@ public final class ProjectileWorld {
         collisions.overlappingInto(world,x,y,radius,hits);
     }
 
-    public boolean consume(long entityId) { return world.destroy(entityId); }
+    public boolean consume(long entityId) {
+        Entity entity = world.find(entityId);
+        if (entity == null) return false;
+        Spell spell = entity.get(ProjectileComponent.class).spell;
+        if (!world.destroy(entityId)) return false;
+        if (spell.beginImpact()) impacts.add(spell);
+        return true;
+    }
 
     public List<Spell> collisionSnapshot() {
         List<Spell> result = new ArrayList<>();
@@ -57,6 +69,7 @@ public final class ProjectileWorld {
     public void draw(Canvas canvas, GameDisplay display) {
         world.queryInto(renderEntities,ProjectileComponent.class);
         for (Entity entity : renderEntities) entity.get(ProjectileComponent.class).spell.draw(canvas, display);
+        for (Spell impact : impacts) impact.drawImpact(canvas, display);
     }
 
     public int count() { return world.size(); }

@@ -10,8 +10,13 @@ class WaterTile extends Tile {
     private final Sprite sprite;
 
     public WaterTile(SpriteSheet spriteSheet, Rect mapLocationRect) {
-        super(mapLocationRect);
-        sprite = spriteSheet.getWaterSprite();
+        this(spriteSheet, mapLocationRect, 0, 0);
+    }
+
+    public WaterTile(SpriteSheet spriteSheet, Rect mapLocationRect, int atlasColumn, int variationSeed) {
+        super(mapLocationRect, variationSeed);
+        sprite = spriteSheet.tileFrame(com.example.androidstudio2dgamedevelopment.R.drawable.tile_water,
+            atlasColumn, 64, 64);
     }
 
     @Override

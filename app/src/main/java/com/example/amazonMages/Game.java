@@ -31,11 +31,6 @@ import com.example.amazonMages.dev.DevicePerformanceMonitor;
 import com.example.amazonMages.map.MapLayout;
 import com.example.amazonMages.audio.GameAudioManager;
 import java.util.Random;
-import java.util.Arrays;
-import com.example.amazonMages.dialogue.DialogueLine;
-import com.example.amazonMages.dialogue.DialogueSequence;
-import com.example.amazonMages.dialogue.DialogueManager;
-import com.example.amazonMages.dialogue.DialogueRenderer;
 import com.example.amazonMages.quest.QuestDefinition;
 import com.example.amazonMages.quest.QuestJournal;
 import com.example.amazonMages.quest.QuestState;
@@ -77,9 +72,60 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final com.example.amazonMages.state.GameStateManager states;
 
     private GameAudioManager audio;
+    private Runnable developerChatListener;
     private final DevicePerformanceMonitor deviceMonitor = new DevicePerformanceMonitor(getContext());
     private volatile boolean debugOverlay;
     public void setAudioManager(GameAudioManager manager) { this.audio = manager; }
+    public void setDeveloperChatListener(Runnable listener) { developerChatListener = listener; }
+    public boolean hasDeveloperChat() { return isDebuggable() && developerChatListener != null; }
+    public void togglePerformanceOverlay() {
+        debugOverlay = !debugOverlay;
+        if (debugOverlay) deviceMonitor.sampleIfDue();
+    }
+    public boolean isPerformanceOverlayEnabled() { return debugOverlay; }
+    /** Simulation ticks between presented frames; used by the game loop to cap the frame rate. */
+    int getFrameInterval() { return frameInterval; }
+    public float getRenderScale() { return renderScale; }
+
+    /** Applies a new resolution / frame-cap choice immediately (UI thread). */
+    public void applyGraphics(com.example.amazonMages.graphics.GraphicsSettings settings) {
+        renderScale = settings.scale();
+        frameInterval = settings.frameInterval();
+        applyRenderResolution();
+        requestFrameRate(getHolder());
+    }
+
+    /**
+     * Sizes the surface buffer to the chosen fraction of the view. Only the buffer shrinks: the
+     * view, touch input and game coordinates stay native, and the compositor upscales the result.
+     */
+    private void applyRenderResolution() {
+        int width = getWidth(), height = getHeight();
+        if (width <= 0 || height <= 0) return;
+        float scale = renderScale;
+        if (scale >= 0.999f) {
+            getHolder().setSizeFromLayout();
+        } else {
+            getHolder().setFixedSize(Math.max(1, Math.round(width * scale)),
+                Math.max(1, Math.round(height * scale)));
+        }
+    }
+
+    @Override
+    protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+        super.onSizeChanged(width, height, oldWidth, oldHeight);
+        applyRenderResolution();
+    }
+
+    public synchronized double cycleZoom() {
+        double zoom = Math.round(gameDisplay.getZoom()) + 1; // 1x -> 2x -> 3x -> back to 1x
+        if (zoom > 3) zoom = 1;
+        gameDisplay.setZoom(zoom);
+        return zoom;
+    }
+    public synchronized void setCameraZoom(double zoom) {
+        if (gameDisplay != null) gameDisplay.setZoom(zoom);
+    }
     private void sound(String event) { if (audio != null) audio.play(event); }
 
     /** Commands run only while the game is paused in a debuggable build. */
@@ -87,6 +133,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if ((getContext().getApplicationInfo().flags &
             android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0)
             return "Console indisponível em builds de produção.";
+        if (input == null) return "Digite /help para ver os comandos.";
+        String command = input.trim();
+        if (command.startsWith("/")) command = command.substring(1);
         return new DevConsole(new DevConsole.Commands() {
             @Override public String debug(String mode) {
                 if ("on".equals(mode)) {
@@ -188,7 +237,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 }
                 return "Nível " + progression.level + " | pontos " + progression.attributePoints;
             }
-        }).execute(input);
+        }).execute(command);
     }
 
     private static final String INTRO_QUEST = "first_ghosts";
@@ -205,18 +254,25 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final ConsumableService consumables = new ConsumableService();
     private final GameRenderer renderer;
     private final com.example.amazonMages.save.SaveCoordinator saveCoordinator;
-    private final DialogueManager dialogue = new DialogueManager();
-    private final DialogueRenderer dialogueRenderer = new DialogueRenderer();
     private final QuestJournal questJournal = new QuestJournal();
     private final PlayerProgression progression = new PlayerProgression();
     private final AttributesPanel attributesPanel = new AttributesPanel();
-    private String lastRewardNotice;
+    private final com.example.amazonMages.ui.ExplorationPanel explorationPanel =
+        new com.example.amazonMages.ui.ExplorationPanel();
+    private final com.example.amazonMages.gamepanel.ForestHud forestHud;
+    private final com.example.amazonMages.gamepanel.CoconutStormFx coconutStormFx;
     private final Tilemap tilemap;
     private final GameSaveRepository saves;
     private volatile boolean saveLoaded = false;
+    // Render resolution x frame cap (see GraphicsSettings); read by the loop thread.
+    private volatile float renderScale = 1f;
+    private volatile int frameInterval = 1;
     private int updatesSinceSave = 0;
     private final InputController input;
     private final Joystick joystick;
+    private final Joystick aimStick;
+    private final com.example.amazonMages.gamepanel.AimGuide aimGuide =
+        new com.example.amazonMages.gamepanel.AimGuide();
     private final Player player;
     private GameLoop gameLoop;
     private volatile boolean activityResumed = false;
@@ -244,7 +300,14 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     public Game(Context context, int slotId, com.example.amazonMages.state.GameStateManager states) {
         super(context);
         this.states = states;
+        forestHud = new com.example.amazonMages.gamepanel.ForestHud(context);
+        coconutStormFx = new com.example.amazonMages.gamepanel.CoconutStormFx(context);
         states.loading();
+
+        com.example.amazonMages.graphics.GraphicsSettings graphics =
+            com.example.amazonMages.graphics.GraphicsSettings.load(context);
+        renderScale = graphics.scale();
+        frameInterval = graphics.frameInterval();
 
         // Get surface holder and add callback
         SurfaceHolder surfaceHolder = getHolder();
@@ -255,7 +318,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Initialize game panels
         performance = new Performance(context, gameLoop);
         gameOver = new GameOver(context);
-        joystick = new Joystick(275, 700, 70, 40);
+        joystick = new Joystick(275, 700, 70, 40, context);
+        aimStick = new Joystick(0, 0, 55, 30, context);
 
         // Initialize game objects
         SpriteSheet spriteSheet = new SpriteSheet(context);
@@ -263,7 +327,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         player = new Player(context, joystick, 2*500, 500, 32, animator);
         saves = new GameSaveRepository(context, slotId);
         effectTarget = new com.example.amazonMages.effects.PlayerEffectTarget(player, progression);
-        input = new InputController(player, joystick, weapons, this::activateCoconutStorm);
+        input = new InputController(player, joystick, aimStick, weapons, this::activateCoconutStorm,
+            this::activatePlayerParry);
 
 
         // Initialize display and center it around the player
@@ -275,6 +340,18 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         tilemap = new Tilemap(spriteSheet);
         enemyManager = new EnemyManager(context, player, tilemap);
         renderer = new GameRenderer(tilemap, player, enemyManager, projectileWorld, pickupWorld, gameDisplay);
+        // Decode/upload the ghost atlases and build the first map chunks off the game thread, so the
+        // first enemy spawn and the first frames do not stall on PNG decoding or chunk rendering.
+        final Context appContext = context.getApplicationContext();
+        final Tilemap warmTilemap = tilemap;
+        final double warmX = player.getPositionX(), warmY = player.getPositionY();
+        final int warmWidth = displayMetrics.widthPixels, warmHeight = displayMetrics.heightPixels;
+        Thread warmUp = new Thread(() -> {
+            com.example.amazonMages.graphics.GhostAtlasRenderer.preload(appContext);
+            warmTilemap.prefetchAround(warmX, warmY, warmWidth, warmHeight);
+        }, "asset-warmup");
+        warmUp.setDaemon(true);
+        warmUp.start();
         saveCoordinator = new com.example.amazonMages.save.SaveCoordinator(
             saves, inventory, progression, questJournal, player, pickupWorld, weapons, itemRegistry);
         questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
@@ -308,14 +385,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 .roll(coconutRandom, (item, quantity) -> spawnPickup(item, quantity, x, y)));
         enemyManager.setDetailedKillListener((event,id) -> eventBus.publish(new GameEvent(event, id)));
 
-        dialogue.setEventListener(this::handleDialogueEvent);
-
-
         setFocusable(true);
         saves.loadSnapshot((position, stats, quests, items, equipment, pickups) -> {
             if (position != null && Double.isFinite(position.x) && Double.isFinite(position.y)) {
                 player.restorePosition(position.x, position.y);
                 gameDisplay.update();
+                tilemap.prefetchAround(position.x, position.y,
+                    gameDisplay.DISPLAY_RECT.width(), gameDisplay.DISPLAY_RECT.height());
             }
             questJournal.restore(quests);
             progression.restore(stats);
@@ -349,24 +425,15 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             return true;
         }
         if (!states.acceptsInput()) return true;
-        if (debugOverlay && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            float density = getResources().getDisplayMetrics().density;
-            float left = 8 * density, top = getHeight() * .23f;
-            float right = getWidth() - left;
-            String[] lines = diagnostics().split("\\n");
-            float bottom = top + (lines.length + 1) * (17 * density) + 34 * density;
-            float btnW = 90 * density, btnH = 26 * density;
-            float btnL = right - btnW - 8 * density;
-            float btnT = bottom - btnH - 4 * density;
-            if (event.getX() >= btnL && event.getX() <= btnL + btnW &&
-                event.getY() >= btnT && event.getY() <= btnT + btnH) {
-                debugOverlay = false;
-                sound("menu");
-                return true;
-            }
-        }
         if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
             resetInput();
+            return true;
+        }
+        if (explorationPanel.isOpen()) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN &&
+                explorationPanel.touch(event.getX(), event.getY(), getWidth(), getHeight())) {
+                if (!explorationPanel.isOpen()) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+            }
             return true;
         }
         if (inventoryPanel.isOpen()) {
@@ -385,9 +452,40 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             }
             return true;
         }
-        if (!dialogue.isActive() && !attributesPanel.isOpen() && event.getActionMasked() == MotionEvent.ACTION_DOWN &&
-                event.getX() > getWidth() * .70f && event.getY() > getHeight() * .20f && event.getY() < getHeight() * .36f) {
-            resetInput(); inventoryPanel.open(); states.modal(com.example.amazonMages.state.GameStateManager.State.INVENTORY); return true;
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN && !attributesPanel.isOpen()) {
+            int nav = forestHud.navigationAt(event.getX(), event.getY(), getWidth(), hasDeveloperChat());
+            if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_CHAT) {
+                resetInput();
+                post(() -> {
+                    if (developerChatListener != null) developerChatListener.run();
+                });
+                return true;
+            }
+            if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_ATTRIBUTES) {
+                attributesPanel.toggle();
+                states.modal(com.example.amazonMages.state.GameStateManager.State.ATTRIBUTES);
+                resetInput();
+                return true;
+            } else if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_INVENTORY) {
+                resetInput(); inventoryPanel.open();
+                states.modal(com.example.amazonMages.state.GameStateManager.State.INVENTORY);
+                return true;
+            } else if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_MAP) {
+                explorationPanel.openMap();
+                states.modal(com.example.amazonMages.state.GameStateManager.State.INVENTORY);
+                resetInput();
+                return true;
+            } else if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_QUESTS) {
+                explorationPanel.openQuests();
+                states.modal(com.example.amazonMages.state.GameStateManager.State.INVENTORY);
+                resetInput();
+                return true;
+            }
+            int slot = forestHud.hotbarSlotAt(event.getX(), event.getY(), getHeight());
+            if (slot >= 0) {
+                weapons.select(slot);
+                return true;
+            }
         }
         if (attributesPanel.isOpen()) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
@@ -399,35 +497,26 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             }
             return true;
         }
-        if (!dialogue.isActive() && event.getActionMasked() == MotionEvent.ACTION_DOWN &&
-            event.getX() < getWidth() * .38f && event.getY() < getHeight() * .18f) {
-            attributesPanel.toggle();
-            states.modal(com.example.amazonMages.state.GameStateManager.State.ATTRIBUTES);
-            resetInput();
-            return true;
-        }
-        if (dialogue.isActive()) {
-            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                dialogue.advance();
-                if (!dialogue.isActive()) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
-            }
-            return true;
-        }
-        if (event.getActionMasked() == MotionEvent.ACTION_DOWN &&
-            event.getX() > getWidth() * 0.38f && event.getX() < getWidth() * 0.70f &&
-            event.getY() < getHeight() * 0.22f) {
-            resetInput();
-            startElderDialogue();
-            sound("dialogue");
-            return true;
-        }
         return input.touch(event, getWidth(), getHeight()) || super.onTouchEvent(event);
     }
 
     @Override
     public void surfaceCreated(@NonNull SurfaceHolder holder) {
         Log.d("Game.java", "surfaceCreated()");
+        requestFrameRate(holder);
         startIfReady();
+    }
+
+    /**
+     * The loop simulates at 60 Hz and presents at 60 or 30 FPS. On a 90/120 Hz panel (e.g. Moto G52) frames then
+     * alternate between 1 and 2 refresh periods, which reads as stutter; telling the compositor the
+     * content is 60 fps lets the display pick a matching refresh rate.
+     */
+    private void requestFrameRate(SurfaceHolder holder) {
+        if (android.os.Build.VERSION.SDK_INT >= 30 && holder.getSurface().isValid()) {
+            holder.getSurface().setFrameRate(60f / frameInterval,
+                android.view.Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+        }
     }
 
     /** Resume only if a surface exists; never restart an already-running Thread. */
@@ -453,8 +542,14 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     public synchronized void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) {
         Log.d("Game.java", "surfaceChanged()");
         resetInput();
-        joystick.layout(width,height);
-        gameDisplay.resize(width,height);
+        requestFrameRate(holder);
+        // With a reduced render resolution the callback reports the (smaller) buffer; the game
+        // lays out and receives touches in view coordinates.
+        int viewWidth = getWidth() > 0 ? getWidth() : width;
+        int viewHeight = getHeight() > 0 ? getHeight() : height;
+        joystick.layout(viewWidth,viewHeight);
+        aimStick.layoutAim(viewWidth,viewHeight);
+        gameDisplay.resize(viewWidth,viewHeight);
     }
 
     @Override
@@ -468,31 +563,40 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     public synchronized void draw(Canvas canvas) {
         super.draw(canvas);
 
+        int worldSave = canvas.save();
+        float zoom = (float) gameDisplay.getZoom();
+        canvas.scale(zoom, zoom, getWidth() * .5f, getHeight() * .5f);
         renderer.draw(canvas);
+        aimGuide.draw(canvas, gameDisplay, player, aimStick.getIsPressed(),
+            aimStick.magnitude() >= InputController.AIM_DEADZONE);
+        coconutStormFx.draw(canvas, gameDisplay);
+        if (coconutStormTicks > 0) {
+            hudPaint.setColor(0x66D9B86C);
+            canvas.drawCircle((float) gameDisplay.gameToDisplayCoordinatesX(stormX),
+                (float) gameDisplay.gameToDisplayCoordinatesY(stormY), 125, hudPaint);
+        }
+        canvas.restoreToCount(worldSave);
 
         // Desenha os painéis do jogo
         joystick.draw(canvas);
+        aimStick.drawBase(canvas);
         if (debugOverlay && isDebuggable()) drawDebugOverlay(canvas);
-        drawCombatHud(canvas);
+        forestHud.draw(canvas, getWidth(), getHeight(), player, progression, weapons,
+            weapons.specialCooldown() == 0 && progression.mana >= 35,
+            player.getParryCooldownTicks(), hasDeveloperChat());
+        forestHud.drawAimKnob(canvas, aimStick.getKnobX(), aimStick.getKnobY(),
+            aimStick.getKnobRadius() * 2f);
         drawBossHud(canvas);
-        if (!dialogue.isActive()) drawTalkPrompt(canvas);
-        dialogueRenderer.draw(canvas, dialogue, getWidth(), getHeight(),
-            getResources().getDisplayMetrics().density);
-        if (!dialogue.isActive() && !attributesPanel.isOpen()) {
-            hudPaint.setColor(0xFFDDCCA1);
-            hudPaint.setTextSize(17 * getResources().getDisplayMetrics().density);
-            canvas.drawText("ATRIBUTOS", 16, getHeight() * .11f, hudPaint);
-        }
-        attributesPanel.draw(canvas, getWidth(), getHeight(), progression);
-        hudPaint.setColor(0xFFF5EACD); hudPaint.setTextSize(getHeight() * .035f);
-        canvas.drawText("INVENTARIO", getWidth() * .72f, getHeight() * .29f, hudPaint);
-        inventoryPanel.draw(canvas, getWidth(), getHeight(), inventory, weapons, inventoryNotice);
+        attributesPanel.draw(canvas, getWidth(), getHeight(), progression, forestHud);
+        inventoryPanel.draw(canvas, getWidth(), getHeight(), inventory, weapons, inventoryNotice, forestHud);
+        explorationPanel.draw(canvas, getWidth(), getHeight(), tilemap, player, questJournal,
+            INTRO_QUEST, SENTINEL_QUEST);
         if (!inventoryPanel.isOpen() && inventoryNotice != null)
             canvasUi.text(canvas, inventoryNotice, getWidth()*.04f, getHeight()*.39f, Math.min(getWidth(),getHeight())*.026f, 0xFFFFD17C);
 
         // Desenha "Game Over" se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
-            gameOver.draw(canvas);
+            gameOver.draw(canvas, getWidth(), getHeight());
         }
     }
 
@@ -501,15 +605,20 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (debugOverlay && isDebuggable()) deviceMonitor.sampleIfDue();
 
         // Para de atualizar o jogo se o jogador estiver morto
-        if (player.getHealthPoint() <= 0) { states.gameOver(); return; }
+        if (player.getHealthPoint() <= 0) {
+            player.advanceDeathAnimation();
+            states.gameOver();
+            return;
+        }
         if (!states.updatesWorld()) {
-            if (states.state() == com.example.amazonMages.state.GameStateManager.State.DIALOGUE) dialogue.update();
             return;
         }
 
         // Atualiza o estado do jogo
         joystick.update();
+        aimStick.update();
         player.update();
+        tilemap.update();
         pickupLifetime.update(pickupWorld,1);
         int collected = pickupSystem.collect(pickupWorld, player.getPositionX(),
             player.getPositionY(), player.getRadius(), inventory);
@@ -521,6 +630,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         weapons.update();
         progression.regenerateMana();
         updateCoconutStorm();
+        coconutStormFx.update((x, y, damageMultiplier) -> {
+            enemyManager.coconutImpact(x, y, 45, damageMultiplier);
+            sound("coconut_storm_hit");
+        });
 
         // Coordinate AI updates, enemy population and staggered ranged attacks.
         enemyManager.update();
@@ -530,6 +643,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         while (input.consumeShot()) {
             if (weapons.basic(progression.castSpeed())) {
                 sound("attack");
+                player.playAction(com.example.amazonMages.graphics.AnimationAction.ATTACK);
                 boolean coconut = weapons.current() == WeaponLoadout.COCONUT;
                 projectileWorld.spawn(new Spell(getContext(), player, coconut,
                     coconut ? progression.physicalMultiplier() : progression.magicMultiplier()));
@@ -558,26 +672,6 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             .add(com.example.amazonMages.ecs.LifetimeComponent.class, new com.example.amazonMages.ecs.LifetimeComponent(36000));
     }
 
-    private void startElderDialogue() {
-        states.modal(com.example.amazonMages.state.GameStateManager.State.DIALOGUE);
-        QuestState state = questJournal.state(INTRO_QUEST);
-        if (state == QuestState.LOCKED) {
-            dialogue.start(new DialogueSequence("elder_intro", Arrays.asList(
-                new DialogueLine("elder", "Os fantasmas acidos estao agitados. Voce pode nos ajudar?", "neutral", "quest.offer.first_ghosts"),
-                new DialogueLine("player", "Vou enfrentar tres deles. Me espere aqui!", "neutral", "quest.accept.first_ghosts"))));
-        } else if (state == QuestState.COMPLETED) {
-            dialogue.start(new DialogueSequence("elder_reward", Arrays.asList(
-                new DialogueLine("elder", "Voce conseguiu! O pantano esta mais tranquilo.", "happy", "quest.claim.first_ghosts"),
-                new DialogueLine("player", "Mais um misterio da floresta resolvido!", "neutral", null))));
-        } else if (state == QuestState.REWARDED) {
-            dialogue.start(new DialogueSequence("elder_done", Arrays.asList(
-                new DialogueLine("elder", "Obrigado pela ajuda, jovem mago.", "neutral", null))));
-        } else {
-            dialogue.start(new DialogueSequence("elder_progress", Arrays.asList(
-                new DialogueLine("elder", "Fantasmas enfrentados: " + questJournal.progress(INTRO_QUEST) + " de 3.", "neutral", null))));
-        }
-    }
-
     private void applyProgressionEffects() {
         // Small provisional resistance bonuses; physical strength never scales magic.
         player.getCombatStats().setResistance(DamageType.PHYSICAL,
@@ -593,49 +687,22 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     private void saveQuestProgress() { saveNow(); }
 
-    private void handleDialogueEvent(String event) {
-        if ("quest.offer.first_ghosts".equals(event)) questJournal.offer(INTRO_QUEST);
-        else if ("quest.accept.first_ghosts".equals(event)) questJournal.accept(INTRO_QUEST);
-        else if ("quest.claim.first_ghosts".equals(event)) {
-            String unlock = questJournal.claimReward(INTRO_QUEST);
-            if (unlock != null) {
-                lastRewardNotice = "Historia arcana descoberta. A Sentinela se aproxima!";
-                eventBus.publish(new GameEvent("encounter.swamp_sentinel.requested",0));
-            }
-        }
-        saveQuestProgress();
-    }
-
-    private void drawTalkPrompt(Canvas canvas) {
-        hudPaint.setColor(0xCC2B493C);
-        float left = getWidth() * 0.38f, right = getWidth() * 0.70f;
-        float top = getHeight() * 0.07f, bottom = getHeight() * 0.19f;
-        canvas.drawRoundRect(left, top, right, bottom, 18, 18, hudPaint);
-        hudPaint.setColor(0xFFF5E9CE);
-        hudPaint.setTextSize(17 * getResources().getDisplayMetrics().density);
-        canvas.drawText("FALAR (NPC)", left + 12, (top + bottom) / 2, hudPaint);
-        QuestState state = questJournal.state(INTRO_QUEST);
-        if (state == QuestState.ACTIVE || state == QuestState.COMPLETED) {
-            canvas.drawText("Missao: " + questJournal.progress(INTRO_QUEST) + "/3",
-                left, bottom + 28, hudPaint);
-        }
-        if (lastRewardNotice != null) canvas.drawText(lastRewardNotice, left, bottom + 55, hudPaint);
-        hudPaint.setTextSize(14 * getResources().getDisplayMetrics().density);
-        canvas.drawText("Nv " + progression.level + "  XP " + progression.experience + "/" +
-            PlayerProgression.experienceToNextLevel(progression.level) +
-            "  Pontos " + progression.attributePoints, left, bottom + 83, hudPaint);
-    }
-
     private void activateCoconutStorm() {
         if (progression.mana < 35 || !weapons.special()) return;
+        player.playAction(com.example.amazonMages.graphics.AnimationAction.SPECIAL);
         progression.spendMana(35);
-        sound("storm");
+        sound("coconut_storm_cast");
         saveNow();
         coconutStormTicks = 150;
+        coconutStormFx.clear();
         double dx = player.getAttackDirectionX(), dy = player.getAttackDirectionY();
         if (dx == 0 && dy == 0) dy = 1;
         stormX = player.getPositionX() + dx * 210;
         stormY = player.getPositionY() + dy * 210;
+    }
+
+    private void activatePlayerParry() {
+        player.beginParry();
     }
 
     private void updateCoconutStorm() {
@@ -644,8 +711,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (coconutStormTicks % 18 == 0) {
             double angle = coconutRandom.nextDouble() * Math.PI * 2;
             double distance = Math.sqrt(coconutRandom.nextDouble()) * 125;
-            enemyManager.coconutImpact(stormX + Math.cos(angle) * distance,
-                stormY + Math.sin(angle) * distance, 45, progression.physicalMultiplier());
+            coconutStormFx.schedule(stormX + Math.cos(angle) * distance,
+                stormY + Math.sin(angle) * distance, progression.physicalMultiplier());
         }
     }
 
@@ -660,11 +727,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         float width = getWidth() * .7f;
         float left = (getWidth() - width) / 2;
         float top = getHeight() * .89f;
-        hudPaint.setColor(0xDD18241F);
-        canvas.drawRoundRect(left, top, left + width, top + 24, 8, 8, hudPaint);
-        hudPaint.setColor(0xFFD4A46C);
-        canvas.drawRoundRect(left, top, left + width * (float) boss.getHealthRatio(),
-            top + 24, 8, 8, hudPaint);
+        forestHud.drawBossBar(canvas, left, top, width, (float) boss.getHealthRatio());
         hudPaint.setColor(0xFFFFFFFF);
         hudPaint.setTextSize(15 * getResources().getDisplayMetrics().density);
         canvas.drawText(boss.getTemplate().displayName + " - Fase " + (boss.getPhase() + 1),
@@ -681,67 +744,35 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             "FPS %.1f | UPS %.1f | update %.2f ms | draw %.2f ms",
             gameLoop.getAverageFPS(), gameLoop.getAverageUPS(),
             gameLoop.getAverageUpdateMs(), gameLoop.getAverageDrawMs()) +
-            "\\nInimigos " + enemyManager.getEnemyCount() +
+            "\nInimigos " + enemyManager.getEnemyCount() +
             " | projeteis inimigos " + enemyManager.getProjectileCount() +
             " | magias " + projectileWorld.count() +
-            "\\nJogador " + (int) player.getPositionX() +
+            "\nJogador " + (int) player.getPositionX() +
             "," + (int) player.getPositionY() +
-            "\\n" + deviceMonitor.snapshot();
+            "\n" + deviceMonitor.snapshot();
     }
 
     private void drawDebugOverlay(Canvas canvas) {
         String[] lines = diagnostics().split("\\n");
         float density = getResources().getDisplayMetrics().density;
         float lineHeight = 17 * density;
-        float left = 8 * density, top = getHeight() * .23f;
-        float right = getWidth() - left;
-        float bottom = top + (lines.length + 1) * lineHeight + 34 * density;
-        hudPaint.setColor(0xD916211C);
-        canvas.drawRoundRect(left, top, right, bottom, 8, 8, hudPaint);
-        hudPaint.setColor(0xFFBDF1CB);
+        float left = 10 * density, top = 68 * density;
+        float right = Math.min(getWidth() - left, left + 390 * density);
+        float bottom = top + (lines.length + 1) * lineHeight + 12 * density;
+        forestHud.drawPanel(canvas, left, top, right, bottom);
+        hudPaint.setColor(0xFFFFE09B);
         hudPaint.setTextSize(12 * density);
+        hudPaint.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        canvas.drawText("DESEMPENHO - AO VIVO", left + 10 * density,
+            top + 17 * density, hudPaint);
+        hudPaint.setTypeface(android.graphics.Typeface.create("monospace", 0));
+        hudPaint.setColor(0xFFCCF0D2);
+        hudPaint.setTextSize(10.5f * density);
         for (int i = 0; i < lines.length; i++)
-            canvas.drawText(lines[i], left + 8 * density,
-                top + (i + 1) * lineHeight, hudPaint);
+            canvas.drawText(lines[i], left + 10 * density,
+                top + (i + 2) * lineHeight, hudPaint);
+        hudPaint.setTypeface(null);
 
-        // Botão visual para fechar o overlay diretamente na tela
-        float btnW = 90 * density, btnH = 26 * density;
-        float btnL = right - btnW - 8 * density;
-        float btnT = bottom - btnH - 4 * density;
-        hudPaint.setColor(0xFF8B2500);
-        canvas.drawRoundRect(btnL, btnT, btnL + btnW, btnT + btnH, 6, 6, hudPaint);
-        hudPaint.setColor(0xFFFFFFFF);
-        hudPaint.setTextSize(11 * density);
-        canvas.drawText("FECHAR [✕]", btnL + 12 * density, btnT + 17 * density, hudPaint);
-    }
-
-    private void drawCombatHud(Canvas canvas) {
-        float w = getWidth(), h = getHeight();
-        canvasUi.bar(canvas, w*.52f, h*.47f, w*.85f, h*.49f,
-            progression.mana / Math.max(1,progression.maxMana), 0xFF638ECF);
-        canvasUi.bar(canvas, w*.72f, h*.94f, w*.94f, h*.96f,
-            1-weapons.specialCooldown()/1080.0, 0xFFD3AE64);
-        hudPaint.setTextSize(Math.min(w,h)*.035f);
-        hudPaint.setColor(0xCCF2E8D0);
-        canvas.drawText("Mana: " + (int) progression.mana + "/" + (int) progression.maxMana,
-            w * .52f, h * .53f, hudPaint);
-        canvas.drawText("Arma: " + (weapons.selectedSlot() + 1) + "  " + weapons.current().name,
-            w * 0.52f, h * 0.59f, hudPaint);
-        hudPaint.setColor(0xAA38574C);
-        canvas.drawCircle(w * 0.90f, h * 0.86f, Math.min(w,h)*.085f, hudPaint);
-        canvas.drawCircle(w * 0.77f, h * 0.86f, Math.min(w,h)*.07f, hudPaint);
-        canvas.drawCircle(w * 0.88f, h * 0.66f, Math.min(w,h)*.06f, hudPaint);
-        hudPaint.setColor(0xFFFFFFFF);
-        hudPaint.setTextSize(Math.min(w,h)*.04f);
-        canvas.drawText("ATK", w * 0.865f, h * 0.87f, hudPaint);
-        canvas.drawText(weapons.specialCooldown() == 0 ? "ESP" : "" + (weapons.specialCooldown() / 60 + 1),
-            w * 0.73f, h * 0.87f, hudPaint);
-        canvas.drawText("TROCA", w * 0.81f, h * 0.67f, hudPaint);
-        if (coconutStormTicks > 0) {
-            hudPaint.setColor(0x66D9B86C);
-            canvas.drawCircle((float) gameDisplay.gameToDisplayCoordinatesX(stormX),
-                (float) gameDisplay.gameToDisplayCoordinatesY(stormY), 125, hudPaint);
-        }
     }
 
     /** Explicit save action used by the in-game pause menu. */

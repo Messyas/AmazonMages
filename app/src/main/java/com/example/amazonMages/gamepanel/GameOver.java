@@ -46,12 +46,15 @@ public class GameOver {
     }
 
     public void draw(Canvas canvas) {
+        draw(canvas, canvas.getWidth(), canvas.getHeight());
+    }
+
+    /** Draws using the view's logical size (the canvas may be a smaller, scaled render buffer). */
+    public void draw(Canvas canvas, float w, float h) {
         // Escurece o fundo suavemente
         canvas.drawColor(0x99000000);
 
-        float cx = canvas.getWidth() * 0.5f;
-        float h = canvas.getHeight();
-        float w = canvas.getWidth();
+        float cx = w * 0.5f;
 
         // Título "Game Over"
         String title = "Game Over";

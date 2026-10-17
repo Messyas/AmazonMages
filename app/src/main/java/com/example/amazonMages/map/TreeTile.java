@@ -8,17 +8,15 @@ import com.example.amazonMages.graphics.SpriteSheet;
 
 class TreeTile extends Tile {
     private final Sprite grassSprite;
-    private final Sprite treeSprite;
 
-    public TreeTile(SpriteSheet spriteSheet, Rect mapLocationRect) {
-        super(mapLocationRect);
-        grassSprite = spriteSheet.getGrassSprite();
-        treeSprite = spriteSheet.getTreeSprite();
+    public TreeTile(SpriteSheet spriteSheet, Rect mapLocationRect, int variationSeed) {
+        super(mapLocationRect, variationSeed);
+        grassSprite = spriteSheet.tileFrame(com.example.androidstudio2dgamedevelopment.R.drawable.tile_grass,
+            variant(4), 64, 64);
     }
 
     @Override
     public void draw(Canvas canvas) {
         grassSprite.draw(canvas, mapLocationRect.left, mapLocationRect.top);
-        treeSprite.draw(canvas, mapLocationRect.left, mapLocationRect.top);
     }
 }

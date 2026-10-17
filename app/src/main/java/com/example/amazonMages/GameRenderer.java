@@ -31,7 +31,9 @@ final class GameRenderer {
 
     void draw(Canvas canvas) {
         tiles.draw(canvas, display);
+        tiles.drawTrees(canvas, display, player.getPositionY(), true);
         player.draw(canvas, display);
+        tiles.drawTrees(canvas, display, player.getPositionY(), false);
         enemies.draw(canvas, display);
         projectiles.draw(canvas, display);
         pickups.queryInto(visiblePickups,PickupComponent.class,TransformComponent.class);

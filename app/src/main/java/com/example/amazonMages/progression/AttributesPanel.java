@@ -3,6 +3,7 @@ package com.example.amazonMages.progression;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import com.example.amazonMages.gamepanel.ForestHud;
 
 /** Canvas modal with seven tappable attributes and clear exit options. */
 public final class AttributesPanel {
@@ -59,7 +60,7 @@ public final class AttributesPanel {
         return false;
     }
 
-    public void draw(Canvas canvas, int width, int height, PlayerProgression stats) {
+    public void draw(Canvas canvas, int width, int height, PlayerProgression stats, ForestHud hud) {
         if (!open) return;
         float left = width * .12f, top = height * .08f;
         float panelWidth = width * .76f, panelHeight = height * .84f;
@@ -68,16 +69,17 @@ public final class AttributesPanel {
         canvas.drawColor(0x99000000);
 
         // Painel principal
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(0xF013211E);
         RectF panelRect = new RectF(left, top, left + panelWidth, top + panelHeight);
-        canvas.drawRoundRect(panelRect, 18, 18, paint);
-
-        // Borda dourada sutil do painel
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setColor(0x88D3B977);
-        paint.setStrokeWidth(3f);
-        canvas.drawRoundRect(panelRect, 18, 18, paint);
+        if (hud != null) hud.drawPanel(canvas, panelRect.left, panelRect.top, panelRect.right, panelRect.bottom);
+        else {
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(0xF013211E);
+            canvas.drawRoundRect(panelRect, 18, 18, paint);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setColor(0x88D3B977);
+            paint.setStrokeWidth(3f);
+            canvas.drawRoundRect(panelRect, 18, 18, paint);
+        }
         paint.setStyle(Paint.Style.FILL);
 
         // Título "STATUS & ATRIBUTOS"

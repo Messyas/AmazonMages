@@ -1,16 +1,31 @@
 package com.example.amazonMages.graphics;
 
 import android.graphics.Canvas;
+import android.graphics.Bitmap;
+import android.graphics.Paint;
 import android.graphics.Rect;
 
 public class Sprite {
 
-    private final SpriteSheet spriteSheet; // Referência à sprite sheet que contém este sprite
+    private static final Paint PIXEL_PAINT = new Paint();
+    static {
+        PIXEL_PAINT.setAntiAlias(false);
+        PIXEL_PAINT.setFilterBitmap(false);
+        PIXEL_PAINT.setDither(false);
+    }
+    private final Bitmap bitmap;
     private final Rect rect;
     private final Rect destinationRect = new Rect(); // Retângulo que define a posição e o tamanho do sprite na sprite sheet
 
     public Sprite(SpriteSheet spriteSheet, Rect rect) {
-        this.spriteSheet = spriteSheet; // Inicializa a sprite sheet
+        this(spriteSheet.getBitmap(), rect);
+    }
+
+    public Sprite(Bitmap bitmap, Rect rect) {
+        if (bitmap == null || rect == null || rect.isEmpty() || rect.left < 0 || rect.top < 0 ||
+                rect.right > bitmap.getWidth() || rect.bottom > bitmap.getHeight())
+            throw new IllegalArgumentException("Invalid sprite bitmap bounds");
+        this.bitmap = bitmap;
         this.rect = rect; // Inicializa o retângulo que define a área do sprite
     }
 
@@ -18,10 +33,10 @@ public class Sprite {
     public void draw(Canvas canvas, int x, int y) {
         destinationRect.set(x, y, x + getWidth(), y + getHeight());
         canvas.drawBitmap(
-                spriteSheet.getBitmap(), // Bitmap da sprite sheet
+                bitmap,
                 rect, // A área do sprite na sprite sheet
                 destinationRect, // Retângulo de destino onde o sprite será desenhado
-                null // Opções de pintura (null indica que não há opções especiais)
+                PIXEL_PAINT
         );
     }
 

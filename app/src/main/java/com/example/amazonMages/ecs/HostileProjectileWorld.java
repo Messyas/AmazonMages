@@ -42,8 +42,11 @@ public final class HostileProjectileWorld {
             if (Math.hypot(position.x - player.getPositionX(), position.y - player.getPositionY()) < radius
                     && world.destroy(entity.id())) {
                 double before=player.getPreciseHealth();
-                player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, DamageType.ACID));
-                if (player.getPreciseHealth()<before) player.getStatusEffects().grantSlow(60,.15);
+                boolean parried = player.tryParry(position.x, position.y);
+                if (!parried) {
+                    player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, DamageType.ACID));
+                    if (player.getPreciseHealth()<before) player.getStatusEffects().grantSlow(60,.15);
+                }
             }
         }
     }

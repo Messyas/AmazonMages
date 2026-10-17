@@ -10,7 +10,10 @@ public final class DevLocations {
     static {
         Map<String, double[]> locations = new LinkedHashMap<>();
         locations.put("inicio", new double[]{1000, 500});
-        locations.put("pantano", new double[]{1200, 900});
+        // Swamps (and their ghosts) no longer sit next to the start; these are the nearest ones for
+        // the current world seed (MapLayout.WORLD_SEED).
+        locations.put("pantano", new double[]{416, 3296});
+        locations.put("pantano_leste", new double[]{7392, 416});
         locations.put("clareira", new double[]{1800, 1200});
         LOCATIONS = Collections.unmodifiableMap(locations);
     }

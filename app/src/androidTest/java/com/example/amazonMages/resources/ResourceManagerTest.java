@@ -14,7 +14,7 @@ public class ResourceManagerTest {
         ResourceManager resources=ResourceManager.shared(context);
         Bitmap first=resources.bitmap(R.drawable.energyball,false);
         assertSame(first,resources.bitmap(R.drawable.energyball,false));
-        assertTrue(resources.cachedBytes()<=16*1024*1024);
+        assertTrue(resources.cachedBytes()<=resources.budgetBytes());
         resources.trim();assertEquals(0,resources.cachedBytes());assertFalse(first.isRecycled());
         assertNotSame(first,resources.bitmap(R.drawable.energyball,false));
         ResourceManager.clearShared();

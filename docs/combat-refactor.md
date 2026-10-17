@@ -12,18 +12,20 @@ Branch: `fix/android-performance`.
 - `combat/StatusEffects`: tick-based speed/resistance boost.
 - `Player.receiveHit` and `Enemy.receiveHit`: fractional HP internally, existing integer HP API retained for compatibility.
 - Acid projectiles and player basic spells now pass through typed hit events.
+- `Player.beginParry` and `HostileProjectileWorld`: short frontal parry window intercepts acid projectiles; the HUD shows its recovery state.
+- `PlayerDefenseFx`: directional leaf ward, successful-parry flash and posture-break flash use the authored PNG atlases.
 
-## Not yet implemented
+## Current parry behavior
 
-Posture break/stun consequences, parry shield collision and directional timing, stat leveling, skill tree and prerequisites, equipment/loadouts, mana, inventory/consumables, intrinsic coconut basic/special, UI and save migration. These should be developed on top of the foundation rather than claimed as complete.
+Tap the leaf shield button to open a 10-tick parry window with a 36-tick cooldown. The attack aim sets the facing direction; only enemy projectiles entering the frontal 100-degree arc are intercepted. Other hits keep their current damage and acid slow behavior. Posture depletion displays a flash but does not stun or otherwise change combat behavior. Enemies currently have no melee collision to block.
 
 ## Important behavior
 
-Current player maximum health remains 5 and is still displayed as an integer. Internal HP uses a double so a 20% damage reduction is not lost to integer truncation. Combat modifiers default to neutral values; the existing basic spell deals 1 MAGIC damage. Posture currently accumulates and regenerates but does not trigger a stagger; no shield has been wired in yet.
+Current player maximum health remains 5 and is still displayed as an integer. Internal HP uses a double so a 20% damage reduction is not lost to integer truncation. Combat modifiers default to neutral values; posture recovers after pressure. A depleted player posture currently has visual feedback only.
 
 ## Validation
 
-No Android/Gradle build has been run in this environment. Compile and run tests on the Android project before merging. In particular verify damage at low HP, fused ghosts, projectile collision, save/restore and lifecycle pause/resume.
+`assembleDebug` passed after the parry integration. Automated combat tests and physical-device checks remain pending; verify touch target scaling, aim direction, projectile interception, low-health hits, save/restore and lifecycle pause/resume.
 
 ## Equipment and coconut prototype
 

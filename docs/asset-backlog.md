@@ -4,18 +4,19 @@
 
 | Prioridade | Asset / nome sugerido | Estado | Requisito |
 |---|---|---|---|
-| Alta | `coconut_projectile.png` | Ausente | Coco **fruta**, visto em 3/4, transparente, leitura clara em escala pequena; substituir círculo marrom Canvas |
-| Alta | `coconut_summon.png` | Ausente | Frames do coco materializando na mão do mago; sincronizar com ataque |
-| Alta | `coconut_fall.png` | Ausente | Coco caindo de cima para baixo, com sequência de quadros ou movimento procedural |
-| Alta | `coconut_shadow.png` | Ausente | Marca/sombra no chão para indicar onde cada coco vai cair |
-| Alta | `coconut_impact.png` | Ausente | Poeira, rachadura/fragmentos leves no impacto, animação curta |
-| Alta | `coconut_hit.ogg` | Ausente | Som cômico curto de pancada de desenho animado, sem material protegido copiado |
-| Média | `coconut_storm_cast.ogg`, `coconut_storm_hit.ogg` | Ausentes | Invocação e impactos múltiplos, mixagem sem saturação |
-| Alta | `acid_ghost_<acao>.png` | Ausente conforme contrato | Atlases normais por ação/direção; ver [ghost-animation-atlases.md](ghost-animation-atlases.md) |
-| Alta | `acid_ghost_fused_<acao>.png` | Ausente conforme contrato | Atlases fundidos por ação/direção; mesmos estados de animação |
-| Média | `arcane_shield.png` / atlas | Planejado | Silhueta de escudo de energia frontal em 8 direções, não bolha 360° |
-| Média | `parry_flash.png`, `posture_break.png` | Planejados | Feedback legível de parry e quebra de postura |
-| Média | `hud_attack.png`, `hud_special.png`, `hud_weapon.png`, `hud_potion.png` | Ausentes | Ícones pequenos legíveis com estados pressionado, bloqueado e recarga |
+| Alta | `coconut_projectile.png` | Integrado | Coco **fruta**, atlas 4×32×32 em 3/4; substitui o círculo marrom Canvas |
+| Alta | `coconut_summon.png` | Integrado | Atlas de cinco quadros ligado à conjuração do ataque básico |
+| Alta | `coconut_fall.png` | Integrado | Atlas 4×32×40 para a queda da tempestade |
+| Alta | `coconut_shadow.png` | Integrado | Marcador pulsante no chão sob cada coco agendado |
+| Alta | `coconut_impact.png` | Integrado | Atlas de seis quadros para impactos e colisões |
+| Alta | `sfx_coconut_hit.wav` | Integrado | Pancada procedural curta, sem amostra de terceiros |
+| Média | `sfx_coconut_storm_cast.wav`, `sfx_coconut_storm_hit.wav` | Integrados | Conjuração ascendente e pancadas curtas sincronizadas com cada queda |
+| Alta | `acid_ghost_<acao>.png` | Integrado | 14 atlases normais com oito direções e quadros conforme [contrato](ghost-animation-atlases.md) |
+| Alta | `acid_ghost_fused_<acao>.png` | Integrado | 14 atlases fundidos carregados pelo renderer existente |
+| Média | `leaf_shield.png` | Integrado | Defesa frontal direcional durante a janela de parry; remove projéteis inimigos interceptados |
+| Média | `parry_flash.png`, `posture_break.png` | Integrados | Feedback visual para parry bem-sucedido e postura esgotada |
+| Média | `hud_icons.png`, `hud_weapon_icons.png`, `hud_button.png` | Integrados | Atlas de controles, armas e estados normal/pressionado/bloqueado |
+| Média | Telas de mapa e missões | Integradas em Canvas | Atalhos do HUD abrem mapa com posição do jogador e diário com estado/progresso das missões |
 | Média | `staff_attack.png` / VFX | Planejado | Golpe físico com cajado, orientação e alcance coerentes |
 | Baixa | Ícones de árvore/atributos | Planejados | Sete atributos e 20 habilidades, ícones distinguíveis |
 
@@ -31,10 +32,10 @@
 
 ## Integração pendente
 
-1. Produzir sprites e sons com licenciamento adequado e versões fonte editáveis armazenadas fora do APK quando necessário.
+1. Produzir os assets restantes com licenciamento adequado e versões fonte editáveis quando necessário.
 2. Importar PNGs em `drawable-nodpi` e áudio em `raw`.
-3. Implementar carregamento/cache e seleção de frames; remover placeholder apenas quando houver fallback robusto.
-4. Associar quadros a eventos reais: invocação, arremesso, sombra, queda, colisão e desaparecimento.
+3. Criar e integrar o VFX de ataque do cajado.
+4. Criar retratos do protagonista e do ancião para o diálogo.
 5. Validar dimensões, direções, FPS/UPS, transparência, ordem de desenho e efeitos sonoros em dispositivo.
 
 ## Notas de gameplay para artistas

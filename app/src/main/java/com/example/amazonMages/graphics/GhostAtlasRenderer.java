@@ -17,21 +17,32 @@ import java.util.EnumMap;
  * Existing 4x8 generic atlases and ghost.png remain compatible fallbacks.
  */
 public final class GhostAtlasRenderer {
-    private final EnumMap<GhostAnimation, Bitmap> NORMAL =
+    // Atlases are immutable and identical for every ghost, so they are loaded once and shared.
+    // (They used to be per-instance: every spawn re-ran ~30 resource lookups and, once the
+    // bitmap cache was full, re-decoded PNGs on the game thread.)
+    private static final EnumMap<GhostAnimation, Bitmap> NORMAL =
         new EnumMap<>(GhostAnimation.class);
-    private final EnumMap<GhostAnimation, Bitmap> FUSED =
+    private static final EnumMap<GhostAnimation, Bitmap> FUSED =
         new EnumMap<>(GhostAnimation.class);
-    private Bitmap genericNormal, genericFused, fallback;
-    private boolean loaded;
-    private static final Paint PAINT = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private static Bitmap genericNormal, genericFused, fallback;
+    private static boolean loaded;
+    private static final Paint PAINT = new Paint();
+    static {
+        PAINT.setAntiAlias(false);
+        PAINT.setFilterBitmap(false);
+        PAINT.setDither(false);
+    }
     private final Rect source = new Rect();
     private final Rect destination = new Rect();
 
     public GhostAtlasRenderer(Context context) {
+        preload(context);
+    }
+
+    /** Idempotent and thread-safe; call from a background thread at start-up to avoid spawn hitches. */
+    public static void preload(Context context) {
         synchronized (GhostAtlasRenderer.class) {
             if (loaded) return;
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inScaled = false;
             fallback = com.example.amazonMages.resources.ResourceManager.shared(context).bitmap(
                 com.example.androidstudio2dgamedevelopment.R.drawable.ghost, false);
             genericNormal = loadOptional(context, "acid_ghost_atlas");
@@ -44,8 +55,16 @@ public final class GhostAtlasRenderer {
                 if (valid(normal, action.frames)) NORMAL.put(action, normal);
                 if (valid(merged, action.frames)) FUSED.put(action, merged);
             }
+            // Hint the GPU upload now instead of during the first frame that shows each atlas.
+            warm(fallback); warm(genericNormal); warm(genericFused);
+            for (Bitmap bitmap : NORMAL.values()) warm(bitmap);
+            for (Bitmap bitmap : FUSED.values()) warm(bitmap);
             loaded = true;
         }
+    }
+
+    private static void warm(Bitmap bitmap) {
+        if (bitmap != null && !bitmap.isRecycled()) bitmap.prepareToDraw();
     }
 
     private static Bitmap loadOptional(Context context, String name) {

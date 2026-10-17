@@ -1,7 +1,7 @@
 # Compilação e validação Android
 
-Estado de 2026-10-16: build debug, APK instrumentado e 26 testes JVM aprovados;
-Android Lint sem erros (31 avisos). Testes instrumentados e checklist físico abaixo pendentes.
+Estado de 2026-10-17: `assembleDebug` aprovado e build instalada em aparelho físico.
+Menu, seleção de save, jogo, mapa e diário foram abertos; parry e combate ainda precisam de validação manual.
 
 ## Comandos
 
@@ -17,6 +17,29 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 Não desinstalar o aplicativo nem limpar seus dados para testar migrações. Use cópias de saves
 ou emuladores de teste. A atualização do APK deve preservar os dados anteriores.
 Os testes de banco usam databases de teste, sem apagar o banco da partida.
+
+## Smoke test em aparelho físico
+
+Build e instalação usados em 2026-10-17:
+
+```powershell
+.\gradlew.bat assembleDebug
+android run --apks=app/build/outputs/apk/debug/app-debug.apk --device=<serial-do-aparelho>
+```
+
+- [x] Menu principal, seletor de saves e entrada no jogo abrem sem crash.
+- [x] HUD carrega em paisagem; mapa mostra o terreno e a posição atual.
+- [x] Diário exibe o estado/progresso das missões e ambos os painéis pausam o mundo.
+- [ ] Parry ampliado: no chat do HUD, usar `/god on` e `/spawn fantasma 1`; confirmar arco frontal de 140 graus e spinner de recarga no botão; finalizar com `/clear` e `/god off`.
+- [ ] Zoom opcional: tocar no botão superior direito e confirmar os níveis 1.0x, 1.25x, 1.5x, 1.7x e retorno ao padrão.
+- [ ] Chat de debug: abrir pelo icone no HUD, executar `/help`, alternar `FPS`, fechar e conferir o painel compacto ao jogar.
+- [ ] Menus verdes: conferir pausa, audio e selecao de saves em paisagem; botoes confortaveis sem ocupar a largura inteira.
+- [ ] Rotacao: girar o aparelho e confirmar que a Activity permanece em paisagem.
+- [ ] Verificar o parry em diferentes orientações/densidades e testar o gesto de mira com dois dedos.
+
+O seletor de saves já tinha dados nos três slots. Durante esta sessão o slot 1 morreu com o jogo ativo;
+foi usado **Renascer aqui**, que restaurou a vida cheia e gravou essa recuperação. Nenhum save foi
+excluído nem os dados do aplicativo foram limpos. Para ensaios longos, pause o jogo ou ative `god on`.
 
 ## Roteiro de gameplay (API 28 e 34, telas/densidades diferentes)
 

@@ -149,7 +149,14 @@ Você pode escolher qualquer uma das opções abaixo:
 
 - **Opção A: Compilar e Instalar automaticamente (Recomendado)**
   ```powershell
-  .\gradlew.bat installDebug
+  .\gradlew.bat --configuration-cache installDebug
+  ```
+
+  O parâmetro `--configuration-cache` ativa o cache de configuração nessa execução. A primeira execução cria o cache; nas seguintes, use o mesmo parâmetro para reutilizá-lo.
+
+  Para ativá-lo por padrão em todos os comandos Gradle deste projeto, adicione esta linha ao arquivo `gradle.properties` na raiz do projeto:
+  ```properties
+  org.gradle.configuration-cache=true
   ```
 
 - **Opção B: Instalar o APK gerado via ADB**

@@ -3,6 +3,7 @@ package com.example.amazonMages.ui;
 import android.graphics.Canvas;
 import com.example.amazonMages.items.*;
 import com.example.amazonMages.combat.WeaponLoadout;
+import com.example.amazonMages.gamepanel.ForestHud;
 
 /** Fixed catalog selection; quantities are read live after collection, use and restoration. */
 public final class InventoryPanel {
@@ -33,9 +34,10 @@ public final class InventoryPanel {
         if (ny >= .73f && ny < .85f && nx >= .10f && nx < .90f) return Math.min(3,(int)((nx-.10f)/.20f));
         return -3;
     }
-    public void draw(Canvas c, int w, int h, Inventory bag, WeaponLoadout weapons, String notice) {
+    public void draw(Canvas c, int w, int h, Inventory bag, WeaponLoadout weapons, String notice, ForestHud hud) {
         if (!open) return;
-        ui.panel(c,w*.06f,h*.06f,w*.94f,h*.94f);
+        if (hud != null) hud.drawPanel(c,w*.06f,h*.06f,w*.94f,h*.94f);
+        else ui.panel(c,w*.06f,h*.06f,w*.94f,h*.94f);
         ui.text(c,"INVENTARIO",w*.10f,h*.17f,h*.055f,0xFFF5EACD);
         ui.button(c,"X",w*.78f,h*.08f,w*.94f,h*.18f,false);
         for (int i=0;i<items.length;i++) {

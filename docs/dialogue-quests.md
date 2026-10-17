@@ -1,5 +1,9 @@
 # Diálogos, missões e desbloqueios
 
+## Estado atual da interface
+
+O atalho global `FALAR (NPC)` e a conversa demonstrativa do Ancião foram removidos: não existe uma entidade NPC posicionada para justificar essa interação. O renderer e os dados de diálogo ficam sem gatilho até haver NPC real com interação por proximidade. O diário continua mostrando as missões por slot.
+
 ## Implementação inicial
 
 As classes Java de dados e controle foram adicionadas em `dialogue/` e `quest/`. **Não estão ligadas a Game.java, não desenham cards e não persistem em Room.**
@@ -19,9 +23,11 @@ As classes Java de dados e controle foram adicionadas em `dialogue/` e `quest/`.
 5. Recompensa é reivindicada e registrada **na mesma transação Room** que atualiza inventário/desbloqueios; nunca conceder duas vezes.
 6. Flags de diálogo e missões por slot determinam falas e interações futuras.
 
-## Renderer pendente
+## Renderer e diário
 
-Criar `DialogueRenderer` Canvas: card inferior responsivo, retrato e nome do falante, quebra de linha por largura, texto progressivo, indicador de continuação, abertura/desaparecimento suaves. Separar assets de retrato dos sprites de movimento. O card deve capturar toques antes dos controles de combate e pausar o mundo de forma configurável; não confundir com pausa de Activity. Oferecer opções de resposta e ramificações em fase posterior.
+`DialogueRenderer` pode desenhar um card inferior responsivo quando integrado a um NPC real. Atualmente não há conversa ativa no gameplay. O diário e o mapa compartilham o painel modal do HUD.
+
+Continuam pendentes os retratos em PNG, escolhas/ramificações e interação com NPCs posicionados no mapa.
 
 ## Assets pendentes
 
@@ -41,10 +47,9 @@ Criar `DialogueRenderer` Canvas: card inferior responsivo, retrato e nome do fal
 
 ## Integração demonstrativa atual (outubro de 2026)
 
-- `Game.java` instancia `DialogueManager`, `DialogueRenderer` e `QuestJournal`.
-- Botão **FALAR (NPC)** desenhado no topo abre conversa de demonstração com Ancião da Floresta; **não há entidade NPC no mapa nem interação por proximidade ainda**.
-- `DialogueRenderer` desenha card animado, nome, retrato-placeholder, quebra de linha e texto progressivo; não usa PNG de retrato.
-- Durante o diálogo, `Game.update()` atualiza somente a conversa; toque no card completa ou avança falas.
+- `Game.java` mantem `QuestJournal`; `DialogueManager` e `DialogueRenderer` ficam isolados ate existir interacao real com NPC.
+- Atualização da interface: o atalho **FALAR (NPC)** e a conversa demonstrativa foram removidos até haver uma entidade NPC no mapa e interação por proximidade.
+- `DialogueRenderer` nao desenha nada no gameplay atual.
 - A missão de demonstração `first_ghosts` exige 3 mortes de fantasmas ácidos. `EnemyManager` emite evento na transição de vivo para morto por projétil ou Tempestade de Cocos.
 - O evento final marca `REWARDED` e mostra aviso textual **História arcana descoberta**; **não concede habilidade, item ou magia real**.
 - **Tudo permanece em memória:** missões, recompensa e diálogo são reiniciados ao reabrir a jogatina; saves Room ainda armazenam somente posição e vida. Não há migração de banco nesta etapa.

@@ -52,7 +52,9 @@ public final class GameAudioManager {
         registerEffect("attack", "sfx_attack");
         registerEffect("hit", "sfx_hit");
         registerEffect("ghost_defeat", "sfx_ghost_defeat");
-        registerEffect("storm", "sfx_storm");
+        registerEffect("coconut_storm_cast", "sfx_coconut_storm_cast");
+        registerEffect("coconut_storm_hit", "sfx_coconut_storm_hit");
+        registerEffect("coconut_hit", "sfx_coconut_hit");
         registerEffect("dialogue", "sfx_dialogue");
         registerEffect("level_up", "sfx_level_up");
         registerEffect("menu", "sfx_menu");
