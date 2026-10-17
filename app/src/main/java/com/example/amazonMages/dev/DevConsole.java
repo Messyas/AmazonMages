@@ -25,7 +25,13 @@ public final class DevConsole {
         String[] parts = input.trim().toLowerCase(Locale.ROOT).split("\\s+");
         try {
             switch (parts[0]) {
-                case "help": return "debug on/off/info | help | pos | locais | tp <nome> | tp <x> <y> | god on/off | heal | give <id> | use <id> | inventory | spawn <id> [1-10] | clear | level <1-99>";
+                case "help": return "sair/exit | debug on/off/info | help | pos | locais | tp <nome> | tp <x> <y> | god on/off | heal | give <id> | use <id> | inventory | spawn <id> [1-10] | clear | level <1-99>";
+                case "sair":
+                case "exit":
+                case "fechar":
+                case "quit":
+                case "close":
+                    return "close";
                 case "debug":
                     if (parts.length == 2 && (parts[1].equals("on") ||
                         parts[1].equals("off") || parts[1].equals("info")))

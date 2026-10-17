@@ -349,6 +349,22 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             return true;
         }
         if (!states.acceptsInput()) return true;
+        if (debugOverlay && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            float density = getResources().getDisplayMetrics().density;
+            float left = 8 * density, top = getHeight() * .23f;
+            float right = getWidth() - left;
+            String[] lines = diagnostics().split("\\n");
+            float bottom = top + (lines.length + 1) * (17 * density) + 34 * density;
+            float btnW = 90 * density, btnH = 26 * density;
+            float btnL = right - btnW - 8 * density;
+            float btnT = bottom - btnH - 4 * density;
+            if (event.getX() >= btnL && event.getX() <= btnL + btnW &&
+                event.getY() >= btnT && event.getY() <= btnT + btnH) {
+                debugOverlay = false;
+                sound("menu");
+                return true;
+            }
+        }
         if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
             resetInput();
             return true;
@@ -678,14 +694,25 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         float density = getResources().getDisplayMetrics().density;
         float lineHeight = 17 * density;
         float left = 8 * density, top = getHeight() * .23f;
+        float right = getWidth() - left;
+        float bottom = top + (lines.length + 1) * lineHeight + 34 * density;
         hudPaint.setColor(0xD916211C);
-        canvas.drawRoundRect(left, top, getWidth() - left,
-            top + (lines.length + 1) * lineHeight, 8, 8, hudPaint);
+        canvas.drawRoundRect(left, top, right, bottom, 8, 8, hudPaint);
         hudPaint.setColor(0xFFBDF1CB);
         hudPaint.setTextSize(12 * density);
         for (int i = 0; i < lines.length; i++)
             canvas.drawText(lines[i], left + 8 * density,
                 top + (i + 1) * lineHeight, hudPaint);
+
+        // Botão visual para fechar o overlay diretamente na tela
+        float btnW = 90 * density, btnH = 26 * density;
+        float btnL = right - btnW - 8 * density;
+        float btnT = bottom - btnH - 4 * density;
+        hudPaint.setColor(0xFF8B2500);
+        canvas.drawRoundRect(btnL, btnT, btnL + btnW, btnT + btnH, 6, 6, hudPaint);
+        hudPaint.setColor(0xFFFFFFFF);
+        hudPaint.setTextSize(11 * density);
+        canvas.drawText("FECHAR [✕]", btnL + 12 * density, btnT + 17 * density, hudPaint);
     }
 
     private void drawCombatHud(Canvas canvas) {

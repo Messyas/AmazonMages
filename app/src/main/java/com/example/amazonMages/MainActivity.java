@@ -203,22 +203,80 @@ public class MainActivity extends Activity {
     private void showDevConsole() {
         if (game == null || pauseDialog == null ||
             (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) == 0) return;
-        LinearLayout panel = menu("CONSOLE DEV");
+
+        ScrollView scrollView = new ScrollView(this);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(32, 24, 32, 32);
+        panel.setBackgroundColor(Color.rgb(18, 25, 23));
+        scrollView.addView(panel);
+
+        // Header com título e botão de fechar [✕]
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = new TextView(this);
+        title.setText("CONSOLE DEV");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(24);
+        header.addView(title, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        Button closeX = new Button(this);
+        closeX.setText("✕");
+        closeX.setTextColor(Color.WHITE);
+        closeX.setTextSize(18);
+        closeX.setBackgroundColor(Color.rgb(139, 37, 0));
+        header.addView(closeX, new LinearLayout.LayoutParams(
+            (int)(48 * getResources().getDisplayMetrics().density),
+            (int)(42 * getResources().getDisplayMetrics().density)));
+        panel.addView(header);
+
         TextView output = new TextView(this);
         output.setTextColor(Color.WHITE);
-        output.setText("Digite help para listar comandos.");
+        output.setText("Digite 'help' para comandos ou 'sair' para fechar.");
+        output.setPadding(0, 16, 0, 16);
         panel.addView(output);
+
         EditText command = new EditText(this);
         command.setSingleLine(true);
-        command.setHint("tp inicio | god on | spawn fantasma");
+        command.setHint("tp inicio | god on | spawn fantasma | sair");
+        command.setTextColor(Color.WHITE);
+        command.setHintTextColor(Color.GRAY);
         panel.addView(command);
-        AlertDialog console = new AlertDialog.Builder(this).setView(panel).create();
-        button(panel, "Executar", v -> {
-            String result = game.runDevCommand(command.getText().toString());
+
+        AlertDialog console = new AlertDialog.Builder(this)
+            .setView(scrollView)
+            .setCancelable(true)
+            .setNegativeButton("Fechar / Sair do Console", (dialog, which) -> dialog.dismiss())
+            .create();
+
+        closeX.setOnClickListener(v -> console.dismiss());
+
+        Runnable executeAction = () -> {
+            String text = command.getText().toString().trim();
+            if (text.equalsIgnoreCase("sair") || text.equalsIgnoreCase("exit") ||
+                text.equalsIgnoreCase("fechar") || text.equalsIgnoreCase("quit") ||
+                text.equalsIgnoreCase("close")) {
+                console.dismiss();
+                return;
+            }
+            String result = game.runDevCommand(text);
+            if ("close".equals(result)) {
+                console.dismiss();
+                return;
+            }
             output.setText(result);
             command.selectAll();
+        };
+
+        button(panel, "Executar", v -> executeAction.run());
+        button(panel, "Fechar / Sair", v -> console.dismiss());
+
+        command.setOnEditorActionListener((v, actionId, event) -> {
+            executeAction.run();
+            return true;
         });
-        button(panel, "Fechar", v -> console.dismiss());
+
         console.show();
     }
 

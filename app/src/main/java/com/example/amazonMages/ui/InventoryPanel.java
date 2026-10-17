@@ -24,6 +24,7 @@ public final class InventoryPanel {
     public int touch(float x, float y, int w, int h) {
         float nx=x/w, ny=y/h;
         if (CanvasUi.hit(nx,ny,.78f,.08f,.94f,.18f)) { close(); return -2; }
+        if (nx < .06f || nx > .94f || ny < .06f || ny > .94f) { close(); return -2; }
         if (CanvasUi.hit(nx,ny,.10f,.22f,.58f,.66f)) {
             int row=(int)((ny-.22f)/(.44f/items.length));
             if (row >= 0 && row < items.length) selected=row;
