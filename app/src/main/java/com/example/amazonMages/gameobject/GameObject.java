@@ -22,6 +22,7 @@ public abstract class GameObject {
 
     public double getPositionX() { return positionX; }
     public double getPositionY() { return positionY; }
+    public void setPosition(double x, double y) { this.positionX = x; this.positionY = y; }
 
     public double getDirectionX() { return directionX; }
     public double getDirectionY() { return directionY; }

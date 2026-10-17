@@ -215,6 +215,23 @@ public final class EnemyManager {
         projectiles.draw(canvas, display);
     }
 
+    /** Clears hostile projectiles and creates breathing room when player revives at their spot. */
+    public void onPlayerRespawn() {
+        projectiles.clear();
+        double px = player.getPositionX();
+        double py = player.getPositionY();
+        for (Enemy enemy : enemies) {
+            if (enemy.isDead()) continue;
+            double dx = enemy.getPositionX() - px;
+            double dy = enemy.getPositionY() - py;
+            double dist = Math.hypot(dx, dy);
+            if (dist < 260) {
+                double angle = dist < 0.001 ? Math.random() * Math.PI * 2 : Math.atan2(dy, dx);
+                enemy.setPosition(px + Math.cos(angle) * 300, py + Math.sin(angle) * 300);
+            }
+        }
+    }
+
     /** Debug only: removes active enemies and projectiles without kill rewards. */
     public void clearForDebug() {
         enemies.clear();

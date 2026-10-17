@@ -340,7 +340,15 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public synchronized boolean onTouchEvent(MotionEvent event) {
-        if (!states.acceptsInput() || player.getHealthPoint() <= 0) return true;
+        if (player.getHealthPoint() <= 0) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                if (gameOver.isRespawnPressed(event.getX(), event.getY())) {
+                    respawnPlayer();
+                }
+            }
+            return true;
+        }
+        if (!states.acceptsInput()) return true;
         if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
             resetInput();
             return true;
@@ -711,6 +719,17 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     /** Explicit save action used by the in-game pause menu. */
     public synchronized void saveNow() { saveCoordinator.save(); }
+
+    /** Revives the player at their current location with full health and mana. */
+    public synchronized void respawnPlayer() {
+        player.setHealthPoint(player.getMaximumHealth());
+        progression.mana = progression.maxMana;
+        enemyManager.onPlayerRespawn();
+        states.revive();
+        states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+        resetInput();
+        saveNow();
+    }
 
     private void resetInput() { input.reset(); }
 
