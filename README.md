@@ -104,3 +104,77 @@ As aulas base para esta aplicacao podem ser encontradas em: https://www.youtube.
 ## Desenvolvimento
 
 Consulte o [roadmap técnico](docs/architecture-roadmap.md), o [relatório de build e testes](docs/validation/2026-10-16.md) e o [roteiro Android](docs/testing-checklist.md).
+
+---
+
+## Como Compilar e Rodar no Dispositivo Android (Sem Android Studio)
+
+Este projeto está preparado para desenvolvimento leve via linha de comando ou assistido por IA, sem a necessidade de abrir o Android Studio.
+
+### Pré-requisitos
+
+- **JDK 17 LTS** (configurado no `gradle.properties` em `org.gradle.java.home`).
+- **Android SDK / Command-line Tools & Platform-Tools (`adb`)** configurados no sistema.
+
+---
+
+### Passo a Passo
+
+#### 1. Conectar o Dispositivo Android
+1. No seu celular Android, acesse **Configurações > Opções do desenvolvedor** e ative a **Depuração USB** (USB Debugging).
+2. Conecte o aparelho ao computador via cabo USB (permita a solicitação de depuração na tela do celular se aparecer).
+3. Abra o terminal na raiz do projeto e certifique-se de que o dispositivo foi detectado:
+   ```powershell
+   adb devices
+   ```
+   *(O aparelho deve aparecer listado com o status `device`)*.
+
+---
+
+#### 2. Gerar o APK de Teste (Debug)
+Para apenas compilar e gerar o arquivo APK:
+```powershell
+.\gradlew.bat assembleDebug
+```
+O arquivo APK compilado estará disponível em:
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+---
+
+#### 3. Instalar e Executar no Dispositivo Conectado
+
+Você pode escolher qualquer uma das opções abaixo:
+
+- **Opção A: Compilar e Instalar automaticamente (Recomendado)**
+  ```powershell
+  .\gradlew.bat installDebug
+  ```
+
+- **Opção B: Instalar o APK gerado via ADB**
+  ```powershell
+  adb install -r app\build\outputs\apk\debug\app-debug.apk
+  ```
+
+- **Opção C: Usar o Android CLI**
+  ```powershell
+  android run
+  ```
+
+---
+
+### Comandos Úteis
+
+- **Iniciar/Abrir o jogo no aparelho via terminal:**
+  ```powershell
+  adb shell am start -n com.example.androidstudio2dgamedevelopment/com.example.amazonMages.MainActivity
+  ```
+- **Acompanhar logs de execução do jogo no aparelho:**
+  ```powershell
+  adb logcat | Select-String "com.example.androidstudio2dgamedevelopment"
+  ```
+- **Desinstalar a versão de desenvolvimento do aparelho:**
+  ```powershell
+  adb uninstall com.example.androidstudio2dgamedevelopment
+  ```
