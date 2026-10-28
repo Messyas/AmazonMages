@@ -1,0 +1,66 @@
+{
+  "status": "Art direction references; runtime integration and Android evidence are documented in art/world-v1/README.md",
+  "assets": {
+    "world_overview_concept_v1": {
+      "source": "art/hd/world_overview_concept_v1.png",
+      "source_sha256": "df4030dc64bcf3e2c2f09a406655de62c40bd1b5d572108d9cd7eb287be28aa8",
+      "source_size": [
+        1254,
+        1254
+      ],
+      "final_size": [
+        312,
+        312
+      ],
+      "palette": "amazon_world_v1",
+      "colors_used": 156,
+      "opaque": true,
+      "alpha_values": [
+        255
+      ],
+      "deterministic": true,
+      "output_sha256": "21a12739adf6b26f79e8ac7132dcf761a0501f9cb261f9b78bb61ed62dd7246d"
+    },
+    "world_camera_concept_v1": {
+      "source": "art/hd/world_camera_concept_v1.png",
+      "source_sha256": "fa047c9ec2efc29fb1b246aab1911cc6b39f689222100cb037a97071b798f3d6",
+      "source_size": [
+        1672,
+        941
+      ],
+      "final_size": [
+        416,
+        234
+      ],
+      "palette": "amazon_world_v1",
+      "colors_used": 158,
+      "opaque": true,
+      "alpha_values": [
+        255
+      ],
+      "deterministic": true,
+      "output_sha256": "aa400b9d71efe7896c7db19f75fd7a31a66412119a6ea36ecd44cfa6dcd3d2d2"
+    },
+    "world_tree_broadleaf_v1": {
+      "source": "art/hd/world_tree_broadleaf_v1.png",
+      "source_sha256": "68693603ea90ac592634b87e11ec5c64e45dd8f313949493d81e71e1491826b1",
+      "source_size": [
+        1024,
+        1536
+      ],
+      "final_size": [
+        256,
+        384
+      ],
+      "palette": "amazon_world_v1",
+      "colors_used": 78,
+      "opaque": false,
+      "alpha_values": [
+        0,
+        255
+      ],
+      "deterministic": true,
+      "output_sha256": "bf02f03a9a7423809a3236472fdcfd255e52f41295a5cdca58b5a3b89b4357d9"
+    }
+  }
+}

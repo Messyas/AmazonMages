@@ -16,3 +16,7 @@
 # art pipeline (regenerable outputs)
 /art/build/
 /art/preview/
+
+# Python art-pipeline bytecode
+__pycache__/
+*.py[cod]

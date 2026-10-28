@@ -12,6 +12,8 @@ import java.util.Map;
 
 /** Captures one coherent simulation snapshot on its owner's lock, before asynchronous I/O. */
 public final class SaveCoordinator {
+    private com.example.amazonMages.map.WorldDefinition geometry = new com.example.amazonMages.map.WorldDefinition();
+    public void setWorldGeometry(com.example.amazonMages.map.WorldDefinition world) { geometry = world; }
     private final GameSaveRepository repository;
     private final Inventory inventory;
     private final PlayerProgression progression;
@@ -33,6 +35,10 @@ public final class SaveCoordinator {
     }
 
     public void restoreWorld(List<EquipmentEntity> equipment, List<WorldPickupEntity> ground) {
+        restoreWorld(equipment, ground, false);
+    }
+
+    public void restoreWorld(List<EquipmentEntity> equipment, List<WorldPickupEntity> ground, boolean legacy) {
         weapons.reset();
         for (EquipmentEntity row : equipment) {
             ItemDefinition item = registry.get(row.itemId);
@@ -45,8 +51,12 @@ public final class SaveCoordinator {
             ItemDefinition item = registry.get(row.itemId);
             if (pickups.size() >= 64) break;
             if (item == null || row.quantity < 1 || row.remainingTicks < 1 || !Double.isFinite(row.x) || !Double.isFinite(row.y)
-                || row.x < 0 || row.y < 0 || row.x >= 6400 || row.y >= 4480) continue;
-            pickups.create().add(TransformComponent.class, new TransformComponent(row.x, row.y))
+                || row.x < 0 || row.y < 0) continue;
+            int index = pickups.size();
+            double x = legacy ? geometry.spawn.worldX() + (index % 8 - 3.5) * 80 : row.x;
+            double y = legacy ? geometry.spawn.worldY() + 400 + (index / 8 - 3.5) * 80 : row.y;
+            com.example.amazonMages.map.WorldDefinition.Position safe = geometry.safePosition(x, y, 13);
+            pickups.create().add(TransformComponent.class, new TransformComponent(safe.x, safe.y))
                 .add(ColliderComponent.class, new ColliderComponent(13))
                 .add(PickupComponent.class, new PickupComponent(item.id, Math.min(row.quantity, item.maxStack)))
                 .add(LifetimeComponent.class, new LifetimeComponent(Math.min(36000, row.remainingTicks)));

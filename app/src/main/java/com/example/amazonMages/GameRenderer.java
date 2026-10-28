@@ -5,11 +5,13 @@ import android.graphics.Paint;
 import com.example.amazonMages.ai.EnemyManager;
 import com.example.amazonMages.ecs.*;
 import com.example.amazonMages.gameobject.Player;
+import com.example.amazonMages.gameobject.GameObject;
 import com.example.amazonMages.map.Tilemap;
 
 /** Owns world rendering and its reusable drawing state; never mutates simulation data. */
 final class GameRenderer {
     private final java.util.List<Entity> visiblePickups = new java.util.ArrayList<>();
+    private final java.util.List<GameObject> actors = new java.util.ArrayList<>();
     private final Tilemap tiles;
     private final Player player;
     private final EnemyManager enemies;
@@ -31,10 +33,16 @@ final class GameRenderer {
 
     void draw(Canvas canvas) {
         tiles.draw(canvas, display);
-        tiles.drawTrees(canvas, display, player.getPositionY(), true);
-        player.draw(canvas, display);
-        tiles.drawTrees(canvas, display, player.getPositionY(), false);
-        enemies.draw(canvas, display);
+        tiles.prepareScenery(display, player.getPositionX(), player.getPositionY());
+        actors.clear(); actors.add(player); enemies.addActorsTo(actors);
+        actors.sort(java.util.Comparator.comparingDouble(GameObject::getPositionY));
+        for (GameObject actor : actors) {
+            tiles.drawSceneryUntil(canvas, display, actor.getPositionY());
+            actor.draw(canvas, display);
+        }
+        tiles.drawSceneryUntil(canvas, display, Double.POSITIVE_INFINITY);
+        tiles.drawCanopy(canvas, display);
+        enemies.drawProjectiles(canvas, display);
         projectiles.draw(canvas, display);
         pickups.queryInto(visiblePickups,PickupComponent.class,TransformComponent.class);
         for (Entity entity : visiblePickups) {

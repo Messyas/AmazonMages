@@ -36,7 +36,7 @@ public class GameSaveRepository {
         this.slotId = slotId;
         database = Room.databaseBuilder(context.getApplicationContext(),
             GameDatabase.class, databaseName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build();
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build();
     }
 
     public interface SnapshotCallback {
@@ -109,6 +109,13 @@ public class GameSaveRepository {
             @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
                 db.execSQL("CREATE TABLE equipment (slotId INTEGER NOT NULL, weaponSlot INTEGER NOT NULL, itemId TEXT NOT NULL, selected INTEGER NOT NULL, PRIMARY KEY(slotId, weaponSlot))");
                 db.execSQL("CREATE TABLE world_pickups (slotId INTEGER NOT NULL, pickupId INTEGER NOT NULL, itemId TEXT NOT NULL, quantity INTEGER NOT NULL, x REAL NOT NULL, y REAL NOT NULL, remainingTicks INTEGER NOT NULL, PRIMARY KEY(slotId, pickupId))");
+            }
+        };
+
+    public static final androidx.room.migration.Migration MIGRATION_7_8 =
+        new androidx.room.migration.Migration(7, 8) {
+            @Override public void migrate(androidx.sqlite.db.SupportSQLiteDatabase db) {
+                db.execSQL("ALTER TABLE player_positions ADD COLUMN worldRevision INTEGER NOT NULL DEFAULT 0");
             }
         };
 

@@ -20,6 +20,12 @@
 | Média | `staff_attack.png` / VFX | Planejado | Golpe físico com cajado, orientação e alcance coerentes |
 | Baixa | Ícones de árvore/atributos | Planejados | Sete atributos e 20 habilidades, ícones distinguíveis |
 
+## Cenário amazônico entregue em 2026-10-27
+
+O novo background está integrado: materiais de chão/água, floresta viva e morta, malocas, templo e ruínas, teatro e casas, castanheira colossal dividida em partes. As fontes HD, prompts e reconstrução estão em [world-v1](../art/world-v1/README.md). O mundo possui 57 estruturas garantidas e quatro espaços de boss acessíveis.
+
+Os quatro novos bosses e seus assets continuam pendentes por decisão de escopo. Variantes adicionais de vegetação e arquitetura podem ampliar a diversidade deste conjunto; não são necessárias para ativar o mundo atual. Desempenho e legibilidade em aparelho físico ainda precisam ser conferidos.
+
 ## Contrato visual geral
 
 - Estilo consistente com personagem e cenário existentes; câmera top-down 3/4, paleta apropriada ao bioma amazônico.

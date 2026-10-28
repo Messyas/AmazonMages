@@ -75,7 +75,7 @@ public final class ExplorationPanel {
         float availableTop = panel.top + pad * 3.75f;
         float availableBottom = panel.bottom - pad * 2.0f;
         float availableWidth = panel.width() - pad * 2;
-        float mapWidth = Math.min(availableWidth, (availableBottom - availableTop) * 1.42f);
+        float mapWidth = Math.min(availableWidth, (availableBottom - availableTop) * map.getWidth() / map.getHeight());
         float mapHeight = mapWidth * map.getHeight() / map.getWidth();
         float left = panel.centerX() - mapWidth * .5f;
         float top = availableTop + (availableBottom - availableTop - mapHeight) * .5f;

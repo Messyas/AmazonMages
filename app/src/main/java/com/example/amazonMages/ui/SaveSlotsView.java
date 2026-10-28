@@ -248,7 +248,7 @@ public final class SaveSlotsView extends ViewGroup {
         }
     }
 
-    private final class MenuButton extends Button {
+    private final class MenuButton extends androidx.appcompat.widget.AppCompatButton {
         private final AtlasMenuButtonDrawable artwork;
         MenuButton(Context context, String text, Typeface typeface, View.OnClickListener listener) {
             super(context);

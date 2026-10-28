@@ -1114,6 +1114,327 @@
    "despeckle": true,
    "outline_bias": 0
   },
+ "world_castanheira_trunk_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   1024,
+   1536
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 1,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2
+ },
+ "world_root_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   384,
+   1536
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 1,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2
+ },
+  "world_maloca_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   768,
+   512
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 0.98,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2,
+  "outline_bias": 0.1
+ },
+ "world_temple_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   768,
+   768
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 0.98,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2,
+  "outline_bias": 0.1
+ },
+ "world_theater_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   1024,
+   688
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 0.98,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2,
+  "outline_bias": 0.1
+ },
+ "world_burned_tree_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   384,
+   576
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 0.98,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2,
+  "outline_bias": 0.1
+ },
+ "world_city_house_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   384,
+   384
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 0.98,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2,
+  "outline_bias": 0.1
+ },
+ "world_ruin_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   384,
+   384
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 0.98,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2,
+  "outline_bias": 0.1
+ },
+ "world_canopy_v1": {
+  "kind": "object",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   256,
+   192
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "trim",
+  "anchor": "bottom",
+  "fill": 0.98,
+  "key": null,
+  "despeckle": false,
+  "min_island": 2,
+  "outline_bias": 0.1
+ },
+ "world_tile_grass_v1": {
+  "kind": "tile",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   64,
+   64
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "cover",
+  "key": null,
+  "despeckle": false,
+  "outline_bias": 0
+ },
+ "world_tile_earth_v1": {
+  "kind": "tile",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   64,
+   64
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "cover",
+  "key": null,
+  "despeckle": false,
+  "outline_bias": 0
+ },
+ "world_tile_negro_v1": {
+  "kind": "tile",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   64,
+   64
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "cover",
+  "key": null,
+  "despeckle": false,
+  "outline_bias": 0
+ },
+ "world_tile_solimoes_v1": {
+  "kind": "tile",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   64,
+   64
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "cover",
+  "key": null,
+  "despeckle": false,
+  "outline_bias": 0
+ },
+ "world_tile_burned_v1": {
+  "kind": "tile",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   64,
+   64
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "cover",
+  "key": null,
+  "despeckle": false,
+  "outline_bias": 0
+ },
+ "world_tile_paving_v1": {
+  "kind": "tile",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   64,
+   64
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "cover",
+  "key": null,
+  "despeckle": false,
+  "outline_bias": 0
+ },
+ "world_tile_bark_v1": {
+  "kind": "tile",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   64,
+   64
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "cover",
+  "key": null,
+  "despeckle": false,
+  "outline_bias": 0
+ },
+ "world_tile_bridge_v1": {
+  "kind": "tile",
+  "cols": 1,
+  "rows": 1,
+  "cell": [
+   64,
+   64
+  ],
+  "scale": 1,
+  "palette": "amazon_world_v1",
+  "fit": "cover",
+  "key": null,
+  "despeckle": false,
+  "outline_bias": 0
+ },
+  "world_tree_broadleaf_v1": {
+   "kind": "object",
+   "cols": 1,
+   "rows": 1,
+   "source_cell": [1024, 1536],
+   "downsample": 4,
+   "scale": 1,
+   "palette": "amazon_world_v1",
+   "fit": "trim",
+   "anchor": "bottom",
+   "fill": 0.94,
+   "key": null,
+   "despeckle": true,
+   "outline_bias": 0.15
+  },
+  "world_overview_concept_v1": {
+   "kind": "tile",
+   "cols": 1,
+   "rows": 1,
+   "cell": [312, 312],
+   "downsample": 4,
+   "scale": 1,
+   "palette": "amazon_world_v1",
+   "fit": "cover",
+   "key": null,
+   "despeckle": false,
+   "outline_bias": 0
+  },
+  "world_camera_concept_v1": {
+   "kind": "tile",
+   "cols": 1,
+   "rows": 1,
+   "cell": [416, 234],
+   "downsample": 4,
+   "scale": 1,
+   "palette": "amazon_world_v1",
+   "fit": "cover",
+   "key": null,
+   "despeckle": false,
+   "outline_bias": 0
+  },
   "portrait_player": {
    "kind": "smooth",
    "size": [

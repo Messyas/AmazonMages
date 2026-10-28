@@ -60,12 +60,17 @@ public class Player extends Circle {
         this.playerState = new PlayerState(this);
     }
 
+    private com.example.amazonMages.map.WorldDefinition worldGeometry;
+    public void setWorldGeometry(com.example.amazonMages.map.WorldDefinition world) { worldGeometry = world; }
+
     public void update() {
 
         // Update velocity based on actuator of joystick
         double movement = MAX_SPEED * combatStats.getMovementMultiplier() * statusEffects.speedMultiplier();
         velocityX = joystick.getActuatorX()*movement;
         velocityY = joystick.getActuatorY()*movement;
+        double inputLength = Math.hypot(joystick.getActuatorX(), joystick.getActuatorY());
+        if (inputLength > 1) { velocityX /= inputLength; velocityY /= inputLength; }
         statusEffects.update();
         posture.update();
         if (parryTicks > 0) parryTicks--;
@@ -74,8 +79,14 @@ public class Player extends Circle {
         if (postureBreakTicks > 0) postureBreakTicks--;
 
         // Update position
-        positionX += velocityX;
-        positionY += velocityY;
+        if (worldGeometry == null) {
+            positionX += velocityX;
+            positionY += velocityY;
+        } else {
+            com.example.amazonMages.map.WorldDefinition.Position resolved = worldGeometry.resolveMovement(
+                positionX, positionY, velocityX, velocityY, getRadius());
+            positionX = resolved.x; positionY = resolved.y;
+        }
 
         // Update direction
         if (velocityX != 0 || velocityY != 0) {
@@ -91,8 +102,7 @@ public class Player extends Circle {
             (velocityX == 0 && velocityY == 0 ? AnimationAction.IDLE : AnimationAction.MOVE);
         Direction animationFacing = action == AnimationAction.ATTACK || action == AnimationAction.PARRY
             ? attackFacing : facing;
-        animator.setState(action, animationFacing);
-        animator.update();
+        if (animator != null) { animator.setState(action, animationFacing); animator.update(); }
         if (scriptedActionTicks > 0 && --scriptedActionTicks == 0 &&
                 scriptedAction != AnimationAction.DEATH) scriptedAction = null;
     }
@@ -110,20 +120,20 @@ public class Player extends Circle {
             case DODGE: scriptedActionTicks = 5 * 4; break;
             default: scriptedActionTicks = 1;
         }
-        animator.setState(action, action == AnimationAction.ATTACK || action == AnimationAction.PARRY
-            ? attackFacing : facing);
+        if (animator != null) animator.setState(action,
+            action == AnimationAction.ATTACK || action == AnimationAction.PARRY ? attackFacing : facing);
     }
 
     /** Game over stops normal simulation, but the collapse animation keeps advancing. */
     public void advanceDeathAnimation() {
         if (scriptedAction != AnimationAction.DEATH) playAction(AnimationAction.DEATH);
-        animator.setState(AnimationAction.DEATH, facing);
-        animator.update();
+        if (animator != null) { animator.setState(AnimationAction.DEATH, facing); animator.update(); }
         if (scriptedActionTicks > 0) scriptedActionTicks--;
     }
 
     public void draw(Canvas canvas, GameDisplay gameDisplay) {
-        animator.draw(canvas, gameDisplay, positionX, positionY);
+        if (animator != null) animator.draw(canvas, gameDisplay, positionX, positionY);
+        else super.draw(canvas, gameDisplay);
         defenseFx.draw(canvas, gameDisplay, this);
     }
 

@@ -20,11 +20,11 @@ public class GameDatabaseTest {
     private static final Migration[] MIGRATIONS = {
         GameSaveRepository.MIGRATION_1_2, GameSaveRepository.MIGRATION_2_3,
         GameSaveRepository.MIGRATION_3_4, GameSaveRepository.MIGRATION_4_5,
-        GameSaveRepository.MIGRATION_5_6, GameSaveRepository.MIGRATION_6_7
+        GameSaveRepository.MIGRATION_5_6, GameSaveRepository.MIGRATION_6_7, GameSaveRepository.MIGRATION_7_8
     };
 
     @Test public void everyHistoricalVersionMigratesAndPreservesSlots() {
-        for (int version = 1; version <= 6; version++) {
+        for (int version = 1; version <= 7; version++) {
             String name = "migration-test-" + version;
             context.deleteDatabase(name);
             final int sourceVersion = version;
@@ -39,6 +39,11 @@ public class GameDatabaseTest {
                                 db.execSQL("INSERT INTO quest_progress VALUES (1, 'first_ghosts', 'ACTIVE', 2)");
                             if (sourceVersion >= 4)
                                 db.execSQL("INSERT INTO player_stats VALUES (1, 2, 15, 1, 1, 1, 1, 1, 1, 1, 1, 1, 20, 100)");
+                            if (sourceVersion >= 7) {
+                                db.execSQL("INSERT INTO inventory_items VALUES (1, 'cajado', 1)");
+                                db.execSQL("INSERT INTO equipment VALUES (1, 2, 'cajado', 1)");
+                                db.execSQL("INSERT INTO world_pickups VALUES (1, 4, 'erva', 7, 1000, 500, 1234)");
+                            }
                         }
                         @Override public void onUpgrade(SupportSQLiteDatabase db, int oldVersion, int newVersion) {
                             throw new AssertionError("Unexpected upgrade in fixture");
@@ -52,7 +57,14 @@ public class GameDatabaseTest {
                 PlayerPositionEntity position = db.playerPositionDao().load(1);
                 assertEquals(100, position.x, 0);
                 assertEquals(5, position.health);
-                assertTrue(db.inventoryItemDao().loadForSlot(1).isEmpty());
+                assertEquals(0, position.worldRevision);
+                if (version < 7) assertTrue(db.inventoryItemDao().loadForSlot(1).isEmpty());
+                else {
+                    assertEquals(1, db.inventoryItemDao().loadForSlot(1).get(0).quantity);
+                    assertEquals(2, db.worldStateDao().equipment(1).get(0).weaponSlot);
+                    assertEquals(7, db.worldStateDao().pickups(1).get(0).quantity);
+                    assertEquals(1234, db.worldStateDao().pickups(1).get(0).remainingTicks);
+                }
                 if (version >= 3) assertEquals(2, db.questProgressDao().loadForSlot(1).get(0).progress);
                 if (version >= 4) assertEquals(2, db.playerStatsDao().load(1).level);
                 assertRoundTripAndDeletion(db);
@@ -138,6 +150,7 @@ public class GameDatabaseTest {
                 Collections.singletonList(new QuestProgressEntity(slot, "first_ghosts", "ACTIVE", 2)),
                 Collections.singletonList(new InventoryItemEntity(slot, "erva", 4)));
             assertEquals(3, db.playerPositionDao().load(slot).health);
+            assertEquals(com.example.amazonMages.map.WorldDefinition.REVISION, db.playerPositionDao().load(slot).worldRevision);
             assertEquals(30, db.playerStatsDao().load(slot).mana, 0);
             assertEquals(2, db.questProgressDao().loadForSlot(slot).get(0).progress);
             assertEquals(4, db.inventoryItemDao().loadForSlot(slot).get(0).quantity);

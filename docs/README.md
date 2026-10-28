@@ -5,10 +5,12 @@ Esta pasta reúne o contexto de design e o estado real do código na branch `fix
 | Documento | Conteúdo |
 |---|---|
 | [Arquitetura e roadmap](architecture-roadmap.md) | Sistemas integrados, estados, migrações e commits |
+| [Validação do novo mundo](validation/2026-10-27-world.md) | Geografia, arte, migrações e streaming Android |
 | [Relatório de build](validation/2026-10-16.md) | Testes executados e limitações de validação |
 | [Visão do jogo](game-design.md) | Fantasia, combate, equipamentos, atributos e progressão |
 | [Estado de implementação](implementation-status.md) | O que existe, protótipos, lacunas e prioridades |
 | [Arte e áudio pendentes](asset-backlog.md) | Sprites, animações, ícones, VFX, SFX e critérios de entrega |
+| [Plano do mundo amazônico](amazon-world-plan.md) | Novo mapa circular, castanheira colossal e quatro regiões; integrado ao jogo, com arte modular, colisão, saves v8 e validação no emulador |
 | [Arquitetura de combate](combat-refactor.md) | Classes Java atuais e migração gradual |
 | [Contrato dos fantasmas](ghost-animation-atlases.md) | Layout e nomenclatura dos atlases de animação |
 | [Validação](testing-checklist.md) | Compilação e testes manuais antes do merge |

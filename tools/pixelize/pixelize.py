@@ -65,8 +65,14 @@ class Palette:
         packed = (flat[:, 0].astype(np.uint32) << 16) | (flat[:, 1].astype(np.uint32) << 8) | flat[:, 2]
         uniq, inv = np.unique(packed, return_inverse=True)
         u = np.stack([(uniq >> 16) & 255, (uniq >> 8) & 255, uniq & 255], -1)
-        d = ((srgb_to_oklab(u)[:, None, :] - self.lab[None, :, :]) ** 2).sum(-1)
-        return d.argmin(1)[inv].reshape(rgb.shape[:-1]).astype(np.int32)
+        nearest = np.empty(len(u), dtype=np.int32)
+        # Large architecture sources have hundreds of thousands of unique colors.
+        # Bound the distance tensor while preserving exactly the same nearest-color decisions.
+        for start in range(0, len(u), 8192):
+            stop = min(start + 8192, len(u))
+            d = ((srgb_to_oklab(u[start:stop])[:, None, :] - self.lab[None, :, :]) ** 2).sum(-1)
+            nearest[start:stop] = d.argmin(1)
+        return nearest[inv].reshape(rgb.shape[:-1])
 
 
 # ----------------------------------------------------------------------------- HD source
@@ -122,9 +128,10 @@ def place_on_canvas(img, spec, shared_scale):
     S = SUPER
     canvas = Image.new("RGBA", (cw * S, ch * S), (0, 0, 0, 0))
     fit = spec.get("fit", "cell")
-    if fit == "cell":
+    if fit in ("cell", "cover"):
         w, h = img.size
-        s = min(cw * S / w, ch * S / h)
+        sizing = max if fit == "cover" else min
+        s = sizing(cw * S / w, ch * S / h)
         box = None
     else:
         alpha = img.getchannel("A").point(lambda v: 255 if v >= 128 else 0)
@@ -138,7 +145,7 @@ def place_on_canvas(img, spec, shared_scale):
     tw, th = max(1, round(w * s)), max(1, round(h * s))
     scaled = img.resize((tw, th), Image.LANCZOS)
     x = ((cw * S - tw) // 2 // S) * S
-    anchor = spec.get("anchor", "center") if fit != "cell" else "center"
+    anchor = spec.get("anchor", "center") if fit not in ("cell", "cover") else "center"
     if anchor in ("feet", "bottom"):
         base = spec.get("baseline", ch - max(1, round(ch * 0.09)) if anchor == "feet" else ch)
         y = (round(base * S - th) // S) * S
@@ -164,8 +171,14 @@ def reduce_canvas(canvas, spec, pal):
     blk = lambda x: x.reshape(H, S, W, S).transpose(0, 2, 1, 3).reshape(H, W, S * S)
     bi, bo = blk(idx), blk(a8 >= cut)
     weights = np.where(pal.ink, 1.0 + spec.get("outline_bias", 0.35), 1.0)
-    counts = np.stack([((bi == p) & bo).sum(-1) * weights[p] for p in range(len(pal.hex))], -1)
-    out_idx = counts.argmax(-1).astype(np.int32)
+    # Stream the weighted mode: H*W*palette floats can otherwise exceed a gigabyte.
+    best = np.full((H, W), -1.0)
+    out_idx = np.zeros((H, W), np.int32)
+    for p in range(len(pal.hex)):
+        score = ((bi == p) & bo).sum(-1) * weights[p]
+        better = score > best  # strict comparison preserves argmax's first-index tie rule
+        out_idx[better] = p
+        np.maximum(best, score, out=best)
     if soft:
         alpha = np.zeros((H, W), np.uint8)
         for thr, val in SOFT_LEVELS:
@@ -431,7 +444,6 @@ def has_source(name, spec):
 
 def cmd_build(args):
     m, assets = load_manifest()
-    pal = args.palette or m.get("palette", "amazon")
     todo = select(assets, args.names, args.prefix)
     out_dir = ART / "build"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -442,6 +454,7 @@ def cmd_build(args):
             skipped += 1
             continue
         try:
+            pal = args.palette or spec.get("palette", m.get("palette", "amazon"))
             img = build_asset(name, spec, pal, print)
             dst = out_dir / f"{name}.png"
             img.save(dst, optimize=True)
@@ -465,12 +478,12 @@ def cmd_build(args):
 
 def cmd_check(args):
     m, assets = load_manifest()
-    pal = args.palette or m.get("palette", "amazon")
     bad = 0
     for name in select(assets, args.names, args.prefix):
         f = (RES if args.installed else ART / "build") / f"{name}.png"
         if not f.exists():
             continue
+        pal = args.palette or assets[name].get("palette", m.get("palette", "amazon"))
         p = verify(name, assets[name], f, pal)
         print(("[ok] " if not p else "[FAILED] ") + name + ("" if not p else ": " + "; ".join(p)))
         bad += bool(p)
@@ -494,7 +507,6 @@ def cmd_status(args):
 def cmd_preview(args):
     """Side by side: downscaled HD | result enlarged 3x (and a 3x3 repetition for tiles)."""
     m, assets = load_manifest()
-    pal = args.palette or m.get("palette", "amazon")
     (ART / "preview").mkdir(parents=True, exist_ok=True)
     for name in select(assets, args.names, args.prefix):
         spec = assets[name]
@@ -553,7 +565,7 @@ def main(argv=None):
     def common(p):
         p.add_argument("names", nargs="*", help="manifest assets (empty = all that have an HD source)")
         p.add_argument("--prefix", help="only assets whose name starts with this prefix, e.g. player_")
-        p.add_argument("--palette", help="palette in art/palettes (default: the manifest one)")
+        p.add_argument("--palette", help="palette override in art/palettes (default: asset, then manifest)")
 
     b = sub.add_parser("build", help="builds art/build/<name>.png")
     common(b)

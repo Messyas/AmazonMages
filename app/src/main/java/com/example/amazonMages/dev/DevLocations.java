@@ -1,20 +1,25 @@
 package com.example.amazonMages.dev;
-
+import com.example.amazonMages.map.WorldDefinition;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Named world coordinates; keep IDs stable when map content evolves. */
+/** Named locations use the same authored geometry as gameplay and the overview. */
 public final class DevLocations {
     private static final Map<String, double[]> LOCATIONS;
     static {
+        WorldDefinition world = new WorldDefinition();
         Map<String, double[]> locations = new LinkedHashMap<>();
-        locations.put("inicio", new double[]{1000, 500});
-        // Swamps (and their ghosts) no longer sit next to the start; these are the nearest ones for
-        // the current world seed (MapLayout.WORLD_SEED).
-        locations.put("pantano", new double[]{416, 3296});
-        locations.put("pantano_leste", new double[]{7392, 416});
-        locations.put("clareira", new double[]{1800, 1200});
+        locations.put("inicio", new double[]{world.spawn.worldX(), world.spawn.worldY()});
+        locations.put("clareira", new double[]{world.spawn.worldX(), world.spawn.worldY()});
+        locations.put("pantano", new double[]{730 * 64, 1120 * 64});
+        locations.put("pantano_leste", new double[]{1230 * 64, 900 * 64});
+        for (WorldDefinition.Site site : world.landmarks) {
+            WorldDefinition.Position safe = world.safePosition(site.center.worldX(), site.center.worldY(), 32);
+            locations.put(site.id, new double[]{safe.x, safe.y});
+        }
+        for (WorldDefinition.Site site : world.arenas)
+            locations.put(site.id, new double[]{site.center.worldX(), site.center.worldY()});
         LOCATIONS = Collections.unmodifiableMap(locations);
     }
     private DevLocations() {}

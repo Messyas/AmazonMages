@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
         title.setText(heading);
         title.setTextColor(Color.rgb(229, 206, 142));
         title.setTextSize(25);
-        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, dp(12));
         root.addView(title);
@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
         title.setText(heading);
         title.setTextColor(Color.rgb(229, 206, 142));
         title.setTextSize(22);
-        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, dp(8));
         root.addView(title, new LinearLayout.LayoutParams(
@@ -95,7 +95,7 @@ public class MainActivity extends Activity {
         button.setTextColor(Color.rgb(236, 244, 221));
         button.setTextSize(17);
         button.setAllCaps(false);
-        button.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        button.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         button.setMinHeight(dp(54));
         button.setPadding(dp(14), dp(8), dp(14), dp(8));
         button.setBackground(new PixelMenuButtonDrawable(getResources().getDisplayMetrics().density));
@@ -182,7 +182,7 @@ public class MainActivity extends Activity {
         section.setText(label);
         section.setTextColor(Color.rgb(229, 206, 142));
         section.setTextSize(14);
-        section.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        section.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         section.setPadding(0, dp(12), 0, dp(2));
         root.addView(section);
     }
@@ -333,7 +333,7 @@ public class MainActivity extends Activity {
         title.setText("Jogatina " + slot + (save == null ? "  ·  NOVA" : "  ·  SALVA"));
         title.setTextColor(Color.rgb(229, 206, 142));
         title.setTextSize(17);
-        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         card.addView(title);
 
         TextView detail = new TextView(this);
@@ -371,7 +371,7 @@ public class MainActivity extends Activity {
         action.setTextColor(Color.rgb(236, 244, 221));
         action.setTextSize(14);
         action.setAllCaps(false);
-        action.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        action.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         action.setMinHeight(dp(48));
         action.setPadding(dp(8), 0, dp(8), 0);
         if (destructive) {
@@ -516,7 +516,7 @@ public class MainActivity extends Activity {
         title.setText("CHAT DE COMANDOS");
         title.setTextColor(Color.rgb(229, 206, 142));
         title.setTextSize(18);
-        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         title.setGravity(Gravity.CENTER);
         header.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1));
         panel.addView(header);
@@ -525,7 +525,7 @@ public class MainActivity extends Activity {
         history.setText("Digite /help para listar os comandos de teste.\n");
         history.setTextColor(Color.rgb(203, 238, 207));
         history.setTextSize(13);
-        history.setTypeface(android.graphics.Typeface.create("monospace", 0));
+        history.setTypeface(android.graphics.Typeface.create("monospace", android.graphics.Typeface.NORMAL));
         history.setPadding(dp(10), dp(8), dp(10), dp(8));
         GradientDrawable historyBackground = new GradientDrawable();
         historyBackground.setColor(Color.rgb(7, 19, 12));

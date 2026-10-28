@@ -8,6 +8,12 @@ Nenhuma dependência de runtime foi adicionada.
 pendente: não há dispositivo Android conectado neste ambiente. Não confundir compilação do APK
 instrumentado com execução dos testes Android.
 
+## Atualização do mundo — 2026-10-27
+
+O cenário foi substituído pelo mundo definido em `WorldDefinition`: grade de 1.920 × 1.920 tiles, limite circular, arte modular e colisão. `Tilemap` mantém chunks de 8 × 8 tiles em cache de 36 MiB e dados de terreno em blocos limitados. `GameRenderer` intercala atores e cenário pela base; o overview de 768 px é gerado offline.
+
+O banco atual é **Room v8**. A migração `7→8` acrescenta `worldRevision INTEGER NOT NULL DEFAULT 0` à posição; snapshots novos usam revisão 1. A carga do legado reposiciona jogador e drops sem apagar inventário, equipamento, vida ou progresso. As migrações desde v1 até v7 foram executadas em bancos de teste no emulador Android 14. Os números e estados nas tabelas abaixo documentam a entrega anterior; consulte a [validação atual](validation/2026-10-27-world.md) para os resultados de 2026-10-27.
+
 ## Funcionalidades e commits
 
 | Fase / módulo | Estado real | Testes / evidência | Commits principais |

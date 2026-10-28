@@ -1,0 +1,16 @@
+{
+  "hd_sources_verified": 20,
+  "runtime_modular_assets_verified": 16,
+  "tree_parts_verified": 9,
+  "tree_parts_reconstruction": "lossless",
+  "current_geometry_overview_hashes": "match",
+  "unit_tests": 37,
+  "unit_failures": 0,
+  "lint_errors": 0,
+  "lint_warnings": 123,
+  "android_tests": 14,
+  "android_failures": 0,
+  "debug_apk_sha256": "47fb88be56f6b4c14cb8e54f7ee075b2a5f76782c86b6cc4bac72fab3abb4b9e",
+  "debug_apk_bytes": 20863487,
+  "renderer_soak_seconds": 600
+}

@@ -157,6 +157,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 double maxY = MapLayout.NUMBER_OF_ROW_TILES * MapLayout.TILE_HEIGHT_PIXELS;
                 if (!Double.isFinite(x) || !Double.isFinite(y) ||
                     x < 0 || y < 0 || x >= maxX || y >= maxY) return "Coordenadas fora do mapa.";
+                if (!tilemap.world().isWalkable(x, y, player.getRadius())) return "Destino bloqueado pelo terreno.";
                 player.restorePosition(x, y);
                 gameDisplay.update();
                 return position();
@@ -324,7 +325,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         // Initialize game objects
         SpriteSheet spriteSheet = new SpriteSheet(context);
         SpriteAnimator animator = new SpriteAnimator(spriteSheet.getPlayerAnimations());
-        player = new Player(context, joystick, 2*500, 500, 32, animator);
+        com.example.amazonMages.map.WorldDefinition world = new com.example.amazonMages.map.WorldDefinition();
+        player = new Player(context, joystick, world.spawn.worldX(), world.spawn.worldY(), 32, animator);
+        player.setWorldGeometry(world);
         saves = new GameSaveRepository(context, slotId);
         effectTarget = new com.example.amazonMages.effects.PlayerEffectTarget(player, progression);
         input = new InputController(player, joystick, aimStick, weapons, this::activateCoconutStorm,
@@ -337,7 +340,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         gameDisplay = new GameDisplay(displayMetrics.widthPixels, displayMetrics.heightPixels, player);
 
         // Initialize Tilemap
-        tilemap = new Tilemap(spriteSheet);
+        tilemap = new Tilemap(spriteSheet, world);
         enemyManager = new EnemyManager(context, player, tilemap);
         renderer = new GameRenderer(tilemap, player, enemyManager, projectileWorld, pickupWorld, gameDisplay);
         // Decode/upload the ghost atlases and build the first map chunks off the game thread, so the
@@ -354,6 +357,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         warmUp.start();
         saveCoordinator = new com.example.amazonMages.save.SaveCoordinator(
             saves, inventory, progression, questJournal, player, pickupWorld, weapons, itemRegistry);
+        saveCoordinator.setWorldGeometry(world);
         questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
         questJournal.register(new QuestDefinition(SENTINEL_QUEST, "Sentinela do Pantano",
@@ -366,7 +370,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 }
                 if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE)
                     startBossEncounter(EnemyTemplates.SWAMP_SENTINEL,
-                        Math.max(100, Math.min(6300, player.getPositionX()+300)), Math.max(100, Math.min(4380, player.getPositionY()+200)));
+                        730 * 64, 1120 * 64);
             }
         });
         eventBus.subscribe(event -> {
@@ -387,10 +391,14 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
         setFocusable(true);
         saves.loadSnapshot((position, stats, quests, items, equipment, pickups) -> {
-            if (position != null && Double.isFinite(position.x) && Double.isFinite(position.y)) {
-                player.restorePosition(position.x, position.y);
+            boolean legacyWorld = position != null && position.worldRevision < com.example.amazonMages.map.WorldDefinition.REVISION;
+            if (position != null) {
+                com.example.amazonMages.map.WorldDefinition.Position restored = tilemap.world().safePosition(
+                    legacyWorld ? world.spawn.worldX() : position.x,
+                    legacyWorld ? world.spawn.worldY() : position.y, player.getRadius());
+                player.restorePosition(restored.x, restored.y);
                 gameDisplay.update();
-                tilemap.prefetchAround(position.x, position.y,
+                tilemap.prefetchAround(restored.x, restored.y,
                     gameDisplay.DISPLAY_RECT.width(), gameDisplay.DISPLAY_RECT.height());
             }
             questJournal.restore(quests);
@@ -401,10 +409,11 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             for (InventoryItemEntity row : items) loaded.put(row.itemId, row.quantity);
             inventory.restore(loaded);
             if (inventory.count("coco") == 0) inventory.add("coco", 1);
-            saveCoordinator.restoreWorld(equipment, pickups);
+            saveCoordinator.restoreWorld(equipment, pickups, legacyWorld);
             if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE)
                 eventBus.publish(new GameEvent("encounter.swamp_sentinel.requested",0));
             saveCoordinator.ready();
+            if (legacyWorld) saveCoordinator.save();
             saveLoaded = true;
             states.loaded();
             startIfReady();
@@ -665,8 +674,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private void spawnPickup(String itemId, int quantity, double x, double y) {
         if (itemRegistry.get(itemId) == null || quantity < 1 || !Double.isFinite(x) || !Double.isFinite(y)) throw new IllegalArgumentException("item");
         if (pickupWorld.size() >= 64) { inventoryNotice = "Limite de itens no chao atingido."; return; }
+        com.example.amazonMages.map.WorldDefinition.Position safe = tilemap.world().safePosition(x, y, 13);
         pickupWorld.create()
-            .add(TransformComponent.class, new TransformComponent(x, y))
+            .add(TransformComponent.class, new TransformComponent(safe.x, safe.y))
             .add(ColliderComponent.class, new ColliderComponent(13))
             .add(PickupComponent.class, new PickupComponent(itemId, quantity))
             .add(com.example.amazonMages.ecs.LifetimeComponent.class, new com.example.amazonMages.ecs.LifetimeComponent(36000));
@@ -749,6 +759,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             " | magias " + projectileWorld.count() +
             "\nJogador " + (int) player.getPositionX() +
             "," + (int) player.getPositionY() +
+            "\nCenario em cache: " + tilemap.cachedTerrainBytes() / (1024 * 1024) + "/36 MiB" +
             "\n" + deviceMonitor.snapshot();
     }
 
@@ -762,10 +773,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         forestHud.drawPanel(canvas, left, top, right, bottom);
         hudPaint.setColor(0xFFFFE09B);
         hudPaint.setTextSize(12 * density);
-        hudPaint.setTypeface(android.graphics.Typeface.create("sans-serif-medium", 0));
+        hudPaint.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
         canvas.drawText("DESEMPENHO - AO VIVO", left + 10 * density,
             top + 17 * density, hudPaint);
-        hudPaint.setTypeface(android.graphics.Typeface.create("monospace", 0));
+        hudPaint.setTypeface(android.graphics.Typeface.create("monospace", android.graphics.Typeface.NORMAL));
         hudPaint.setColor(0xFFCCF0D2);
         hudPaint.setTextSize(10.5f * density);
         for (int i = 0; i < lines.length; i++)
@@ -801,6 +812,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     public void closeSaveRepository() {
         pause();
+        tilemap.release();
         saves.close();
     }
 

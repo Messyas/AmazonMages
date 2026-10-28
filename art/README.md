@@ -1,5 +1,8 @@
 # AmazonMages art pipeline (HD → pixel art)
 
+The new Amazon world has its own [art direction and reproducible previews](world-v1/README.md).
+The new world is integrated into the Android renderer, including modular scenery, collision and a bounded terrain cache. Use `python tools/world/build_art.py` to rebuild its twenty preserved HD sources and runtime overview.
+
 > **Language rule:** everything in this pipeline (prompts sent to the image AI, file and asset names, manifest, palette, tool output) is in **English**. Image generators follow English prompts more precisely. Only the **in-game text** drawn on mockups stays in Brazilian Portuguese (with correct accents).
 
 The image AI generates everything in **HD, clean anime / cel-shaded style**. The game uses the **deterministically pixelized version**, produced by `tools/pixelize/pixelize.py`. This way the AI is more accurate (crisp drawing) and the typical AI "pixel hallucinations" (a square dissolving at the hilt of a sword, stray pixels, off-palette colours) disappear in the reduction.
@@ -51,6 +54,9 @@ For new UI, one logical pixel is **4 HD px**: outline and minimum detail ~4 HD p
 Declare the **HD size of one frame** as `source_cell`; the converter derives the native cell from `source_cell / downsample`. The `ui` kind defaults to 4. Example: `{"kind":"ui","source_cell":[256,160],"cols":3,"rows":1}` produces three 64×40 frames (192×40 atlas). This preserves twice as many pixels per axis as reducing the same source by 8. Keep 9-slice margins in native pixels and adapt consuming renderers when integrating new assets. An explicitly declared `cell` must match the division. Legacy assets without `source_cell` retain their native `cell` unchanged.
 
 ## Per-asset tuning (`art/manifest.json`)
+`palette` selects a palette for one asset without changing existing sprites; `--palette` explicitly overrides it. Otherwise the manifest palette applies.
+`fit: "cover"` fills an opaque environment cell with a centered crop when a generator returns a slightly different aspect ratio, preserving proportions and avoiding transparent borders.
+
 `ramps` (restricts the palette: less colour drift), `outline_bias` (weight of dark tones), `alpha_thr` (0.5), `despeckle`, `min_island`,
 `fit` (`cell` keeps the HD framing; `trim` crops and centres, good for icons), `stabilize: "feet"`, `max_shift`, `key` / `key_tol` (background other than magenta; `null` = no keying).
 

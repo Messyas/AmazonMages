@@ -1,0 +1,72 @@
+{
+  "renderer": "Production GameRenderer \/ Android Canvas 1280x720",
+  "captures": [
+    {
+      "name": "center",
+      "x": 61440,
+      "y": 64640
+    },
+    {
+      "name": "castanheira",
+      "x": 61440,
+      "y": 60352
+    },
+    {
+      "name": "malocas",
+      "x": 28480,
+      "y": 26240
+    },
+    {
+      "name": "ancient",
+      "x": 94720,
+      "y": 26112
+    },
+    {
+      "name": "burned",
+      "x": 28160,
+      "y": 92352
+    },
+    {
+      "name": "modern",
+      "x": 93440,
+      "y": 91392
+    },
+    {
+      "name": "negro",
+      "x": 41792,
+      "y": 18816
+    },
+    {
+      "name": "meeting",
+      "x": 48281.6,
+      "y": 106892.8
+    },
+    {
+      "name": "port",
+      "x": 101632,
+      "y": 96640
+    },
+    {
+      "name": "forest",
+      "x": 54400,
+      "y": 41600
+    },
+    {
+      "name": "north_crossing",
+      "x": 49280,
+      "y": 11520
+    },
+    {
+      "name": "west_bank",
+      "x": 6400,
+      "y": 57600
+    }
+  ],
+  "arenas": 4,
+  "soak_seconds": 600,
+  "soak_frames": 17291,
+  "max_chunk_cache_bytes": 37748736,
+  "max_sampled_native_heap_bytes": 138232928,
+  "resident_java_heap_bytes": 5556848,
+  "draw_p95_ms": 2.7625
+}

@@ -63,6 +63,10 @@ public final class EnemyManager {
             if (!enemy.isDead() && enemy.getTemplate() != null &&
                 enemy.getTemplate().id.equals(template.id)) return null;
         }
+        if (tilemap != null) {
+            com.example.amazonMages.map.WorldDefinition.Position safe = tilemap.world().safePosition(x, y, 32);
+            x = safe.x; y = safe.y;
+        }
         Enemy enemy = new Enemy(context, player, template, x, y);
         enemies.add(enemy);
         return enemy;
@@ -89,7 +93,7 @@ public final class EnemyManager {
         tick++;
         attacks.beginTick(tick);
         EnemyTemplate ambient=spawns.update(enemies.size(),random);
-        if (ambient!=null) {
+        if (ambient!=null && tilemap != null) {
             double[] spawn=tilemap.randomRegionSpawn(player.getPositionX(),player.getPositionY(),random,
                 spawns.region.tileType,spawns.region.minDistance,spawns.region.maxDistance);
             if(spawn!=null) enemies.add(new Enemy(context,player,ambient,spawn[0],spawn[1],EnemyPersonality.random(random)));
@@ -121,7 +125,14 @@ public final class EnemyManager {
                 continue;
             }
             int period = spawns.updatePeriod(distance);
-            if ((tick + enemy.getUpdateOffset()) % period == 0) enemy.update(period);
+            if ((tick + enemy.getUpdateOffset()) % period == 0) {
+                enemy.update(period);
+                if (tilemap != null && !tilemap.world().inside(enemy.getPositionX() / 64, enemy.getPositionY() / 64)) {
+                    com.example.amazonMages.map.WorldDefinition.Position safe = tilemap.world().safePosition(
+                        enemy.getPositionX(), enemy.getPositionY(), enemy.getRadius());
+                    enemy.setPosition(safe.x, safe.y);
+                }
+            }
         }
 
         // Fuse nearby unfused ghosts once; the survivor keeps both remaining HP.
@@ -215,6 +226,11 @@ public final class EnemyManager {
         projectiles.draw(canvas, display);
     }
 
+    public void addActorsTo(java.util.List<com.example.amazonMages.gameobject.GameObject> target) {
+        target.addAll(enemies);
+    }
+    public void drawProjectiles(Canvas canvas, GameDisplay display) { projectiles.draw(canvas, display); }
+
     /** Clears hostile projectiles and creates breathing room when player revives at their spot. */
     public void onPlayerRespawn() {
         projectiles.clear();
@@ -241,6 +257,10 @@ public final class EnemyManager {
     /** Debug-only normal enemy spawn; bypasses the ambient spawn timer. */
     public boolean spawnNormalForDebug(double x, double y) {
         if (!Double.isFinite(x) || !Double.isFinite(y) || enemies.size() >= MAX_ENEMIES) return false;
+        if (tilemap != null) {
+            com.example.amazonMages.map.WorldDefinition.Position safe = tilemap.world().safePosition(x, y, 32);
+            x = safe.x; y = safe.y;
+        }
         enemies.add(new Enemy(context, player, EnemyConfig.acidGhost(), x, y,
             EnemyPersonality.AGGRESSIVE));
         return true;

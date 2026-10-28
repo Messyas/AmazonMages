@@ -1,7 +1,7 @@
 """pixelize tests using synthetic HD art (no real images needed).
 Run:  python -m unittest tools/pixelize/test_pixelize.py -v   (or python tools/pixelize/test_pixelize.py)
 """
-import json, random, shutil, sys, tempfile, unittest
+import contextlib, io, json, random, shutil, sys, tempfile, unittest
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +27,41 @@ def blob(size, jitter=(0, 0), color=(212, 62, 72), w=0.5, h=0.8):
 
 
 class PixelizeTest(unittest.TestCase):
+    def test_bounded_quantizer_matches_full_distance_reference_across_batches(self):
+        palette = px.Palette(['#112233', '#556677', '#AABBCC', '#FFCC55'])
+        pixels = np.random.default_rng(11).integers(0, 256, (150, 150, 3), dtype=np.uint8)
+        distances = ((px.srgb_to_oklab(pixels)[..., None, :] - palette.lab) ** 2).sum(-1)
+        np.testing.assert_array_equal(palette.quantize(pixels), distances.argmin(-1))
+
+    def test_cover_preserves_opaque_scene_with_mismatched_aspect(self):
+        # Generators can return a few extra pixels. Cover must fill the final cell,
+        # preserving the scene's aspect instead of introducing transparent borders.
+        Image.new('RGBA', (167, 95), (46, 138, 58, 255)).save(self.tmp / 'hd/scene.png')
+        spec = self.spec(cols=1, cell=[40, 22], scale=1, fit='cover', key=None,
+                         despeckle=False, min_island=0)
+        result, out = self.build('scene', spec)
+        self.assertEqual(result.size, (40, 22))
+        self.assertEqual(result.getchannel('A').getextrema(), (255, 255))
+        self.assertEqual(px.verify('scene', spec, out, 'amazon'), [])
+
+    def test_cli_asset_palette_build_check_and_override(self):
+        (self.tmp / 'palettes/world.json').write_text(json.dumps({
+            'ramps': {'scene': ['#123456', '#AB3456']}}), encoding='utf-8')
+        manifest = {'palette': 'amazon', 'kinds': {}, 'assets': {'scene': {
+            'cols': 1, 'rows': 1, 'cell': [8, 8], 'scale': 1,
+            'fit': 'cover', 'key': None, 'despeckle': False, 'palette': 'world'}}}
+        (self.tmp / 'manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+        Image.new('RGBA', (32, 32), (171, 52, 86, 255)).save(self.tmp / 'hd/scene.png')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(px.main(['build', 'scene']), 0)
+            self.assertEqual(px.main(['check', 'scene']), 0)
+            self.assertEqual(px.main(['check', 'scene', '--palette', 'amazon']), 1)
+            result = Image.open(self.tmp / 'build/scene.png').convert('RGBA')
+            self.assertEqual(result.getpixel((4, 4)), (171, 52, 86, 255))
+            self.assertEqual(px.main(['build', 'scene', '--palette', 'amazon']), 0)
+            self.assertEqual(px.main(['check', 'scene', '--palette', 'amazon']), 0)
+            self.assertEqual(px.main(['check', 'scene']), 1)
+
     def test_declared_source_cells_use_kind_default_or_asset_downsample(self):
         manifest = {'kinds': {'ui': {'downsample': 4, 'scale': 1, 'despeckle': False}},
                     'assets': {

@@ -7,6 +7,10 @@ import android.graphics.Rect;
 import com.example.androidstudio2dgamedevelopment.R;
 
 public class SpriteSheet {
+    /** Cached unscaled raster for modular environment renderers. */
+    public Bitmap resourceBitmap(int resourceId) {
+        return com.example.amazonMages.resources.ResourceManager.shared(context).bitmap(resourceId, false);
+    }
     private static final int SPRITE_WIDTH_PIXELS = 64; // Largura de cada sprite em pixels
     private static final int SPRITE_HEIGHT_PIXELS = 64; // Altura de cada sprite em pixels
     private final Bitmap bitmap; // Bitmap que contém a sprite sheet

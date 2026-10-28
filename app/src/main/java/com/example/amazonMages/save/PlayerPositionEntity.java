@@ -13,6 +13,8 @@ public class PlayerPositionEntity {
     public long updatedAt;
     @ColumnInfo(defaultValue = "5")
     public int health;
+    @ColumnInfo(defaultValue = "0")
+    public int worldRevision;
 
     public PlayerPositionEntity(int slotId, double x, double y, int health, long updatedAt) {
         this.slotId = slotId;
@@ -20,5 +22,6 @@ public class PlayerPositionEntity {
         this.y = y;
         this.updatedAt = updatedAt;
         this.health = health;
+        this.worldRevision = com.example.amazonMages.map.WorldDefinition.REVISION;
     }
 }

@@ -131,7 +131,7 @@ public final class MainMenuView extends ViewGroup {
         child.layout(left, y, left + child.getMeasuredWidth(), y + child.getMeasuredHeight());
     }
 
-    private static final class MenuButton extends Button {
+    private static final class MenuButton extends androidx.appcompat.widget.AppCompatButton {
         private final AtlasMenuButtonDrawable artwork;
         private int artScale = 2;
 

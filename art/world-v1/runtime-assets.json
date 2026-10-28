@@ -1,0 +1,207 @@
+{
+  "palette_sha256": "42d4eae40e047db0165175f2b7182619afbabf32dcd0e21a26b1055fee3c1f57",
+  "assets": {
+    "world_castanheira_trunk_v1": {
+      "hd_sha256": "0a4476407c3458a53a437f4d098f918c4ae5e01763e90a54c255fcc05f115542",
+      "output_sha256": "74ff165bd80db308072e0999acfde77108c4408c0b688ed0d1cd9e545489d570",
+      "cell": [
+        1024,
+        1536
+      ],
+      "runtime": false,
+      "split_into_parts": true
+    },
+    "world_root_v1": {
+      "hd_sha256": "f4e5b7929bdd2a25a046cd20f33a1ddf7f37d25fb7dc1040d64f2890468039a0",
+      "output_sha256": "43b23e8aea08100946fdc5a4c3309d18aa0f6ad9063157679e8d38af42f5b6eb",
+      "cell": [
+        384,
+        1536
+      ],
+      "runtime": false,
+      "split_into_parts": true
+    },
+    "world_maloca_v1": {
+      "hd_sha256": "4d5114e1dc523d6c8743c7e52f268cc27798bfc011f567a31579ded410fa8c7d",
+      "output_sha256": "b828c0bc15a9df4c3a2dd9b9cc1f75f609326a6eac6762152b7e3021406c0a9a",
+      "cell": [
+        768,
+        512
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_temple_v1": {
+      "hd_sha256": "24c81be7ba61365aae738c597bb4c5ddb06ff3ddcbf3f4a16c5afce159281059",
+      "output_sha256": "4c8c5af7339d1cbe25a5f2e4de2026d03cf5c4fac0faa8770d931b76345881f2",
+      "cell": [
+        768,
+        768
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_theater_v1": {
+      "hd_sha256": "b815215f84fd9e7d14b79bd62bf9dc98c4800c4fd8ca129b5855eebcbd14236f",
+      "output_sha256": "eeed70a6c5589ea0798fb48f6892176189acc6cd138c6dae8a24f68faa1a9900",
+      "cell": [
+        1024,
+        688
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_burned_tree_v1": {
+      "hd_sha256": "47fb429a09fc2fa695b269ced0001aeaa0e5818607c0734188852f57cee85d20",
+      "output_sha256": "0af27ad15783606b42a47d5e0776439cd6b859a0a6f046beb663c36b4dfa0a2f",
+      "cell": [
+        384,
+        576
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_city_house_v1": {
+      "hd_sha256": "364851b931130848699729ac059c5bd41e27644b2496445d9f80d95e7e07b296",
+      "output_sha256": "bb229178646af517ff69f618c7dbc4423cdb60ed468742a49ef7f85ca34146a1",
+      "cell": [
+        384,
+        384
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_ruin_v1": {
+      "hd_sha256": "98cdca3d5fe204081ea3ac81e7d17198c41d7e8384e3acd4ed8cf80c9f8c7558",
+      "output_sha256": "c721346395929bca7845b7153f4675c0b158a54524723feac5d54f68b72cf551",
+      "cell": [
+        384,
+        384
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_canopy_v1": {
+      "hd_sha256": "f6c1e571b5a8cd3668c59c443699124f3ed13ab24ecffa98bc9408e94a31a2cb",
+      "output_sha256": "bc82d3b3a6479ba2172a2543ce87837dc3e78cec22158328ef5a5c54d8ee7846",
+      "cell": [
+        256,
+        192
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tile_grass_v1": {
+      "hd_sha256": "574d063ac9a00c9267ef9538d9f65afdff37b8d7429fad4c093dc5f254c7cdd9",
+      "output_sha256": "e7a504b354f0552360a6bce4c3695c63ff4d1b8dc9f9651af7fe541e81519008",
+      "cell": [
+        64,
+        64
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tile_earth_v1": {
+      "hd_sha256": "fdd0695ca4e3b14eeccb5e0e52b7bd4ce834a3c1551c3077d5eea34c7b462072",
+      "output_sha256": "cc0c9fff5509fc9007b23fcb2c8ba0f26f2a728f43ccb402b27501784a9bc5dd",
+      "cell": [
+        64,
+        64
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tile_negro_v1": {
+      "hd_sha256": "ff9f17726d65f29b4f487b44936244559c295afb705ee2daa62071a5e4cec26e",
+      "output_sha256": "8082b52dc487c313bf3a6e18d6234afeb725881640c635bff20ecf4e4af8a0d5",
+      "cell": [
+        64,
+        64
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tile_solimoes_v1": {
+      "hd_sha256": "a327dd6c19bc7923585fcb7f67d899af0c3e5de424f9dc5c3e48a2372e3bb050",
+      "output_sha256": "d0fd27405aed22e40d57d2090cee082893bd1d2805e032081c9cd249943e059a",
+      "cell": [
+        64,
+        64
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tile_burned_v1": {
+      "hd_sha256": "86caf16cf5d75019f71b97bdc5d922f9d49f3c92406905a2bc8831aa00bad506",
+      "output_sha256": "177244347e46ef260438cd4262a8771679aee6949efd8edc9256bf2cba62b5aa",
+      "cell": [
+        64,
+        64
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tile_paving_v1": {
+      "hd_sha256": "8ed5991aa03ce2302fb4902883426f2b6e31df71c9f79a7cf86b4e2be7137a76",
+      "output_sha256": "22895f3e1e8914d840c145c0b1e29dcbbf9c590ee02d90b4d4d2fd189342ee47",
+      "cell": [
+        64,
+        64
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tile_bark_v1": {
+      "hd_sha256": "cf5c905b91bd71b3c8db83ca33731b772534ffad39f21b50f0744a460bafb440",
+      "output_sha256": "8fb1993c8e5a9225116521e9b6a216d30f554cd1a48925b8eb5245c6d0bc023f",
+      "cell": [
+        64,
+        64
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tile_bridge_v1": {
+      "hd_sha256": "0e874491322b0fbc730a1c104416f45bc887085b30cb66ef8fc857c62eeb05a6",
+      "output_sha256": "a81d4dcf87ea428aaf75d632907049951a39d34967801e05d13e2384d6fcbf89",
+      "cell": [
+        64,
+        64
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_tree_broadleaf_v1": {
+      "hd_sha256": "68693603ea90ac592634b87e11ec5c64e45dd8f313949493d81e71e1491826b1",
+      "output_sha256": "bf02f03a9a7423809a3236472fdcfd255e52f41295a5cdca58b5a3b89b4357d9",
+      "cell": [
+        256,
+        384
+      ],
+      "runtime": true,
+      "split_into_parts": false
+    },
+    "world_overview_concept_v1": {
+      "hd_sha256": "df4030dc64bcf3e2c2f09a406655de62c40bd1b5d572108d9cd7eb287be28aa8",
+      "output_sha256": "21a12739adf6b26f79e8ac7132dcf761a0501f9cb261f9b78bb61ed62dd7246d",
+      "cell": [
+        312,
+        312
+      ],
+      "runtime": false,
+      "split_into_parts": false
+    },
+    "world_camera_concept_v1": {
+      "hd_sha256": "fa047c9ec2efc29fb1b246aab1911cc6b39f689222100cb037a97071b798f3d6",
+      "output_sha256": "aa400b9d71efe7896c7db19f75fd7a31a66412119a6ea36ecd44cfa6dcd3d2d2",
+      "cell": [
+        416,
+        234
+      ],
+      "runtime": false,
+      "split_into_parts": false
+    }
+  },
+  "overview_sha256": "f5709e2e7409599b1fbf9ec126c12e9aa65585aae95e14779dd5ec4553811822",
+  "world_definition_sha256": "ad3253d4a0ab2174d4e4142afb2cf49cea0a52a0353caf291c68dbdd5b873192"
+}

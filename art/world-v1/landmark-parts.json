@@ -1,0 +1,128 @@
+{
+  "world_castanheira_trunk_v1": {
+    "size": [
+      1024,
+      1536
+    ],
+    "parts": [
+      {
+        "file": "world_castanheira_trunk_v1_p0.png",
+        "origin": [
+          0,
+          0
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "sha256": "7229cf5c421f5675da1290b3cdff126c78a751bf4ee1a3007478294603e03866"
+      },
+      {
+        "file": "world_castanheira_trunk_v1_p1.png",
+        "origin": [
+          512,
+          0
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "sha256": "70086a2b1a64291cb65f655db5cf7fbd4ba5a8060fda33297d73994eeadc7eba"
+      },
+      {
+        "file": "world_castanheira_trunk_v1_p2.png",
+        "origin": [
+          0,
+          512
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "sha256": "1f6695abb16ce695886aaa65ce212cc37c173027dac4c3cc471e09dca74332d2"
+      },
+      {
+        "file": "world_castanheira_trunk_v1_p3.png",
+        "origin": [
+          512,
+          512
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "sha256": "0d838ba3aec90e5dc121ac3f60c463470361bffc7dc1895a72795a74fa4392b6"
+      },
+      {
+        "file": "world_castanheira_trunk_v1_p4.png",
+        "origin": [
+          0,
+          1024
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "sha256": "e126d6f5f1a168fbaeed0151bd880e321a5ca49a63aa6ae19cd273f79d6765e1"
+      },
+      {
+        "file": "world_castanheira_trunk_v1_p5.png",
+        "origin": [
+          512,
+          1024
+        ],
+        "size": [
+          512,
+          512
+        ],
+        "sha256": "000e2eb30574c7b8e8245d06792e58428bc56acd47990c9a03717b4831b7f032"
+      }
+    ],
+    "lossless_reconstruction": true
+  },
+  "world_root_v1": {
+    "size": [
+      384,
+      1536
+    ],
+    "parts": [
+      {
+        "file": "world_root_v1_p0.png",
+        "origin": [
+          0,
+          0
+        ],
+        "size": [
+          384,
+          512
+        ],
+        "sha256": "9318aa4907d0fb2ecbb9e15044b9390c4c293ff928cc18fc509217cd6e5efd50"
+      },
+      {
+        "file": "world_root_v1_p1.png",
+        "origin": [
+          0,
+          512
+        ],
+        "size": [
+          384,
+          512
+        ],
+        "sha256": "b0fb6d479a0589c4e7e0be13a033dfe87e76f0f8f7bf3b84ecbf345e7e27dd18"
+      },
+      {
+        "file": "world_root_v1_p2.png",
+        "origin": [
+          0,
+          1024
+        ],
+        "size": [
+          384,
+          512
+        ],
+        "sha256": "490cb42d8372fceaefa6f190feed551938eb0f05340ff619d8c2f3aefc6fe10e"
+      }
+    ],
+    "lossless_reconstruction": true
+  }
+}
