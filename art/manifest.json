@@ -41,6 +41,7 @@
   "ui": {
    "downsample": 4,
    "scale": 1,
+   "palette": "ui_v3",
    "fit": "cell",
    "despeckle": false,
    "alpha_thr": 0.5,
@@ -1093,6 +1094,50 @@
    "cell": [
     16,
     16
+   ]
+  },
+  "ui_skill_medallion": {
+   "kind": "ui",
+   "palette": "ui_v4",
+   "downsample": 8,
+   "cols": 4,
+   "rows": 1,
+   "cell": [
+    28,
+    28
+   ]
+  },
+  "ui_skill_icons": {
+   "kind": "ui",
+   "palette": "ui_v4",
+   "downsample": 8,
+   "cols": 9,
+   "rows": 1,
+   "cell": [
+    20,
+    20
+   ]
+  },
+  "ui_craft_icons": {
+   "kind": "ui",
+   "palette": "ui_v4",
+   "downsample": 8,
+   "cols": 6,
+   "rows": 1,
+   "cell": [
+    20,
+    20
+   ]
+  },
+  "ui_craft_cauldron": {
+   "kind": "ui",
+   "palette": "ui_v4",
+   "downsample": 8,
+   "cols": 2,
+   "rows": 1,
+   "cell": [
+    48,
+    48
    ]
   },
   "ui_logo": {

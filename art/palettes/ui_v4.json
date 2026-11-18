@@ -1,0 +1,19 @@
+{
+  "_comment": "Extended UI palette based on ui_v3 for v4 Skill Tree and Alchemy Crafting icons.",
+  "always": [],
+  "ramps": {
+    "ink": ["#0B1A12", "#14261C", "#1B1008"],
+    "wood": ["#2B1A12", "#4A2E1F", "#6B4529", "#8F6238"],
+    "stone": ["#2E3B2A", "#4A5E3C", "#6F8A52", "#A8C27A"],
+    "leaf": ["#1E6436", "#3DC45E", "#9BF06A"],
+    "gold": ["#7A5A1E", "#C99A2E", "#F2D36B", "#FFF1B0"],
+    "panel": ["#10241A", "#17321F", "#1F4228"],
+    "danger": ["#5A1E1A", "#9C3A2E", "#E06A4E"],
+    "text": ["#F4EBC8", "#B8C99A"],
+    "monitor": ["#5CC8FF", "#06233A", "#FFE066", "#FF6A5E"],
+    "ruby": ["#5A1622", "#9E283B", "#DE5458", "#F79B8A"],
+    "sapphire": ["#183668", "#2B63B2", "#59A4E8", "#A6E2FF"],
+    "ember": ["#7A2E12", "#C9591E", "#F5932C"]
+  }
+}
+
