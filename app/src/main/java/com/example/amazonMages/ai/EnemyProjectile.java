@@ -17,7 +17,10 @@ public final class EnemyProjectile extends Circle {
         this.damage = damage;
         vx = directionX * speedPixelsPerSecond / 60.0;
         vy = directionY * speedPixelsPerSecond / 60.0;
-        paint.setAntiAlias(true);
+        paint.setAntiAlias(false);
+        paint.setFilterBitmap(false);
+        paint.setDither(false);
+        paint.setStyle(Paint.Style.FILL);
     }
 
     @Override public void update() {
@@ -35,6 +38,16 @@ public final class EnemyProjectile extends Circle {
     public boolean expired() { return ticksRemaining <= 0; }
 
     @Override public void draw(Canvas canvas, GameDisplay display) {
-        super.draw(canvas, display);
+        float cx = Math.round(display.gameToDisplayCoordinatesX(positionX) * 0.5f) * 2f;
+        float cy = Math.round(display.gameToDisplayCoordinatesY(positionY) * 0.5f) * 2f;
+        paint.setColor(0xFF14261C);
+        canvas.drawRect(cx - 8f, cy - 6f, cx + 8f, cy + 6f, paint);
+        canvas.drawRect(cx - 6f, cy - 8f, cx + 6f, cy + 8f, paint);
+        paint.setColor(0xFF389828);
+        canvas.drawRect(cx - 6f, cy - 6f, cx + 6f, cy + 6f, paint);
+        paint.setColor((ticksRemaining / 6) % 2 == 0 ? 0xFFB8F244 : 0xFF8FD12A);
+        canvas.drawRect(cx - 4f, cy - 4f, cx + 4f, cy + 4f, paint);
+        paint.setColor(0xFFF4F7A0);
+        canvas.drawRect(cx - 4f, cy - 4f, cx, cy, paint);
     }
 }

@@ -26,8 +26,9 @@ import com.example.androidstudio2dgamedevelopment.R;
  * The player class is an extension of a Circle, which is an extension of a GameObject
  */
 public class Player extends Circle {
-    public static final int PARRY_WINDOW_TICKS = 12;
+    public static final int PARRY_WINDOW_TICKS = 16;
     public static final int PARRY_COOLDOWN_TICKS = 36;
+    public static final int DASH_DURATION_TICKS = 12;
     public static final double SPEED_PIXELS_PER_SECOND = 400.0;
     private static final double MAX_SPEED = SPEED_PIXELS_PER_SECOND / GameLoop.MAX_UPS;
     public static final int MAX_HEALTH_POINTS = 5;
@@ -50,7 +51,17 @@ public class Player extends Circle {
     private double attackDirectionX = 0;
     private double attackDirectionY = 1;
     private final PlayerState playerState;
-    private int parryTicks, parryCooldownTicks, parryFlashTicks, postureBreakTicks;
+    private int parryTicks, parryCooldownTicks, parryFlashTicks, postureBreakTicks, contactInvulnTicks;
+    private int guardTicks, guardBlockFlashTicks, riposteHasteTicks;
+    private int dashTicks, dashCooldownTicks;
+    private double dashDirX, dashDirY;
+    private int bonusParryTicks = 0;
+    private double guardReduction = 0.70;
+    private int configuredDashCooldown = 96;
+    private boolean livingAegisEnabled = false;
+    private boolean aegisCharged = false;
+    private boolean aegisTriggered = false;
+    private int ticksSinceHullDamage = 0;
 
     public Player(Context context, Joystick joystick, double positionX, double positionY, double radius, SpriteAnimator animator) {
         super(getColor(context, R.color.player), positionX, positionY, radius);
@@ -63,20 +74,48 @@ public class Player extends Circle {
     private com.example.amazonMages.map.WorldDefinition worldGeometry;
     public void setWorldGeometry(com.example.amazonMages.map.WorldDefinition world) { worldGeometry = world; }
 
+    public void configureDefense(int bonusParryTicks, double guardDamageReduction, double bonusPosture,
+                                 int dashCooldownMax, boolean livingAegisEnabled) {
+        this.bonusParryTicks = Math.max(0, bonusParryTicks);
+        this.guardReduction = Math.max(0.5, Math.min(0.92, guardDamageReduction));
+        this.posture.setBonusMaximum(bonusPosture);
+        this.configuredDashCooldown = Math.max(30, dashCooldownMax);
+        this.livingAegisEnabled = livingAegisEnabled;
+        if (!livingAegisEnabled) {
+            aegisCharged = false;
+            ticksSinceHullDamage = 0;
+        }
+    }
+
     public void update() {
 
-        // Update velocity based on actuator of joystick
+        // Update velocity based on actuator of joystick or active Curupira dash
         double movement = MAX_SPEED * combatStats.getMovementMultiplier() * statusEffects.speedMultiplier();
-        velocityX = joystick.getActuatorX()*movement;
-        velocityY = joystick.getActuatorY()*movement;
-        double inputLength = Math.hypot(joystick.getActuatorX(), joystick.getActuatorY());
-        if (inputLength > 1) { velocityX /= inputLength; velocityY /= inputLength; }
+        if (riposteHasteTicks > 0) movement *= 1.15;
+        if (dashTicks > 0) {
+            velocityX = dashDirX * MAX_SPEED * 2.35;
+            velocityY = dashDirY * MAX_SPEED * 2.35;
+        } else {
+            velocityX = joystick.getActuatorX()*movement;
+            velocityY = joystick.getActuatorY()*movement;
+            double inputLength = Math.hypot(joystick.getActuatorX(), joystick.getActuatorY());
+            if (inputLength > 1) { velocityX /= inputLength; velocityY /= inputLength; }
+        }
         statusEffects.update();
         posture.update();
         if (parryTicks > 0) parryTicks--;
+        if (guardTicks > 0) guardTicks--;
         if (parryCooldownTicks > 0) parryCooldownTicks--;
         if (parryFlashTicks > 0) parryFlashTicks--;
+        if (guardBlockFlashTicks > 0) guardBlockFlashTicks--;
+        if (riposteHasteTicks > 0) riposteHasteTicks--;
         if (postureBreakTicks > 0) postureBreakTicks--;
+        if (contactInvulnTicks > 0) contactInvulnTicks--;
+        if (dashTicks > 0) dashTicks--;
+        if (dashCooldownTicks > 0) dashCooldownTicks--;
+        if (livingAegisEnabled && !aegisCharged && healthPoints > 0) {
+            if (++ticksSinceHullDamage >= 480) aegisCharged = true;
+        }
 
         // Update position
         if (worldGeometry == null) {
@@ -174,42 +213,121 @@ public class Player extends Circle {
         }
     }
 
-    /** Apply typed damage without rounding away fractional resistance. */
+    /** Apply typed damage with Living Bark Aegis and Stage-2 Leaf Guard resolution. */
     public void receiveHit(DamageEvent hit) {
-        if (healthPoints <= 0 || invulnerable) return;
+        if (healthPoints <= 0 || invulnerable || dashTicks > 0) return;
+        if (aegisCharged) {
+            aegisCharged = false;
+            ticksSinceHullDamage = 0;
+            aegisTriggered = true;
+            heal(1.0);
+            grantContactInvulnerability(36);
+            return;
+        }
+        double resolved = DamageResolver.resolve(hit, combatStats, statusEffects);
+        if (isGuarding()) {
+            resolved *= (1.0 - guardReduction);
+            if (posture.applyPressure(hit.postureDamage * 0.65)) {
+                postureBreakTicks = 24;
+                guardTicks = 0;
+            } else {
+                guardBlockFlashTicks = 10;
+                grantContactInvulnerability(24);
+            }
+        } else if (posture.applyPressure(hit.postureDamage)) {
+            postureBreakTicks = 18;
+        }
         double previousHealth = preciseHealth;
-        preciseHealth = Math.max(0, preciseHealth - DamageResolver.resolve(hit, combatStats, statusEffects));
+        preciseHealth = Math.max(0, preciseHealth - resolved);
         healthPoints = (int) Math.ceil(preciseHealth);
-        if (posture.applyPressure(hit.postureDamage)) postureBreakTicks = 18;
-        if (preciseHealth < previousHealth)
-            playAction(healthPoints <= 0 ? AnimationAction.DEATH : AnimationAction.HURT);
+        if (preciseHealth < previousHealth) {
+            ticksSinceHullDamage = 0;
+            if (!isGuarding() || healthPoints <= 0) {
+                playAction(healthPoints <= 0 ? AnimationAction.DEATH : AnimationAction.HURT);
+            }
+        }
     }
 
-    /** Opens a short directional parry window with a brief recovery. */
+    /** Opens Stage-1 Perfect Parry window followed by Stage-2 Vine Guard absorption. */
     public boolean beginParry() {
-        if (healthPoints <= 0 || parryCooldownTicks > 0 || scriptedAction == AnimationAction.DEATH) return false;
-        parryTicks = PARRY_WINDOW_TICKS;
+        if (healthPoints <= 0 || parryCooldownTicks > 0 || postureBreakTicks > 0
+                || scriptedAction == AnimationAction.DEATH) return false;
+        parryTicks = PARRY_WINDOW_TICKS + bonusParryTicks;
+        guardTicks = parryTicks + 22;
         parryCooldownTicks = PARRY_COOLDOWN_TICKS;
         playAction(AnimationAction.PARRY);
         return true;
     }
 
-    /** True when an incoming hit falls inside the frontal 140-degree parry arc. */
+    /** True on perfect 360° early-window reflex or 180° frontal parry arc. */
     public boolean tryParry(double sourceX, double sourceY) {
         if (parryTicks <= 0 || invulnerable) return false;
         double dx = sourceX - positionX, dy = sourceY - positionY;
         double length = Math.hypot(dx, dy);
         if (length < 0.001) return false;
+        boolean earlyReflex = parryTicks > (PARRY_WINDOW_TICKS + bonusParryTicks) - 6;
         double dot = (dx * attackDirectionX + dy * attackDirectionY) / length;
-        if (dot < 0.3420) return false;
+        if (!earlyReflex && dot < -0.05) return false;
         parryTicks = 0;
-        parryFlashTicks = 15;
+        guardTicks = 0;
+        parryFlashTicks = 18;
+        riposteHasteTicks = 180;
+        posture.restore(35);
+        grantContactInvulnerability(28);
         return true;
     }
 
-    public boolean isParryReady() { return parryCooldownTicks == 0; }
+    /** Triggers an invulnerable directional Curupira Dash along movement or aim vector. */
+    public boolean beginDash() {
+        if (healthPoints <= 0 || dashCooldownTicks > 0 || dashTicks > 0
+                || scriptedAction == AnimationAction.DEATH) return false;
+        double dx = joystick.getActuatorX(), dy = joystick.getActuatorY();
+        double mag = Math.hypot(dx, dy);
+        if (mag < 0.15) {
+            dx = attackDirectionX;
+            dy = attackDirectionY;
+            mag = Math.hypot(dx, dy);
+            if (mag < 0.01) {
+                dx = directionX;
+                dy = directionY;
+                mag = Math.hypot(dx, dy);
+            }
+        }
+        if (mag < 0.01) { dx = 0; dy = 1; mag = 1; }
+        dashDirX = dx / mag;
+        dashDirY = dy / mag;
+        dashTicks = DASH_DURATION_TICKS;
+        dashCooldownTicks = configuredDashCooldown;
+        grantContactInvulnerability(16);
+        playAction(AnimationAction.DODGE);
+        return true;
+    }
+
+    public boolean canTakeContactDamage() {
+        return healthPoints > 0 && !invulnerable && dashTicks <= 0 && contactInvulnTicks <= 0;
+    }
+
+    public void grantContactInvulnerability(int ticks) {
+        if (ticks > contactInvulnTicks) contactInvulnTicks = ticks;
+    }
+
+    public boolean isParryReady() { return parryCooldownTicks == 0 && postureBreakTicks == 0; }
+    public boolean isGuarding() { return parryTicks == 0 && guardTicks > 0 && postureBreakTicks == 0; }
+    public boolean isDashing() { return dashTicks > 0; }
+    public boolean isAegisCharged() { return aegisCharged; }
+    public boolean hasRiposteHaste() { return riposteHasteTicks > 0; }
+    public boolean pollAegisBurst() {
+        if (!aegisTriggered) return false;
+        aegisTriggered = false;
+        return true;
+    }
     public int getParryCooldownTicks() { return parryCooldownTicks; }
     public int getParryTicks() { return parryTicks; }
+    public int getGuardTicks() { return guardTicks; }
+    public int getGuardBlockFlashTicks() { return guardBlockFlashTicks; }
+    public int getDashTicks() { return dashTicks; }
+    public int getDashCooldownTicks() { return dashCooldownTicks; }
+    public int getDashCooldownMax() { return configuredDashCooldown; }
     public int getParryFlashTicks() { return parryFlashTicks; }
     public int getPostureBreakTicks() { return postureBreakTicks; }
 

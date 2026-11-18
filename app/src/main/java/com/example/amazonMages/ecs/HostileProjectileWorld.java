@@ -27,7 +27,8 @@ public final class HostileProjectileWorld {
             .add(LifetimeComponent.class, new LifetimeComponent(180))
             .add(Shot.class, new Shot(shot));
     }
-    public void update(Player player) {
+    public boolean update(Player player) {
+        boolean anyParried = false;
         movement.update(world, 1);
         world.queryInto(shots, Shot.class);
         for (Entity entity : shots) {
@@ -39,16 +40,20 @@ public final class HostileProjectileWorld {
             EnemyProjectile shot = entity.get(Shot.class).view;
             shot.syncPosition(position.x, position.y);
             double radius = player.getRadius() + entity.get(ColliderComponent.class).radius;
-            if (Math.hypot(position.x - player.getPositionX(), position.y - player.getPositionY()) < radius
+            if (!player.isDashing()
+                    && Math.hypot(position.x - player.getPositionX(), position.y - player.getPositionY()) < radius
                     && world.destroy(entity.id())) {
-                double before=player.getPreciseHealth();
+                double before = player.getPreciseHealth();
                 boolean parried = player.tryParry(position.x, position.y);
-                if (!parried) {
+                if (parried) {
+                    anyParried = true;
+                } else {
                     player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, DamageType.ACID));
-                    if (player.getPreciseHealth()<before) player.getStatusEffects().grantSlow(60,.15);
+                    if (player.getPreciseHealth() < before) player.getStatusEffects().grantSlow(60, .15);
                 }
             }
         }
+        return anyParried;
     }
     public void draw(Canvas canvas, GameDisplay display) {
         world.queryInto(shots, Shot.class);

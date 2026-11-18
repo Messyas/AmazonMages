@@ -39,31 +39,51 @@ public class Spell extends Circle {
     private final boolean coconut;
     private final int directionRow;
     private final double castX, castY;
+    private int remainingPierce;
+    private final double explosiveRadius;
+    private final long[] hitEnemyIds;
+    private int hitEnemyCount;
     private int ageTicks;
     private int impactTicks;
 
     public DamageEvent getHit() { return hit; }
+    public double getExplosiveRadius() { return explosiveRadius; }
 
     public Spell(Context context, Player spellcaster) { this(context, spellcaster, false); }
     public Spell(Context context, Player spellcaster, boolean coconut) {
         this(context, spellcaster, coconut, 1.0);
     }
     public Spell(Context context, Player spellcaster, boolean coconut, double multiplier) {
+        this(context, spellcaster, coconut, multiplier,
+            spellcaster.getAttackDirectionX(), spellcaster.getAttackDirectionY(), 1, 0.0);
+    }
+
+    public Spell(Context context, Player spellcaster, boolean coconut, double multiplier,
+                 double dirX, double dirY, int pierce) {
+        this(context, spellcaster, coconut, multiplier, dirX, dirY, pierce, 0.0);
+    }
+
+    public Spell(Context context, Player spellcaster, boolean coconut, double multiplier,
+                 double dirX, double dirY, int pierce, double explosiveRadius) {
         super(ContextCompat.getColor(context, R.color.spell), spellcaster.getPositionX(),
-            spellcaster.getPositionY(), 25);
+            spellcaster.getPositionY(), coconut ? 24 : 26);
         this.coconut = coconut;
+        this.remainingPierce = Math.max(1, pierce);
+        this.explosiveRadius = Math.max(0.0, explosiveRadius);
+        this.hitEnemyIds = new long[this.remainingPierce];
         hit = coconut
             ? new DamageEvent(Math.max(0, multiplier), 12, DamageType.PHYSICAL)
             : new DamageEvent(Math.max(0, multiplier), 10, DamageType.MAGIC);
 
-        double dx = spellcaster.getAttackDirectionX(), dy = spellcaster.getAttackDirectionY();
-        if (dx == 0 && dy == 0) { dx = 0; dy = 1; }
+        double len = Math.hypot(dirX, dirY);
+        double dx = len > 0.001 ? dirX / len : 0;
+        double dy = len > 0.001 ? dirY / len : 1;
         Direction direction = Direction.fromVector(dx, dy, Direction.SOUTH);
         directionRow = direction.ordinal();
         castX = positionX + dx * 16;
         castY = positionY + dy * 16;
-        velocityX = dx * MAX_SPEED;
-        velocityY = dy * MAX_SPEED;
+        velocityX = dx * MAX_SPEED * (coconut ? 0.92 : 1.08);
+        velocityY = dy * MAX_SPEED * (coconut ? 0.92 : 1.08);
 
         com.example.amazonMages.resources.ResourceManager resources =
             com.example.amazonMages.resources.ResourceManager.shared(context);
@@ -73,6 +93,25 @@ public class Spell extends Circle {
         coconutBitmap = coconut ? resources.bitmap(R.drawable.coconut_projectile, false) : null;
         coconutCastBitmap = coconut ? resources.bitmap(R.drawable.coconut_summon, false) : null;
         coconutImpactBitmap = coconut ? resources.bitmap(R.drawable.coconut_impact, false) : null;
+    }
+
+    public boolean alreadyHit(long enemyUid) {
+        for (int i = 0; i < hitEnemyCount; i++) {
+            if (hitEnemyIds[i] == enemyUid) return true;
+        }
+        return false;
+    }
+
+    public void markHit(long enemyUid) {
+        if (hitEnemyCount < hitEnemyIds.length) {
+            hitEnemyIds[hitEnemyCount++] = enemyUid;
+        }
+    }
+
+    /** Decrements pierce counter and returns true when this projectile should be consumed. */
+    public boolean consumePierce() {
+        remainingPierce--;
+        return remainingPierce <= 0;
     }
 
     /** ECS motion is authoritative; the legacy object mirrors its transform for Canvas/collision. */
@@ -115,8 +154,6 @@ public class Spell extends Circle {
     }
 
     @Override public void draw(Canvas canvas, GameDisplay gameDisplay) {
-        float displayX = (float) gameDisplay.gameToDisplayCoordinatesX(positionX);
-        float displayY = (float) gameDisplay.gameToDisplayCoordinatesY(positionY);
         if (impactTicks > 0) return;
         if (coconut && coconutBitmap != null) {
             int frame = (ageTicks / 3) % 4;

@@ -23,6 +23,7 @@ public final class SaveCoordinator {
     private final World pickups;
     private final WeaponLoadout weapons;
     private final ItemRegistry registry;
+    private com.example.amazonMages.progression.SkillTree skillTree;
 
     public SaveCoordinator(GameSaveRepository repository, Inventory inventory,
             PlayerProgression progression, QuestJournal quests, Player player, World pickups, WeaponLoadout weapons, ItemRegistry registry) {
@@ -32,6 +33,10 @@ public final class SaveCoordinator {
         this.quests = quests;
         this.player = player;
         this.pickups = pickups; this.weapons = weapons; this.registry = registry;
+    }
+
+    public void setSkillTree(com.example.amazonMages.progression.SkillTree skillTree) {
+        this.skillTree = skillTree;
     }
 
     public void restoreWorld(List<EquipmentEntity> equipment, List<WorldPickupEntity> ground) {
@@ -83,8 +88,10 @@ public final class SaveCoordinator {
             ground.add(new WorldPickupEntity(slot,entity.id(),item.itemId,item.quantity,position.x,position.y,
                 entity.get(LifetimeComponent.class).remainingTicks));
         }
+        List<QuestProgressEntity> questRows = new ArrayList<>(quests.snapshot(slot));
+        if (skillTree != null) skillTree.appendSnapshot(slot, questRows);
         repository.saveSnapshot(new PlayerPositionEntity(slot, player.getPositionX(),
             player.getPositionY(), player.getHealthPoint(), System.currentTimeMillis()),
-            progression.snapshot(slot), quests.snapshot(slot), rows, equipment, ground);
+            progression.snapshot(slot), questRows, rows, equipment, ground);
     }
 }

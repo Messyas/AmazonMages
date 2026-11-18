@@ -6,6 +6,7 @@ public final class WeaponLoadout {
     private int selected;
     private int basicCooldown;
     private int specialCooldown;
+    public static final int SPECIAL_COOLDOWN_TICKS = 360;
     public WeaponLoadout() { slots[0] = COCONUT; }
     public WeaponDefinition current() { return slots[selected]; }
     public WeaponDefinition at(int slot) { return slots[slot]; }
@@ -22,7 +23,14 @@ public final class WeaponLoadout {
     public void next() { for (int i = 1; i <= 4; i++) { int n = (selected + i) % 4; if (slots[n] != null) { selected = n; return; } } }
     public boolean basic(double speed) { if (current() == null || basicCooldown > 0) return false; basicCooldown = Math.max(5, (int)Math.ceil(15 / Math.max(.1, speed))); return true; }
     public boolean basic() { if (current() == null || basicCooldown > 0) return false; basicCooldown = 15; return true; }
-    public boolean special() { if (current() != COCONUT || specialCooldown > 0) return false; specialCooldown = 1080; return true; }
+    public boolean special() { if (current() != COCONUT || specialCooldown > 0) return false; specialCooldown = SPECIAL_COOLDOWN_TICKS; return true; }
+    /** Triggers the equipped weapon's special (Coconut Storm or Staff Pororoca Vortex). */
+    public boolean castEquippedSpecial() {
+        if (current() == null || specialCooldown > 0) return false;
+        specialCooldown = SPECIAL_COOLDOWN_TICKS;
+        return true;
+    }
+    public void reduceSpecialCooldown(int ticks) { specialCooldown = Math.max(0, specialCooldown - Math.max(0, ticks)); }
     public void update() { if (basicCooldown > 0) basicCooldown--; if (specialCooldown > 0) specialCooldown--; }
     public int specialCooldown() { return specialCooldown; }
 }
