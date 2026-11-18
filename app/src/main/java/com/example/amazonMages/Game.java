@@ -175,20 +175,61 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             @Override public String give(String item) {
                 if ("coco".equals(item)) {
                     weapons.equip(0, WeaponLoadout.COCONUT);
-                    return "Domínio dos Cocos equipado no slot 1.";
+                    int accepted = inventory.add("coco", 5);
+                    saveInventory();
+                    return "Dominio dos Cocos (+" + accepted + ", total " + inventory.count("coco") + ").";
                 }
                 if ("cajado".equals(item)) {
                     inventory.add("cajado", 1);
                     weapons.equip(1, com.example.amazonMages.items.ItemCatalog.STAFF);
+                    arsenal.unlockLeafFromStaff();
                     saveNow();
-                    return "Cajado de Teste equipado no slot 2. Use TROCA.";
+                    return "Cajado do Pantano equipado no slot 2. Use TROCA.";
                 }
                 if ("erva".equals(item)) {
-                    int accepted = inventory.add("erva", 1);
+                    int accepted = inventory.add("erva", 3);
                     saveInventory();
                     return "Ervas: " + inventory.count("erva") + " (+" + accepted + ")";
                 }
-                return "Item desconhecido: coco, cajado, erva.";
+                if ("mana".equals(item)) {
+                    int accepted = inventory.add("mana", 3);
+                    saveInventory();
+                    return "Essencias de Mana: " + inventory.count("mana") + " (+" + accepted + ")";
+                }
+                if ("bencao".equals(item)) {
+                    int accepted = inventory.add("bencao", 2);
+                    saveInventory();
+                    return "Bencaos: " + inventory.count("bencao") + " (+" + accepted + ")";
+                }
+                if ("elixir".equals(item)) {
+                    int accepted = inventory.add("elixir", 2);
+                    saveInventory();
+                    return "Elixires: " + inventory.count("elixir") + " (+" + accepted + ")";
+                }
+                if ("bomba".equals(item)) {
+                    int accepted = inventory.add("bomba_coco", 3);
+                    saveInventory();
+                    return "Bombas de Pororoca: " + inventory.count("bomba_coco") + " (+" + accepted + ")";
+                }
+                if ("tonico".equals(item)) {
+                    int accepted = inventory.add("tonico", 2);
+                    saveInventory();
+                    return "Tonicos: " + inventory.count("tonico") + " (+" + accepted + ")";
+                }
+                if ("runa".equals(item)) {
+                    int accepted = inventory.add("runa_ancestral", 1);
+                    saveInventory();
+                    return "Runas Ancestrais: " + inventory.count("runa_ancestral") + " (+" + accepted + ")";
+                }
+                if ("kit".equals(item)) {
+                    inventory.add("coco", 10);
+                    inventory.add("erva", 5);
+                    inventory.add("mana", 5);
+                    inventory.add("bencao", 2);
+                    saveInventory();
+                    return "Kit Alquimia adicionado!";
+                }
+                return "Item desconhecido: coco, cajado, erva, mana, bencao, elixir, bomba, tonico, runa, kit.";
             }
             @Override public String inventory() {
                 return "Inventario: " + inventory.snapshot();
@@ -211,17 +252,21 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                     return "Ervas no chao: " + count;
                 }
                 EnemyTemplate template;
-                if ("fantasma".equals(species)) template = EnemyTemplates.ACID_GHOST;
+                if ("morcego".equals(species)) template = EnemyTemplates.SWARM_BAT;
+                else if ("fantasma".equals(species)) template = EnemyTemplates.ACID_GHOST;
+                else if ("diabrete".equals(species)) template = EnemyTemplates.CURUPIRA_IMP;
+                else if ("golem".equals(species)) template = EnemyTemplates.MOSS_GOLEM;
+                else if ("xama".equals(species)) template = EnemyTemplates.VINE_SHAMAN;
                 else if ("sentinela".equals(species)) template = EnemyTemplates.SWAMP_SENTINEL;
                 else if ("espectro".equals(species)) template = EnemyTemplates.ANCIENT_WRAITH;
-                else return "Espécie desconhecida: fantasma, sentinela, espectro.";
+                else return "Especie desconhecida: morcego, fantasma, diabrete, golem, xama, sentinela, espectro.";
                 int spawned = 0;
                 for (int i = 0; i < count; i++) {
                     double x = player.getPositionX() + 150 + (i % 4) * 75;
                     double y = player.getPositionY() + 100 + (i / 4) * 75;
                     boolean ok = template.isBossEncounter() ?
                         enemyManager.spawnEncounter(template, x, y) != null :
-                        enemyManager.spawnNormalForDebug(x, y);
+                        enemyManager.spawnDebugSpecies(template, x, y);
                     if (ok) spawned++;
                 }
                 return "Invocados: " + spawned + "/" + count;
@@ -250,6 +295,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final ItemRegistry itemRegistry = com.example.amazonMages.items.ItemCatalog.create();
     private final com.example.amazonMages.ui.InventoryPanel inventoryPanel = new com.example.amazonMages.ui.InventoryPanel(itemRegistry);
     private String inventoryNotice;
+    private int inventoryNoticeTicks;
     private final Inventory inventory = new Inventory(itemRegistry);
     private final com.example.amazonMages.effects.PlayerEffectTarget effectTarget;
     private final ConsumableService consumables = new ConsumableService();
@@ -257,9 +303,22 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final com.example.amazonMages.save.SaveCoordinator saveCoordinator;
     private final QuestJournal questJournal = new QuestJournal();
     private final PlayerProgression progression = new PlayerProgression();
+    private final com.example.amazonMages.progression.SkillTree skillTree =
+        new com.example.amazonMages.progression.SkillTree();
+    private final com.example.amazonMages.items.WorldForagingSystem foragingSystem =
+        new com.example.amazonMages.items.WorldForagingSystem();
+    private final GameRenderer.CombatFxState combatFxState = new GameRenderer.CombatFxState();
     private final AttributesPanel attributesPanel = new AttributesPanel();
     private final com.example.amazonMages.ui.ExplorationPanel explorationPanel =
         new com.example.amazonMages.ui.ExplorationPanel();
+    private final com.example.amazonMages.ui.SurvivorUpgradePanel upgradePanel;
+    private final com.example.amazonMages.combat.SurvivorArsenal arsenal =
+        new com.example.amazonMages.combat.SurvivorArsenal();
+    private final com.example.amazonMages.combat.XpCrystalPool xpCrystals =
+        new com.example.amazonMages.combat.XpCrystalPool();
+    private int lastObservedLevel = 1;
+    private String hudBanner;
+    private int hudBannerTicks;
     private final com.example.amazonMages.gamepanel.ForestHud forestHud;
     private final com.example.amazonMages.gamepanel.CoconutStormFx coconutStormFx;
     private final Tilemap tilemap;
@@ -278,11 +337,19 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private GameLoop gameLoop;
     private volatile boolean activityResumed = false;
     private final EnemyManager enemyManager;
-    private final ProjectileWorld projectileWorld = new ProjectileWorld(-64, -64, 100 * 64 + 64, 70 * 64 + 64);
+    private final ProjectileWorld projectileWorld = new ProjectileWorld(
+        -128, -128,
+        com.example.amazonMages.map.WorldDefinition.COLUMNS * 64 + 128,
+        com.example.amazonMages.map.WorldDefinition.ROWS * 64 + 128);
     private final WeaponLoadout weapons = new WeaponLoadout();
     private final Random coconutRandom = new Random();
     private int coconutStormTicks;
     private double stormX, stormY;
+    private double stormPowerMultiplier = 1.0;
+    private int manualComboStep;
+    private int manualComboResetTicks;
+    private int vortexTicks;
+    private double vortexX, vortexY, vortexRadius = 155.0;
     private final com.example.amazonMages.ui.CanvasUi canvasUi = new com.example.amazonMages.ui.CanvasUi();
     private final Paint hudPaint = new Paint(3);
     private final GameOver gameOver;
@@ -303,6 +370,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         this.states = states;
         forestHud = new com.example.amazonMages.gamepanel.ForestHud(context);
         coconutStormFx = new com.example.amazonMages.gamepanel.CoconutStormFx(context);
+        upgradePanel = new com.example.amazonMages.ui.SurvivorUpgradePanel(context);
         states.loading();
 
         com.example.amazonMages.graphics.GraphicsSettings graphics =
@@ -330,8 +398,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         player.setWorldGeometry(world);
         saves = new GameSaveRepository(context, slotId);
         effectTarget = new com.example.amazonMages.effects.PlayerEffectTarget(player, progression);
-        input = new InputController(player, joystick, aimStick, weapons, this::activateCoconutStorm,
-            this::activatePlayerParry);
+        attributesPanel.attachSkillTree(context, skillTree);
+        inventoryPanel.attachContext(context, skillTree);
+        explorationPanel.attachContext(context);
+        arsenal.setSkillTree(skillTree);
+        input = new InputController(player, joystick, aimStick, weapons,
+            this::activateEquippedSpecial, this::activatePlayerParry,
+            this::activatePlayerDash, this::activateQuickItem);
 
 
         // Initialize display and center it around the player
@@ -343,14 +416,15 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         tilemap = new Tilemap(spriteSheet, world);
         enemyManager = new EnemyManager(context, player, tilemap);
         renderer = new GameRenderer(tilemap, player, enemyManager, projectileWorld, pickupWorld, gameDisplay);
-        // Decode/upload the ghost atlases and build the first map chunks off the game thread, so the
-        // first enemy spawn and the first frames do not stall on PNG decoding or chunk rendering.
+        renderer.attachSurvivorFx(context, arsenal, xpCrystals);
+        renderer.attachCombatFx(combatFxState);
+        // Decode/upload the enemy atlases and build the first map chunks off the game thread.
         final Context appContext = context.getApplicationContext();
         final Tilemap warmTilemap = tilemap;
         final double warmX = player.getPositionX(), warmY = player.getPositionY();
         final int warmWidth = displayMetrics.widthPixels, warmHeight = displayMetrics.heightPixels;
         Thread warmUp = new Thread(() -> {
-            com.example.amazonMages.graphics.GhostAtlasRenderer.preload(appContext);
+            com.example.amazonMages.graphics.EnemySpriteRenderer.preload(appContext);
             warmTilemap.prefetchAround(warmX, warmY, warmWidth, warmHeight);
         }, "asset-warmup");
         warmUp.setDaemon(true);
@@ -358,6 +432,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         saveCoordinator = new com.example.amazonMages.save.SaveCoordinator(
             saves, inventory, progression, questJournal, player, pickupWorld, weapons, itemRegistry);
         saveCoordinator.setWorldGeometry(world);
+        saveCoordinator.setSkillTree(skillTree);
         questJournal.register(new QuestDefinition(INTRO_QUEST, "Ecos do Pantano",
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
         questJournal.register(new QuestDefinition(SENTINEL_QUEST, "Sentinela do Pantano",
@@ -368,26 +443,27 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 if (questJournal.state(SENTINEL_QUEST) == QuestState.LOCKED) {
                     questJournal.offer(SENTINEL_QUEST); questJournal.accept(SENTINEL_QUEST);
                 }
-                if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE)
-                    startBossEncounter(EnemyTemplates.SWAMP_SENTINEL,
-                        730 * 64, 1120 * 64);
+                if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE) {
+                    com.example.amazonMages.map.WorldDefinition.Site arena = world.arena("arena_forest");
+                    double bx = arena != null ? arena.center.worldX() : world.spawn.worldX() - 320;
+                    double by = arena != null ? arena.center.worldY() : world.spawn.worldY() + 320;
+                    startBossEncounter(EnemyTemplates.SWAMP_SENTINEL, bx, by);
+                }
             }
         });
         eventBus.subscribe(event -> {
             if (event.id.startsWith("enemy.")) sound("ghost_defeat");
         });
-        eventBus.subscribe(event -> {
-            int reward = 0;
-            if (EnemyTemplates.ACID_GHOST.defeatEvent.equals(event.id)) reward = EnemyTemplates.ACID_GHOST.experienceReward;
-            else if (EnemyTemplates.SWAMP_SENTINEL.defeatEvent.equals(event.id)) reward = EnemyTemplates.SWAMP_SENTINEL.experienceReward;
-            else if (EnemyTemplates.ANCIENT_WRAITH.defeatEvent.equals(event.id)) reward = EnemyTemplates.ANCIENT_WRAITH.experienceReward;
-            if (reward > 0) { progression.gainExperience(reward); saveQuestProgress(); }
-        });
         pickupSystem.setListener((item,id,quantity) -> eventBus.publish(new GameEvent("item."+item+".collected",id)));
-        enemyManager.setDropListener((template, x, y) ->
+        enemyManager.setDropListener((template, x, y) -> {
+            int xp = template == null ? 15 : template.experienceReward;
+            int tier = template == null ? 0 : template.xpTier;
+            xpCrystals.spawn(x, y, xp, tier);
             com.example.amazonMages.items.DropTable.forEnemy(template == null ? "acid_ghost" : template.id)
-                .roll(coconutRandom, (item, quantity) -> spawnPickup(item, quantity, x, y)));
+                .roll(coconutRandom, (item, quantity) -> spawnPickup(item, quantity, x, y));
+        });
         enemyManager.setDetailedKillListener((event,id) -> eventBus.publish(new GameEvent(event, id)));
+        enemyManager.setParryListener(this::onParryRiposte);
 
         setFocusable(true);
         saves.loadSnapshot((position, stats, quests, items, equipment, pickups) -> {
@@ -402,14 +478,24 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                     gameDisplay.DISPLAY_RECT.width(), gameDisplay.DISPLAY_RECT.height());
             }
             questJournal.restore(quests);
+            skillTree.restore(quests);
             progression.restore(stats);
+            lastObservedLevel = progression.level;
             applyProgressionEffects();
             if (position != null) player.setHealthPoint(position.health);
             Map<String, Integer> loaded = new LinkedHashMap<>();
             for (InventoryItemEntity row : items) loaded.put(row.itemId, row.quantity);
+            boolean freshSave = loaded.isEmpty();
             inventory.restore(loaded);
-            if (inventory.count("coco") == 0) inventory.add("coco", 1);
+            if (freshSave) {
+                inventory.add("coco", 10);
+                inventory.add("erva", 3);
+                inventory.add("mana", 2);
+            } else if (inventory.count("coco") == 0) {
+                inventory.add("coco", 1);
+            }
             saveCoordinator.restoreWorld(equipment, pickups, legacyWorld);
+            if (inventory.count("cajado") > 0) arsenal.unlockLeafFromStaff();
             if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE)
                 eventBus.publish(new GameEvent("encounter.swamp_sentinel.requested",0));
             saveCoordinator.ready();
@@ -438,6 +524,26 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             resetInput();
             return true;
         }
+        if (upgradePanel.isOpen()) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                com.example.amazonMages.combat.SurvivorArsenal.UpgradeOption choice =
+                    upgradePanel.touch(event.getX(), event.getY(), getWidth(), getHeight());
+                if (choice != null) {
+                    int heal = arsenal.apply(choice.kind, progression);
+                    if (choice.kind == com.example.amazonMages.combat.SurvivorArsenal.UpgradeKind.LEAF
+                            && inventory.count("cajado") == 0) {
+                        inventory.add("cajado", 1);
+                        weapons.equip(1, com.example.amazonMages.items.ItemCatalog.STAFF);
+                    }
+                    applyProgressionEffects();
+                    if (heal > 0) player.heal(heal);
+                    upgradePanel.advance(arsenal, coconutRandom);
+                    if (!upgradePanel.isOpen()) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+                    saveNow();
+                }
+            }
+            return true;
+        }
         if (explorationPanel.isOpen()) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN &&
                 explorationPanel.touch(event.getX(), event.getY(), getWidth(), getHeight())) {
@@ -448,15 +554,42 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (inventoryPanel.isOpen()) {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 int action = inventoryPanel.touch(event.getX(), event.getY(), getWidth(), getHeight());
-                if (action == -2) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
-                ItemDefinition item = inventoryPanel.selected();
-                if (action == -1) {
-                    boolean applied = consumables.use(inventory, item, effectTarget);
-                    if (applied) saveNow();
-                    inventoryNotice = applied ? "Item utilizado." : "O item nao pode ser usado agora.";
-                } else if (action >= 0 && item.weapon != null && inventory.count(item.id) > 0) {
-                    weapons.equip(action, item.weapon); weapons.select(action); saveNow();
-                    inventoryNotice = "Arma equipada.";
+                if (action == com.example.amazonMages.ui.InventoryPanel.ACTION_CLOSE) {
+                    states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+                } else if (action == com.example.amazonMages.ui.InventoryPanel.ACTION_CRAFT) {
+                    com.example.amazonMages.items.CraftingSystem.Recipe recipe = inventoryPanel.selectedRecipe();
+                    int made = inventoryPanel.craftSelected(inventory);
+                    if (made > 0) {
+                        sound("coconut_storm_cast");
+                        saveNow();
+                        inventoryNotice = "Criado: " + recipe.title + " x" + made + "!";
+                    } else {
+                        inventoryNotice = "Recursos insuficientes ou mochila cheia.";
+                    }
+                    inventoryNoticeTicks = 120;
+                } else {
+                    ItemDefinition item = inventoryPanel.selected();
+                    if (action == com.example.amazonMages.ui.InventoryPanel.ACTION_USE) {
+                        boolean applied = consumables.useInCombat(
+                            inventory, item, player, progression, skillTree, coconutRandom);
+                        if (applied) {
+                            if ("bomba_coco".equals(item.id)) detonatePororocaBomb();
+                            applyProgressionEffects();
+                            saveNow();
+                            inventoryNotice = "runa_ancestral".equals(item.id)
+                                ? "Runa usada! +1 Ponto de Habilidade!"
+                                : "Item utilizado.";
+                        } else {
+                            inventoryNotice = "O item nao pode ser usado agora.";
+                        }
+                        inventoryNoticeTicks = 120;
+                    } else if (action >= 0 && item.weapon != null && inventory.count(item.id) > 0) {
+                        weapons.equip(action, item.weapon);
+                        weapons.select(action);
+                        saveNow();
+                        inventoryNotice = "Arma equipada no Slot " + (action + 1) + ".";
+                        inventoryNoticeTicks = 120;
+                    }
                 }
             }
             return true;
@@ -477,6 +610,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 return true;
             } else if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_INVENTORY) {
                 resetInput(); inventoryPanel.open();
+                states.modal(com.example.amazonMages.state.GameStateManager.State.INVENTORY);
+                return true;
+            } else if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_CRAFT) {
+                resetInput(); inventoryPanel.openCraft();
                 states.modal(com.example.amazonMages.state.GameStateManager.State.INVENTORY);
                 return true;
             } else if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_MAP) {
@@ -576,8 +713,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         float zoom = (float) gameDisplay.getZoom();
         canvas.scale(zoom, zoom, getWidth() * .5f, getHeight() * .5f);
         renderer.draw(canvas);
+        float chargeRatio = input.currentAimHoldTicks() / (float) Math.max(1, skillTree.chargeTicksRequired());
         aimGuide.draw(canvas, gameDisplay, player, aimStick.getIsPressed(),
-            aimStick.magnitude() >= InputController.AIM_DEADZONE);
+            aimStick.magnitude() >= InputController.AIM_DEADZONE, chargeRatio);
         coconutStormFx.draw(canvas, gameDisplay);
         if (coconutStormTicks > 0) {
             hudPaint.setColor(0x66D9B86C);
@@ -590,18 +728,33 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         joystick.draw(canvas);
         aimStick.drawBase(canvas);
         if (debugOverlay && isDebuggable()) drawDebugOverlay(canvas);
+        int quickItemCount = inventory.count("erva") + inventory.count("mana")
+            + inventory.count("bencao") + inventory.count("elixir")
+            + inventory.count("tonico") + inventory.count("bomba_coco")
+            + Math.max(0, inventory.count("coco") - 1);
         forestHud.draw(canvas, getWidth(), getHeight(), player, progression, weapons,
-            weapons.specialCooldown() == 0 && progression.mana >= 35,
-            player.getParryCooldownTicks(), hasDeveloperChat());
+            weapons.specialCooldown() == 0 && progression.mana >= 30 && weapons.current() != null,
+            player.getParryCooldownTicks(), hasDeveloperChat(),
+            enemyManager.waveDirector().survivalTicks(),
+            enemyManager.waveDirector().waveNumber(),
+            enemyManager.getKillCount(), hudBanner,
+            inventory.count("coco"), quickItemCount);
         forestHud.drawAimKnob(canvas, aimStick.getKnobX(), aimStick.getKnobY(),
             aimStick.getKnobRadius() * 2f);
         drawBossHud(canvas);
         attributesPanel.draw(canvas, getWidth(), getHeight(), progression, forestHud);
         inventoryPanel.draw(canvas, getWidth(), getHeight(), inventory, weapons, inventoryNotice, forestHud);
         explorationPanel.draw(canvas, getWidth(), getHeight(), tilemap, player, questJournal,
-            INTRO_QUEST, SENTINEL_QUEST);
-        if (!inventoryPanel.isOpen() && inventoryNotice != null)
-            canvasUi.text(canvas, inventoryNotice, getWidth()*.04f, getHeight()*.39f, Math.min(getWidth(),getHeight())*.026f, 0xFFFFD17C);
+            INTRO_QUEST, SENTINEL_QUEST, forestHud);
+        upgradePanel.draw(canvas, getWidth(), getHeight(), progression.level, forestHud);
+        if (!inventoryPanel.isOpen() && !upgradePanel.isOpen()
+                && !attributesPanel.isOpen() && !explorationPanel.isOpen()
+                && inventoryNotice != null) {
+            float nx = Math.max(getWidth() * .055f, forestHud.pixelScale() * 34f);
+            float nSize = Math.min(getWidth(), getHeight()) * .026f;
+            forestHud.uiKit().drawTextShadow(canvas, inventoryNotice, nx, getHeight() * .39f,
+                nSize, 0xFFFFF1B0, true, Paint.Align.LEFT);
+        }
 
         // Desenha "Game Over" se o jogador estiver morto
         if (player.getHealthPoint() <= 0) {
@@ -624,42 +777,149 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         // Atualiza o estado do jogo
+        if (hudBannerTicks > 0 && --hudBannerTicks == 0) hudBanner = null;
+        if (inventoryNoticeTicks > 0 && --inventoryNoticeTicks == 0) inventoryNotice = null;
+        if (manualComboResetTicks > 0 && --manualComboResetTicks == 0) manualComboStep = 0;
+        input.updateAimHold();
         joystick.update();
         aimStick.update();
         player.update();
+        if (player.pollAegisBurst()) {
+            double burstDmg = 5.0 * Math.max(progression.magicMultiplier(), progression.physicalMultiplier());
+            enemyManager.parryShockwave(player.getPositionX(), player.getPositionY(), 190.0, burstDmg, 48);
+            progression.mana = Math.min(progression.maxMana, progression.mana + 15.0);
+            showBanner("MANTO DA CASTANHEIRA!", 90);
+            sound("coconut_storm_hit");
+        }
         tilemap.update();
         pickupLifetime.update(pickupWorld,1);
+        foragingSystem.update(player.getPositionX(), player.getPositionY(),
+            player.getHealthPoint(), player.getMaximumHealth(),
+            inventory, progression, skillTree, pickupWorld, tilemap.world(), coconutRandom,
+            this::spawnPickup);
+
         int collected = pickupSystem.collect(pickupWorld, player.getPositionX(),
             player.getPositionY(), player.getRadius(), inventory);
         if (collected > 0) {
+            if (inventory.count("cajado") > 0) arsenal.unlockLeafFromStaff();
+            if (skillTree.hasFloraSymphony()) {
+                arsenal.reduceAllCooldowns(24);
+                weapons.reduceSpecialCooldown(24);
+            }
             inventoryNotice = "Itens coletados: " + collected;
+            inventoryNoticeTicks = 120;
             saveInventory();
         }
-        if (pickupSystem.blockedByCapacity()) inventoryNotice = "Inventario cheio para este item.";
+        int transmuted = foragingSystem.transmuteFullStackPickups(pickupWorld,
+            player.getPositionX(), player.getPositionY(), player.getRadius(), inventory, itemRegistry);
+        if (transmuted > 0) {
+            progression.mana = Math.min(progression.maxMana, progression.mana + transmuted * 12.0);
+            progression.gainExperience(transmuted * 8L);
+            inventoryNotice = "Mana absorvida!";
+            inventoryNoticeTicks = 90;
+        } else if (pickupSystem.blockedByCapacity()) {
+            inventoryNotice = "Inventario cheio para este item.";
+            inventoryNoticeTicks = 120;
+        }
+
+        xpCrystals.updateAndCollect(player.getPositionX(), player.getPositionY(), player.getRadius(),
+            arsenal.magnetRadius(progression), (xp, tier) -> {
+                progression.gainExperience(xp);
+                progression.mana = Math.min(progression.maxMana, progression.mana + 4.0);
+                if (tier >= 2) player.heal(1);
+                if (skillTree.hasFloraSymphony()) {
+                    arsenal.reduceAllCooldowns(12);
+                    weapons.reduceSpecialCooldown(12);
+                }
+            });
+
         weapons.update();
         progression.regenerateMana();
         updateCoconutStorm();
+        updatePororocaVortex();
+        updateCurupiraEmbers();
         coconutStormFx.update((x, y, damageMultiplier) -> {
-            enemyManager.coconutImpact(x, y, 45, damageMultiplier);
+            enemyManager.coconutImpact(x, y, 48, damageMultiplier * stormPowerMultiplier);
             sound("coconut_storm_hit");
         });
 
-        // Coordinate AI updates, enemy population and staggered ranged attacks.
+        // Coordinate wave director, AI updates, horde separation, melee/parry and staggered ranged attacks.
         enemyManager.update();
+        String announcement = enemyManager.waveDirector().pollAnnouncement();
+        if (announcement != null) showBanner(announcement, 150);
         if (player.getHealthPoint() <= 0) { resetInput(); states.gameOver(); return; }
 
-        // Atualiza o estado de todos os feitiços
+        // Vampire Survivors smart auto-aim when player is not actively dragging the manual aim stick.
+        Enemy nearestTarget = enemyManager.findNearestEnemy(player.getPositionX(), player.getPositionY(), 640);
+        if (!aimStick.getIsPressed() && nearestTarget != null) {
+            player.aim(nearestTarget.getPositionX() - player.getPositionX(),
+                nearestTarget.getPositionY() - player.getPositionY());
+        }
+        arsenal.update(player.getPositionX(), player.getPositionY(),
+            nearestTarget != null || aimStick.getIsPressed(), progression,
+            new com.example.amazonMages.combat.SurvivorArsenal.AutoCastSink() {
+                @Override public void fireCoconutFan(int count, double damageMultiplier) {
+                    double expRadius = arsenal.pollExplosiveVolley() ? arsenal.activeExplosiveRadius() : 0.0;
+                    double reserveBonus = inventory.count("coco") > 1 ? 1.10 : 1.0;
+                    spawnFanProjectiles(true, count, 1, damageMultiplier * reserveBonus, 0.22, expRadius);
+                    sound("attack");
+                }
+                @Override public void fireLeafBurst(int count, int pierce, double damageMultiplier) {
+                    spawnFanProjectiles(false, count, pierce, damageMultiplier, 0.16, 0.0);
+                    sound("attack");
+                }
+                @Override public void pulseOrbDamage(double orbX, double orbY, double radius, double damageMultiplier) {
+                    enemyManager.applyAreaDamage(orbX, orbY, radius,
+                        new DamageEvent(damageMultiplier, 12, DamageType.MAGIC), 7.5, 0);
+                }
+                @Override public void strikeLightningTarget(double damageMultiplier, double areaRadius) {
+                    Enemy target = enemyManager.findHighestHealthEnemy(player.getPositionX(), player.getPositionY(), 520);
+                    if (target == null) return;
+                    arsenal.addStrikeFx(target.getPositionX(), target.getPositionY());
+                    enemyManager.applyAreaDamage(target.getPositionX(), target.getPositionY(), areaRadius,
+                        new DamageEvent(damageMultiplier, 30, DamageType.MAGIC), 3.0, 36);
+                    sound("coconut_storm_hit");
+                }
+            });
+
+        // Manual quick-shots support 3-hit combos and Charged Aim release volleys.
         while (input.consumeShot()) {
-            if (weapons.basic(progression.castSpeed())) {
+            int heldTicks = input.consumeLastHoldTicks();
+            boolean charged = heldTicks >= skillTree.chargeTicksRequired();
+            if (charged || weapons.basic(progression.castSpeed())) {
                 sound("attack");
                 player.playAction(com.example.amazonMages.graphics.AnimationAction.ATTACK);
                 boolean coconut = weapons.current() == WeaponLoadout.COCONUT;
-                projectileWorld.spawn(new Spell(getContext(), player, coconut,
-                    coconut ? progression.physicalMultiplier() : progression.magicMultiplier()));
+                double reserveBonus = coconut && inventory.count("coco") > 1 ? 1.15 : 1.0;
+                double baseMult = (coconut ? progression.physicalMultiplier() : progression.magicMultiplier()) * reserveBonus;
+                if (charged) {
+                    manualComboStep = 0;
+                    int count = 3 + skillTree.chargedBonusProjectiles();
+                    double expRadius = coconut ? Math.max(68.0, skillTree.explosiveCoconutRadius()) : 0.0;
+                    spawnFanProjectiles(coconut, count, coconut ? 2 : 4, baseMult * 1.65, 0.20, expRadius);
+                    showBanner("DISPARO CARREGADO!", 45);
+                } else {
+                    manualComboStep = (manualComboStep % 3) + 1;
+                    manualComboResetTicks = 55;
+                    boolean finisher = manualComboStep == 3;
+                    double stepMult = finisher ? skillTree.comboFinisherBonus() : (manualComboStep == 2 ? 1.08 : 1.0);
+                    int count = finisher ? (coconut ? 3 : 2) : 1;
+                    int pierce = finisher ? (coconut ? 2 : 4) : (coconut ? 1 : 2);
+                    double expRadius = finisher && coconut ? skillTree.explosiveCoconutRadius() : 0.0;
+                    spawnFanProjectiles(coconut, count, pierce, baseMult * stepMult, 0.18, expRadius);
+                }
             }
         }
         projectileWorld.update();
         enemyManager.collideWithPlayerProjectiles(projectileWorld);
+
+        if (progression.level > lastObservedLevel && !upgradePanel.isOpen()) {
+            int gained = progression.level - lastObservedLevel;
+            lastObservedLevel = progression.level;
+            resetInput();
+            upgradePanel.queueLevelUps(gained, arsenal, coconutRandom);
+            states.modal(com.example.amazonMages.state.GameStateManager.State.ATTRIBUTES);
+        }
 
         // Atualiza o gameDisplay para que seu centro seja definido para o novo centro das
         // coordenadas do jogador no jogo
@@ -673,7 +933,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     private void spawnPickup(String itemId, int quantity, double x, double y) {
         if (itemRegistry.get(itemId) == null || quantity < 1 || !Double.isFinite(x) || !Double.isFinite(y)) throw new IllegalArgumentException("item");
-        if (pickupWorld.size() >= 64) { inventoryNotice = "Limite de itens no chao atingido."; return; }
+        com.example.amazonMages.items.WorldForagingSystem.recycleIfCrowded(
+            pickupWorld, player.getPositionX(), player.getPositionY());
+        if (pickupWorld.size() >= 64) {
+            inventoryNotice = "Limite de itens no chao atingido.";
+            inventoryNoticeTicks = 90;
+            return;
+        }
         com.example.amazonMages.map.WorldDefinition.Position safe = tilemap.world().safePosition(x, y, 13);
         pickupWorld.create()
             .add(TransformComponent.class, new TransformComponent(safe.x, safe.y))
@@ -683,7 +949,6 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void applyProgressionEffects() {
-        // Small provisional resistance bonuses; physical strength never scales magic.
         player.getCombatStats().setResistance(DamageType.PHYSICAL,
             Math.min(.40, (progression.resistencia - 1) * .025));
         player.getCombatStats().setResistance(DamageType.ACID,
@@ -691,28 +956,172 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         player.setMaximumHealth(progression.maximumHealth());
         progression.maxMana = progression.manaCapacity();
         progression.mana = Math.min(progression.mana, progression.maxMana);
+        player.configureDefense(
+            skillTree.bonusParryTicks(),
+            skillTree.guardReduction(),
+            skillTree.bonusPosture(),
+            skillTree.dashCooldownTicks(),
+            skillTree.hasLivingAegis()
+        );
     }
 
     private void saveInventory() { saveNow(); }
 
     private void saveQuestProgress() { saveNow(); }
 
-    private void activateCoconutStorm() {
-        if (progression.mana < 35 || !weapons.special()) return;
-        player.playAction(com.example.amazonMages.graphics.AnimationAction.SPECIAL);
-        progression.spendMana(35);
-        sound("coconut_storm_cast");
-        saveNow();
-        coconutStormTicks = 150;
-        coconutStormFx.clear();
+    private void spawnFanProjectiles(boolean coconut, int count, int pierce,
+                                     double damageMultiplier, double spreadStep, double explosiveRadius) {
         double dx = player.getAttackDirectionX(), dy = player.getAttackDirectionY();
         if (dx == 0 && dy == 0) dy = 1;
-        stormX = player.getPositionX() + dx * 210;
-        stormY = player.getPositionY() + dy * 210;
+        double baseAngle = Math.atan2(dy, dx);
+        double half = (count - 1) * 0.5;
+        for (int i = 0; i < count; i++) {
+            double angle = baseAngle + (i - half) * spreadStep;
+            projectileWorld.spawn(new Spell(getContext(), player, coconut, damageMultiplier,
+                Math.cos(angle), Math.sin(angle), pierce, explosiveRadius));
+        }
+    }
+
+    private void onParryRiposte(double sourceX, double sourceY) {
+        progression.mana = Math.min(progression.maxMana, progression.mana + arsenal.parryManaRestore());
+        weapons.reduceSpecialCooldown(90);
+        enemyManager.parryShockwave(player.getPositionX(), player.getPositionY(),
+            arsenal.parryRadius(), arsenal.parryDamage(progression), arsenal.parryStunTicks());
+        double dx = sourceX - player.getPositionX(), dy = sourceY - player.getPositionY();
+        double len = Math.hypot(dx, dy);
+        double baseAngle = len > 0.01 ? Math.atan2(dy, dx) : Math.atan2(player.getAttackDirectionY(), player.getAttackDirectionX());
+        for (int i = -1; i <= 1; i++) {
+            double a = baseAngle + i * 0.22;
+            projectileWorld.spawn(new Spell(getContext(), player, false,
+                progression.magicMultiplier() * 1.4, Math.cos(a), Math.sin(a), 4));
+        }
+        showBanner("PARRY ARCANO! +MANA", 90);
+        sound("coconut_storm_hit");
+    }
+
+    private void showBanner(String text, int durationTicks) {
+        hudBanner = text;
+        hudBannerTicks = durationTicks;
+    }
+
+    private void activateEquippedSpecial() {
+        if (progression.mana < 30 || weapons.current() == null) return;
+        if (!weapons.castEquippedSpecial()) return;
+        player.playAction(com.example.amazonMages.graphics.AnimationAction.SPECIAL);
+        progression.spendMana(30);
+        sound("coconut_storm_cast");
+
+        double dx = player.getAttackDirectionX(), dy = player.getAttackDirectionY();
+        if (dx == 0 && dy == 0) dy = 1;
+        double durMult = skillTree.specialDurationMultiplier();
+
+        if (weapons.current() == WeaponLoadout.COCONUT) {
+            boolean boosted = inventory.count("coco") > 1 && inventory.remove("coco", 1);
+            stormPowerMultiplier = boosted ? 1.30 : 1.0;
+            coconutStormTicks = (int) Math.round(150 * durMult);
+            coconutStormFx.clear();
+            stormX = player.getPositionX() + dx * 180;
+            stormY = player.getPositionY() + dy * 180;
+            for (int i = 0; i < 8; i++) {
+                double a = i * Math.PI / 4;
+                projectileWorld.spawn(new Spell(getContext(), player, false,
+                    progression.magicMultiplier() * 1.35, Math.cos(a), Math.sin(a), 3));
+            }
+            showBanner(boosted ? "TEMPESTADE DE COCOS!" : "TEMPESTADE!", 70);
+        } else {
+            vortexX = player.getPositionX() + dx * 170;
+            vortexY = player.getPositionY() + dy * 170;
+            vortexRadius = 155.0;
+            vortexTicks = (int) Math.round(180 * durMult);
+            combatFxState.vortexX = vortexX;
+            combatFxState.vortexY = vortexY;
+            combatFxState.vortexRadius = vortexRadius;
+            combatFxState.vortexTicks = vortexTicks;
+            showBanner("VORTICE DAS AGUAS!", 75);
+        }
+        saveNow();
     }
 
     private void activatePlayerParry() {
         player.beginParry();
+    }
+
+    private void activatePlayerDash() {
+        if (!player.beginDash()) return;
+        sound("attack");
+        if (skillTree.hasCurupiraTrail()) {
+            double ux = player.getAttackDirectionX(), uy = player.getAttackDirectionY();
+            if (Math.hypot(joystick.getActuatorX(), joystick.getActuatorY()) >= 0.15) {
+                double len = Math.hypot(joystick.getActuatorX(), joystick.getActuatorY());
+                ux = joystick.getActuatorX() / len;
+                uy = joystick.getActuatorY() / len;
+            } else if (ux == 0 && uy == 0) {
+                uy = 1;
+            }
+            for (int i = 0; i < 3; i++) {
+                combatFxState.embers.add(new GameRenderer.DashEmber(
+                    player.getPositionX() - ux * i * 36.0,
+                    player.getPositionY() - uy * i * 36.0,
+                    90
+                ));
+            }
+        }
+    }
+
+    private void activateQuickItem() {
+        String feedback = consumables.quickUse(
+            inventory, itemRegistry, player, progression, skillTree, coconutRandom);
+        if (feedback != null) {
+            if ("BOMBA DE POROROCA!".equals(feedback)) detonatePororocaBomb();
+            applyProgressionEffects();
+            saveNow();
+            showBanner(feedback, 65);
+            sound("attack");
+        } else {
+            showBanner("Sem item necessario agora.", 45);
+        }
+    }
+
+    private void detonatePororocaBomb() {
+        double dmg = 9.0 * Math.max(progression.magicMultiplier(), progression.physicalMultiplier());
+        enemyManager.parryShockwave(player.getPositionX(), player.getPositionY(), 240.0, dmg, 60);
+        for (int i = 0; i < 8; i++) {
+            double a = i * Math.PI / 4;
+            projectileWorld.spawn(new Spell(getContext(), player, true,
+                progression.physicalMultiplier() * 1.45, Math.cos(a), Math.sin(a), 2, 92.0));
+        }
+        weapons.reduceSpecialCooldown(WeaponLoadout.SPECIAL_COOLDOWN_TICKS);
+        showBanner("BOMBA DE POROROCA!", 75);
+        sound("coconut_storm_hit");
+    }
+
+    private void updatePororocaVortex() {
+        if (vortexTicks <= 0) {
+            combatFxState.vortexTicks = 0;
+            return;
+        }
+        vortexTicks--;
+        combatFxState.vortexTicks = vortexTicks;
+        DamageEvent pulse = (vortexTicks % 20 == 0)
+            ? new DamageEvent(progression.magicMultiplier() * 1.15, 22, DamageType.MAGIC)
+            : null;
+        int root = pulse != null ? 16 : 0;
+        enemyManager.pullAndDamageVortex(vortexX, vortexY, vortexRadius, 4.2, pulse, root);
+        if (pulse != null) sound("coconut_storm_hit");
+    }
+
+    private void updateCurupiraEmbers() {
+        if (combatFxState.embers.isEmpty()) return;
+        double mult = progression.magicMultiplier() * (1.0 + skillTree.curupiraTrailRank() * 0.35);
+        for (int i = combatFxState.embers.size() - 1; i >= 0; i--) {
+            GameRenderer.DashEmber ember = combatFxState.embers.get(i);
+            ember.ticksRemaining--;
+            if (ember.ticksRemaining % 18 == 0) {
+                enemyManager.applyAreaDamage(ember.x, ember.y, 48.0,
+                    new DamageEvent(mult * 0.85, 14, DamageType.MAGIC), 1.5, 18);
+            }
+            if (ember.ticksRemaining <= 0) combatFxState.embers.remove(i);
+        }
     }
 
     private void updateCoconutStorm() {
@@ -766,24 +1175,18 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private void drawDebugOverlay(Canvas canvas) {
         String[] lines = diagnostics().split("\\n");
         float density = getResources().getDisplayMetrics().density;
-        float lineHeight = 17 * density;
-        float left = 10 * density, top = 68 * density;
+        float lineHeight = 16 * density;
+        float left = Math.max(10 * density, forestHud.pixelScale() * 34f), top = 74 * density;
         float right = Math.min(getWidth() - left, left + 390 * density);
         float bottom = top + (lines.length + 1) * lineHeight + 12 * density;
-        forestHud.drawPanel(canvas, left, top, right, bottom);
-        hudPaint.setColor(0xFFFFE09B);
-        hudPaint.setTextSize(12 * density);
-        hudPaint.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
-        canvas.drawText("DESEMPENHO - AO VIVO", left + 10 * density,
-            top + 17 * density, hudPaint);
-        hudPaint.setTypeface(android.graphics.Typeface.create("monospace", android.graphics.Typeface.NORMAL));
-        hudPaint.setColor(0xFFCCF0D2);
-        hudPaint.setTextSize(10.5f * density);
-        for (int i = 0; i < lines.length; i++)
-            canvas.drawText(lines[i], left + 10 * density,
-                top + (i + 2) * lineHeight, hudPaint);
-        hudPaint.setTypeface(null);
-
+        android.graphics.RectF box = new android.graphics.RectF(left, top, right, bottom);
+        forestHud.uiKit().drawPerfOverlay(canvas, box, 224);
+        forestHud.uiKit().drawTextShadow(canvas, "DESEMPENHO - AO VIVO",
+            left + 10 * density, top + 16 * density, 12.5f * density, 0xFFFFE066, true, Paint.Align.LEFT);
+        for (int i = 0; i < lines.length; i++) {
+            forestHud.uiKit().drawTextShadow(canvas, lines[i],
+                left + 10 * density, top + (i + 2) * lineHeight, 10.5f * density, 0xFFCCF0D2, false, Paint.Align.LEFT);
+        }
     }
 
     /** Explicit save action used by the in-game pause menu. */

@@ -12,14 +12,14 @@ import android.graphics.drawable.Drawable;
 import com.example.amazonMages.resources.ResourceManager;
 import com.example.androidstudio2dgamedevelopment.R;
 
-/** Three real button frames, stretched only through their documented 9-slice centre. */
+/** Three real button frames with opaque 9-slice caps and integer-tiled border edges. */
 public final class AtlasMenuButtonDrawable extends Drawable {
     private final Bitmap atlas;
     private final Paint paint = new Paint();
     private final Rect source = new Rect();
     private final Rect target = new Rect();
-    private final int[] sourceX = {0, 8, 24, 32};
-    private final int[] sourceY = {0, 6, 14, 20};
+    private final int[] sourceX = {1, 10, 22, 31};
+    private final int[] sourceY = {2, 6, 13, 17};
     private final int[] targetX = new int[4];
     private final int[] targetY = new int[4];
     private int frame;
@@ -41,22 +41,31 @@ public final class AtlasMenuButtonDrawable extends Drawable {
     @Override public void draw(Canvas canvas) {
         Rect b = getBounds();
         if (atlas == null || b.isEmpty()) return;
-        int capX = Math.min(8 * pixelScale, b.width() / 2);
-        int capY = Math.min(6 * pixelScale, b.height() / 2);
-        targetX[0] = b.left;
-        targetX[1] = b.left + capX;
-        targetX[2] = b.right - capX;
-        targetX[3] = b.right;
-        targetY[0] = b.top;
-        targetY[1] = b.top + capY;
-        targetY[2] = b.bottom - capY;
-        targetY[3] = b.bottom;
+        int capX = Math.min(9 * pixelScale, b.width() / 4);
+        int capY = Math.min(4 * pixelScale, b.height() / 4);
+        targetX[0] = b.left; targetX[1] = b.left + capX; targetX[2] = b.right - capX; targetX[3] = b.right;
+        targetY[0] = b.top; targetY[1] = b.top + capY; targetY[2] = b.bottom - capY; targetY[3] = b.bottom;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
-                source.set(frame * 32 + sourceX[col], sourceY[row],
-                    frame * 32 + sourceX[col + 1], sourceY[row + 1]);
-                target.set(targetX[col], targetY[row], targetX[col + 1], targetY[row + 1]);
-                canvas.drawBitmap(atlas, source, target, paint);
+                int dl = targetX[col], dt = targetY[row], dr = targetX[col + 1], db = targetY[row + 1];
+                if (dr <= dl || db <= dt) continue;
+                int sl = frame * 32 + sourceX[col], st = sourceY[row];
+                int sr = frame * 32 + sourceX[col + 1], sb = sourceY[row + 1];
+                if (col == 1 && row != 1) {
+                    int sw = sr - sl;
+                    int step = Math.max(4, sw * pixelScale);
+                    for (int x = dl; x < dr; x += step) {
+                        int segW = Math.min(step, dr - x);
+                        int srcStop = sl + Math.max(1, Math.round(sw * (segW / (float) step)));
+                        source.set(sl, st, Math.min(sr, srcStop), sb);
+                        target.set(x, dt, x + segW, db);
+                        canvas.drawBitmap(atlas, source, target, paint);
+                    }
+                } else {
+                    source.set(sl, st, sr, sb);
+                    target.set(dl, dt, dr, db);
+                    canvas.drawBitmap(atlas, source, target, paint);
+                }
             }
         }
         if (focused && frame != 2) {

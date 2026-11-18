@@ -3,8 +3,14 @@ package com.example.amazonMages;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.Drawable;
+import androidx.core.content.res.ResourcesCompat;
+import com.example.androidstudio2dgamedevelopment.R;
+import com.example.amazonMages.gamepanel.AtlasMenuButtonDrawable;
+import com.example.amazonMages.gamepanel.AtlasPanelDrawable;
+import com.example.amazonMages.gamepanel.HudZoomDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -20,8 +26,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.SharedPreferences;
 import com.example.amazonMages.audio.GameAudioManager;
 import com.example.amazonMages.ui.MainMenuView;
-import com.example.amazonMages.gamepanel.PixelMenuButtonDrawable;
-import com.example.amazonMages.gamepanel.WoodlandPanelDrawable;
 
 import com.example.amazonMages.save.GameSaveRepository;
 import com.example.amazonMages.save.PlayerPositionEntity;
@@ -62,9 +66,9 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(9, 21, 16));
         TextView title = new TextView(this);
         title.setText(heading);
-        title.setTextColor(Color.rgb(229, 206, 142));
-        title.setTextSize(25);
-        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        title.setTextColor(Color.rgb(255, 241, 176));
+        title.setTextSize(26);
+        title.setTypeface(pixelTypeface(true));
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, dp(12));
         root.addView(title);
@@ -75,35 +79,46 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setPadding(dp(18), dp(16), dp(18), dp(16));
-        root.setBackground(menuPanelBackground());
+        root.setPadding(dp(20), dp(16), dp(20), dp(16));
         TextView title = new TextView(this);
         title.setText(heading);
-        title.setTextColor(Color.rgb(229, 206, 142));
-        title.setTextSize(22);
-        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        title.setTextColor(Color.rgb(255, 241, 176));
+        title.setTextSize(20);
+        title.setTypeface(pixelTypeface(true));
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, dp(8));
+        title.setPadding(0, 0, 0, dp(6));
         root.addView(title, new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         return root;
     }
 
+    private Typeface pixelTypeface(boolean bold) {
+        Typeface font = ResourcesCompat.getFont(this, R.font.pixelify_sans);
+        if (font == null) return Typeface.create("monospace", bold ? Typeface.BOLD : Typeface.NORMAL);
+        return bold ? Typeface.create(font, Typeface.BOLD) : font;
+    }
+
+    private Drawable atlasButtonBackground() {
+        AtlasMenuButtonDrawable bg = new AtlasMenuButtonDrawable(this);
+        bg.setPixelScale(Math.max(2, Math.min(4, Math.round(getResources().getDisplayMetrics().density))));
+        return bg;
+    }
+
     private Button button(LinearLayout root, String label, View.OnClickListener click) {
         Button button = new Button(this);
         button.setText(label);
-        button.setTextColor(Color.rgb(236, 244, 221));
+        button.setTextColor(Color.rgb(244, 235, 200));
         button.setTextSize(17);
         button.setAllCaps(false);
-        button.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        button.setTypeface(pixelTypeface(true));
         button.setMinHeight(dp(54));
         button.setPadding(dp(14), dp(8), dp(14), dp(8));
-        button.setBackground(new PixelMenuButtonDrawable(getResources().getDisplayMetrics().density));
+        button.setBackground(atlasButtonBackground());
         button.setOnClickListener(click);
         int screenWidthDp = Math.round(getResources().getDisplayMetrics().widthPixels /
             getResources().getDisplayMetrics().density);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-            dp(Math.min(520, screenWidthDp - 72)),
+            dp(Math.min(420, screenWidthDp - 72)),
             LinearLayout.LayoutParams.WRAP_CONTENT);
         params.gravity = Gravity.CENTER_HORIZONTAL;
         params.topMargin = dp(8);
@@ -124,7 +139,7 @@ public class MainActivity extends Activity {
     }
 
     private Drawable menuPanelBackground() {
-        return new WoodlandPanelDrawable(getResources().getDisplayMetrics().density);
+        return new AtlasPanelDrawable(this);
     }
 
     private void showMainMenu() {
@@ -196,9 +211,9 @@ public class MainActivity extends Activity {
         return Math.round(zoom) + "×";
     }
 
-    /** Saved start-of-game camera zoom: 1, 2 or 3 (times). */
+    /** Saved start-of-game camera zoom: 1, 2 or 3 (times). Defaults to 2x for crisp GBA pixel art. */
     private int savedZoomFactor() {
-        return Math.max(1, Math.min(3, gamePreferences.getInt("camera_zoom_factor", 1)));
+        return Math.max(1, Math.min(3, gamePreferences.getInt("camera_zoom_factor", 2)));
     }
 
     private void styleSlider(SeekBar slider) {
@@ -324,16 +339,16 @@ public class MainActivity extends Activity {
         card.setPadding(dp(14), dp(10), dp(14), dp(10));
         card.setBackground(menuPanelBackground());
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-            Math.min(dp(680), Math.max(dp(240), getResources().getDisplayMetrics().widthPixels - dp(72))),
+            Math.min(dp(500), Math.max(dp(240), getResources().getDisplayMetrics().widthPixels - dp(72))),
             LinearLayout.LayoutParams.WRAP_CONTENT);
         cardParams.gravity = Gravity.CENTER_HORIZONTAL;
         cardParams.topMargin = dp(7);
 
         TextView title = new TextView(this);
         title.setText("Jogatina " + slot + (save == null ? "  ·  NOVA" : "  ·  SALVA"));
-        title.setTextColor(Color.rgb(229, 206, 142));
+        title.setTextColor(Color.rgb(255, 241, 176));
         title.setTextSize(17);
-        title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        title.setTypeface(pixelTypeface(true));
         card.addView(title);
 
         TextView detail = new TextView(this);
@@ -346,6 +361,7 @@ public class MainActivity extends Activity {
         }
         detail.setTextColor(Color.rgb(180, 207, 163));
         detail.setTextSize(13);
+        detail.setTypeface(pixelTypeface(false));
         detail.setPadding(0, dp(2), 0, dp(8));
         card.addView(detail);
 
@@ -368,19 +384,19 @@ public class MainActivity extends Activity {
     private Button slotActionButton(String label, boolean destructive, View.OnClickListener click) {
         Button action = new Button(this);
         action.setText(label);
-        action.setTextColor(Color.rgb(236, 244, 221));
-        action.setTextSize(14);
+        action.setTextColor(Color.rgb(244, 235, 200));
+        action.setTextSize(15);
         action.setAllCaps(false);
-        action.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        action.setTypeface(pixelTypeface(true));
         action.setMinHeight(dp(48));
         action.setPadding(dp(8), 0, dp(8), 0);
         if (destructive) {
             GradientDrawable background = new GradientDrawable();
-            background.setColor(Color.rgb(91, 48, 39));
-            background.setCornerRadius(dp(5));
-            background.setStroke(dp(1), Color.rgb(180, 111, 82));
+            background.setColor(Color.rgb(122, 42, 34));
+            background.setCornerRadius(dp(2));
+            background.setStroke(dp(2), Color.rgb(11, 26, 18));
             action.setBackground(background);
-        } else action.setBackground(greenButtonBackground());
+        } else action.setBackground(atlasButtonBackground());
         action.setOnClickListener(click);
         return action;
     }
@@ -432,21 +448,20 @@ public class MainActivity extends Activity {
         if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             game.setDeveloperChatListener(this::showDevChat);
         }
+        HudZoomDrawable zoomDrawable = new HudZoomDrawable(this, formatZoom(initialZoom));
         Button zoomButton = new Button(this);
-        zoomButton.setText(formatZoom(initialZoom));
+        zoomButton.setText("");
         zoomButton.setContentDescription("Alternar zoom da câmera");
-        zoomButton.setTextColor(Color.rgb(236, 244, 221));
-        zoomButton.setTextSize(15);
-        zoomButton.setAllCaps(false);
         zoomButton.setPadding(0, 0, 0, 0);
-        zoomButton.setBackground(greenButtonBackground());
+        zoomButton.setBackground(zoomDrawable);
         FrameLayout.LayoutParams zoomParams = new FrameLayout.LayoutParams(
-            dp(52), dp(52), Gravity.TOP | Gravity.END);
-        zoomParams.setMargins(0, dp(76), dp(12), 0);
+            dp(56), dp(62), Gravity.TOP | Gravity.END);
+        zoomParams.setMargins(0, dp(74), dp(12), 0);
         root.addView(zoomButton, zoomParams);
         zoomButton.setOnClickListener(v -> {
             double zoom = game.cycleZoom();
-            zoomButton.setText(formatZoom(zoom));
+            zoomDrawable.setZoomLabel(formatZoom(zoom));
+            gamePreferences.edit().putInt("camera_zoom_factor", (int) Math.round(zoom)).apply();
         });
         setContentView(root);
         if (resumed) game.resume();
@@ -456,23 +471,35 @@ public class MainActivity extends Activity {
         if (game == null || pauseDialog != null) return;
         game.pause();
         LinearLayout panel = dialogMenu("JOGO PAUSADO");
-        button(panel, "Continuar", v -> pauseDialog.dismiss());
-        button(panel, "Configurações de áudio", v -> showPauseAudioSettings());
-        button(panel, "Gráficos (resolução e FPS)", v -> showPauseGraphicsSettings());
-        button(panel, "Salvar progresso", v -> {
-            if (game != null) {
-                game.saveNow();
-                Toast.makeText(this, "Salvamento solicitado", Toast.LENGTH_SHORT).show();
-            }
-        });
-        button(panel, "Voltar ao menu principal", v -> {
-            pauseDialog.setOnDismissListener(null);
-            pauseDialog.dismiss();
-            pauseDialog = null;
-            returnToMenu();
-        });
+        Button[] actions = {
+            button(panel, "Continuar", v -> pauseDialog.dismiss()),
+            button(panel, "Configurações de áudio", v -> showPauseAudioSettings()),
+            button(panel, "Gráficos (resolução e FPS)", v -> showPauseGraphicsSettings()),
+            button(panel, "Salvar progresso", v -> {
+                if (game != null) {
+                    game.saveNow();
+                    Toast.makeText(this, "Salvamento solicitado", Toast.LENGTH_SHORT).show();
+                }
+            }),
+            button(panel, "Voltar ao menu principal", v -> {
+                pauseDialog.setOnDismissListener(null);
+                pauseDialog.dismiss();
+                pauseDialog = null;
+                returnToMenu();
+            })
+        };
+        for (Button action : actions) {
+            action.setMinHeight(dp(44));
+            action.setTextSize(15);
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) action.getLayoutParams();
+            lp.topMargin = dp(5);
+            action.setLayoutParams(lp);
+        }
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.addView(panel);
         pauseDialog = new AlertDialog.Builder(this)
-            .setView(panel)
+            .setView(scroll)
             .create();
         styleDialog(pauseDialog);
         pauseDialog.setOnDismissListener(dialog -> {
@@ -481,7 +508,7 @@ public class MainActivity extends Activity {
         });
         pauseDialog.show();
         pauseDialog.getWindow().setLayout(
-            Math.min(dp(640), getResources().getDisplayMetrics().widthPixels - dp(32)),
+            Math.min(dp(500), getResources().getDisplayMetrics().widthPixels - dp(48)),
             android.view.WindowManager.LayoutParams.WRAP_CONTENT);
     }
 
@@ -609,16 +636,23 @@ public class MainActivity extends Activity {
             if (dialog.getWindow() != null)
                 dialog.getWindow().setBackgroundDrawable(menuPanelBackground());
             TextView title = dialog.findViewById(androidx.appcompat.R.id.alertTitle);
-            if (title != null) title.setTextColor(Color.rgb(229, 206, 142));
+            if (title != null) {
+                title.setTextColor(Color.rgb(255, 241, 176));
+                title.setTypeface(pixelTypeface(true));
+            }
             TextView message = dialog.findViewById(android.R.id.message);
-            if (message != null) message.setTextColor(Color.rgb(220, 235, 212));
+            if (message != null) {
+                message.setTextColor(Color.rgb(220, 235, 212));
+                message.setTypeface(pixelTypeface(false));
+            }
             for (int which : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE,
                                       AlertDialog.BUTTON_NEUTRAL}) {
                 Button action = dialog.getButton(which);
                 if (action == null) continue;
-                action.setTextColor(Color.rgb(236, 244, 221));
+                action.setTextColor(Color.rgb(244, 235, 200));
+                action.setTypeface(pixelTypeface(true));
                 action.setAllCaps(false);
-                action.setBackground(new PixelMenuButtonDrawable(getResources().getDisplayMetrics().density));
+                action.setBackground(atlasButtonBackground());
             }
         });
     }
@@ -635,6 +669,18 @@ public class MainActivity extends Activity {
             game = null;
         }
         showMainMenu();
+    }
+
+    @Override protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                && game != null && intent != null) {
+            String cmd = intent.getStringExtra("dev_cmd");
+            if (cmd != null && !cmd.trim().isEmpty()) {
+                android.util.Log.i("DevCmd", cmd + " -> " + game.runDevCommand(cmd));
+            }
+        }
     }
 
     @Override protected void onResume() {
