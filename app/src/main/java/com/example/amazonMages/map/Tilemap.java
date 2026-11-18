@@ -52,7 +52,8 @@ public final class Tilemap {
         scenery = new WorldSceneryRenderer(sprites, world);
         overview = sprites.resourceBitmap(R.drawable.world_overview_v1);
         builder.allowCoreThreadTimeOut(true);
-        ripple.setColor(0x558b9b99); ripple.setStrokeWidth(2);
+        ripple.setColor(0x88b4e6f8);
+        ripple.setStrokeWidth(2);
     }
     public WorldDefinition world() { return world; }
     public Bitmap overview() { return overview; }
@@ -72,7 +73,6 @@ public final class Tilemap {
         if (closed) return;
         wantedLeft = left - 1; wantedTop = top - 1; wantedRight = right + 1; wantedBottom = bottom + 1;
         int rows = WorldDefinition.ROWS / CHUNK, cols = WorldDefinition.COLUMNS / CHUNK;
-        // Prioritize the visible rectangle and cap speculative work to the remaining cache slots.
         for (int row = top; row <= bottom; row++) for (int col = left; col <= right; col++) request(row, col);
         int extras = Math.max(0, CHUNK_BUDGET / (PIXELS * PIXELS * 4) - (right - left + 1) * (bottom - top + 1));
         for (int row = Math.max(0, wantedTop); row <= Math.min(rows - 1, wantedBottom); row++)
@@ -114,21 +114,21 @@ public final class Tilemap {
             float y = (float) display.gameToDisplayCoordinatesY(row * PIXELS);
             if (bitmap != null) canvas.drawBitmap(bitmap, x, y, null);
             else {
-                // A first frame or teleport can precede prefetch. Render the same terrain directly,
-                // without racing the worker to allocate a second chunk bitmap or displaying a hole.
                 canvas.save(); canvas.translate(x, y);
                 painter.drawArea(canvas, row * CHUNK, col * CHUNK, CHUNK, CHUNK);
                 canvas.restore();
             }
         }
-        // Sparse animated ripples, limited to the visible water, over the cached material.
-        for (int row = Math.max(0, view.top / 64); row <= view.bottom / 64; row += 4)
-            for (int col = Math.max(0, view.left / 64); col <= view.right / 64; col += 4) {
+        // Subtle 2x-snapped Hoenn water sparkles limited to visible water tiles
+        for (int row = Math.max(0, view.top / 64); row <= view.bottom / 64; row += 2) {
+            for (int col = Math.max(0, view.left / 64); col <= view.right / 64; col += 2) {
                 if (!terrain.sampleTile(row, col).isWater()) continue;
-                float x = (float) display.gameToDisplayCoordinatesX(col * 64 + (ticks / 10 + row * 7) % 28);
-                float y = (float) display.gameToDisplayCoordinatesY(row * 64 + 28);
-                canvas.drawLine(x, y, x + 12, y, ripple);
+                int step = ((ticks / 12 + row * 3 + col) % 4) * 4;
+                float x = (float) display.gameToDisplayCoordinatesX(col * 64 + 14 + step);
+                float y = (float) display.gameToDisplayCoordinatesY(row * 64 + 28 + ((row + col) % 2) * 14);
+                canvas.drawLine(x, y, x + 10, y, ripple);
             }
+        }
         scenery.drawGround(canvas, display);
     }
     public void prepareScenery(GameDisplay display, double playerX, double playerY) {
@@ -150,6 +150,21 @@ public final class Tilemap {
             if (Math.hypot(sx - world.spawn.worldX(), sy - world.spawn.worldY()) < WorldDefinition.SAFE_RADIUS * 64) continue;
             if (terrain.sampleTile((int) Math.floor(sy / 64), (int) Math.floor(sx / 64)).id != tileType) continue;
             if (world.isWalkable(sx, sy, 32)) return new double[]{sx, sy};
+        }
+        return null;
+    }
+    /** Vampire Survivors style ring spawn: any walkable position around the player within min..max. */
+    public double[] randomWalkableSpawn(double x, double y, Random random, double min, double max, boolean flying) {
+        if (!Double.isFinite(x) || !Double.isFinite(y) || min < 0 || max < min) return null;
+        for (int attempt = 0; attempt < 48; attempt++) {
+            double angle = random.nextDouble() * Math.PI * 2;
+            double radius = min + random.nextDouble() * (max - min);
+            double sx = x + Math.cos(angle) * radius, sy = y + Math.sin(angle) * radius;
+            if (flying) {
+                if (world.inside(sx / 64.0, sy / 64.0)) return new double[]{sx, sy};
+            } else if (world.isWalkable(sx, sy, 30)) {
+                return new double[]{sx, sy};
+            }
         }
         return null;
     }

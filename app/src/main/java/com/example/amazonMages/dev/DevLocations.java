@@ -12,8 +12,8 @@ public final class DevLocations {
         Map<String, double[]> locations = new LinkedHashMap<>();
         locations.put("inicio", new double[]{world.spawn.worldX(), world.spawn.worldY()});
         locations.put("clareira", new double[]{world.spawn.worldX(), world.spawn.worldY()});
-        locations.put("pantano", new double[]{730 * 64, 1120 * 64});
-        locations.put("pantano_leste", new double[]{1230 * 64, 900 * 64});
+        locations.put("pantano", new double[]{58 * 64, 124 * 64});
+        locations.put("pantano_leste", new double[]{118 * 64, 82 * 64});
         for (WorldDefinition.Site site : world.landmarks) {
             WorldDefinition.Position safe = world.safePosition(site.center.worldX(), site.center.worldY(), 32);
             locations.put(site.id, new double[]{safe.x, safe.y});

@@ -48,8 +48,8 @@ public class WorldStreamingTest {
         File directory = new File(context.getExternalFilesDir(null), "world-validation");
         assertTrue(directory.isDirectory() || directory.mkdirs());
         String[] names = {"center", "castanheira", "malocas", "ancient", "burned", "modern", "negro", "meeting", "port", "forest", "north_crossing", "west_bank"};
-        double[][] locations = {{960,1010}, {960,943}, {445,410}, {1480,408}, {440,1443},
-            {1460,1428}, {653,294}, {754.4,1670.2}, {1588,1510}, {850,650}, {770,180}, {100,900}};
+        double[][] locations = {{96, 100}, {96, 94}, {58, 58}, {134, 58}, {58, 134},
+            {134, 134}, {78, 36}, {84, 166}, {122, 128}, {96, 52}, {96, 28}, {32, 86}};
         JSONArray captures = new JSONArray();
         List<Long> frameNanos = new ArrayList<>();
         long maxNative = 0;

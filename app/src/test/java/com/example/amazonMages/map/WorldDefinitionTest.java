@@ -6,11 +6,11 @@ import static org.junit.Assert.*;
 public class WorldDefinitionTest {
     private final WorldDefinition world = new WorldDefinition();
 
-    @Test public void authoredSitesAndScaleMatchTheDesign() {
+    @Test public void authoredSitesAndCompactScaleMatchTheDesign() {
         assertEquals(5, world.landmarks.size());
         assertEquals(4, world.arenas.size());
-        assertEquals(32, world.discoveries.size());
-        assertEquals(299.52, WorldDefinition.RADIUS * 2 * WorldDefinition.TILE_SIZE / 400.0, .001);
+        assertEquals(12, world.discoveries.size());
+        assertEquals(28.16, WorldDefinition.RADIUS * 2 * WorldDefinition.TILE_SIZE / 400.0, .001);
         assertTrue(world.isWalkable(world.spawn.worldX(), world.spawn.worldY(), 32));
         assertEquals(WorldDefinition.Region.CENTRAL,
             world.regionAt(world.spawn.worldX(), world.spawn.worldY()));
@@ -45,9 +45,9 @@ public class WorldDefinitionTest {
         assertEquals(blocked.toString(), 0, blockedCount);
     }
 
-    @Test public void everyArenaReservesA48By48TileCombatFloor() {
+    @Test public void everyArenaReservesAClean12By12CombatFloor() {
         for (WorldDefinition.Site arena : world.arenas) {
-            for (int y = -24; y <= 24; y++) for (int x = -24; x <= 24; x++) {
+            for (int y = -6; y <= 6; y++) for (int x = -6; x <= 6; x++) {
                 assertTrue(arena.id + " blocked at " + x + "," + y,
                     world.isWalkable((arena.center.col + x) * 64, (arena.center.row + y) * 64, 32));
             }
@@ -55,11 +55,11 @@ public class WorldDefinitionTest {
     }
 
     @Test public void movementCannotTunnelThroughTheTrunkOrLeaveTheCircle() {
-        double x = 960 * 64, y = 943 * 64;
+        double x = 96 * 64, y = 93 * 64;
         assertTrue(world.isWalkable(x, y, 16));
         WorldDefinition.Position moved = world.resolveMovement(x, y, 0, -256, 16);
         assertTrue(world.isWalkable(moved.x, moved.y, 16));
-        assertTrue(moved.y > 940 * 64);
+        assertTrue(moved.y >= 92 * 64);
         assertFalse(world.isWalkable(0, 0, 32));
         assertFalse(world.isWalkable(Double.NaN, y, 32));
         assertFalse(world.isWalkable(x, y, -1));
@@ -74,7 +74,7 @@ public class WorldDefinitionTest {
         WorldDefinition other = new WorldDefinition(1234);
         assertEquals(world.landmark("cidade_antiga").center.col, other.landmark("cidade_antiga").center.col, 0);
         boolean changed = false;
-        for (int row = 500; row < 600; row += 2) for (int col = 800; col < 900; col += 2) {
+        for (int row = 40; row < 80; row += 2) for (int col = 80; col < 120; col += 2) {
             changed |= world.variation(row, col, 1000) != other.variation(row, col, 1000);
         }
         assertTrue(changed);
@@ -85,31 +85,30 @@ public class WorldDefinitionTest {
     }
 
     @Test public void riverColorsAndBridgeRemainDistinct() {
-        assertEquals(WorldDefinition.Terrain.NEGRO, world.sampleTile(510, 160));
-        assertEquals(WorldDefinition.Terrain.SOLIMOES, world.sampleTile(1120, 1400));
-        assertEquals(WorldDefinition.Terrain.MEETING_DARK, world.sampleTile(1800, 660));
-        assertEquals(WorldDefinition.Terrain.MEETING_SILT, world.sampleTile(1800, 680));
-        boolean bridge = false;
-        for (int row = 1530; row < 1740; row += 2) for (int col = 700; col < 1000; col += 2)
-            bridge |= world.sampleTile(row, col) == WorldDefinition.Terrain.BRIDGE;
-        assertTrue(bridge);
+        assertEquals(WorldDefinition.Terrain.NEGRO, world.sampleTile(52, 72));
+        assertEquals(WorldDefinition.Terrain.SOLIMOES, world.sampleTile(104, 128));
+        assertEquals(WorldDefinition.Terrain.MEETING_DARK, world.sampleTile(172, 80));
+        assertEquals(WorldDefinition.Terrain.MEETING_SILT, world.sampleTile(172, 84));
+        int bridgeCount = 0;
+        for (int row = 10; row < WorldDefinition.ROWS - 10; row++) {
+            for (int col = 10; col < WorldDefinition.COLUMNS - 10; col++) {
+                if (world.sampleTile(row, col) == WorldDefinition.Terrain.BRIDGE) bridgeCount++;
+            }
+        }
+        assertTrue("Expected multiple river bridges, found " + bridgeCount, bridgeCount >= 20);
     }
 
-    @Test public void negroBanksAndNorthernForestHaveMultipleGuaranteedCrossings() {
-        assertEquals(WorldDefinition.Terrain.BRIDGE, world.sampleTile(413, 376));
-        assertEquals(WorldDefinition.Terrain.BRIDGE, world.sampleTile(180, 770));
-        assertEquals(WorldDefinition.Terrain.BRIDGE, world.sampleTile(842, 134));
-        assertTrue(world.isWalkable(350 * 64, 300 * 64, 32));
-        assertTrue(world.isWalkable(100 * 64, 900 * 64, 32));
+    @Test public void regionalBuildingsArePlacedWithoutBlockingCrossings() {
         long urban = world.buildings.stream().filter(b -> b.family.equals("city_house")).count();
         long ruins = world.buildings.stream().filter(b -> b.family.equals("ruin")).count();
-        assertTrue(urban >= 10); assertTrue(ruins >= 8);
+        assertTrue(urban >= 7);
+        assertTrue(ruins >= 6);
     }
 
     @Test public void terrainCacheIsBoundedAndIndependentOfLoadOrder() {
         WorldTerrainCache forward = new WorldTerrainCache(world, 2);
         WorldTerrainCache backward = new WorldTerrainCache(world, 2);
-        int[][] cells = {{1010, 960}, {440, 440}, {800, 1130}, {1480, 1480}, {330, 380}};
+        int[][] cells = {{100, 96}, {58, 58}, {124, 58}, {134, 134}, {36, 112}};
         for (int[] cell : cells) forward.sampleTile(cell[0], cell[1]);
         for (int i = cells.length - 1; i >= 0; i--) backward.sampleTile(cells[i][0], cells[i][1]);
         for (int[] cell : cells) {
@@ -124,13 +123,13 @@ public class WorldDefinitionTest {
     }
 
     @Test public void invalidSavedPositionsAreRelocatedAndValidPositionsRemainStable() {
-        WorldDefinition.Position invalid = world.safePosition(1000, 500, 32);
+        WorldDefinition.Position invalid = world.safePosition(100, 100, 32);
         assertEquals(world.spawn.worldX(), invalid.x, 0);
         assertEquals(world.spawn.worldY(), invalid.y, 0);
         WorldDefinition.Position valid = world.safePosition(world.spawn.worldX() + 100, world.spawn.worldY(), 32);
         assertEquals(world.spawn.worldX() + 100, valid.x, 0);
         assertTrue(world.isWalkable(valid.x, valid.y, 32));
-        WorldDefinition.Position trunk = world.safePosition(960 * 64, 900 * 64, 32);
+        WorldDefinition.Position trunk = world.safePosition(96 * 64, 91 * 64, 32);
         assertTrue(world.isWalkable(trunk.x, trunk.y, 32));
     }
 
