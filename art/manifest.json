@@ -68,12 +68,16 @@
    "cols": 3,
    "rows": 8,
    "source_cell": [256, 288],
-   "downsample": 8,
+   "cell": [128, 144],
+   "downsample": 2,
+   "scale": 1,
+   "despeckle": false,
+   "outline_bias": 0.1,
    "palette": "sanctuary_guide",
    "fit": "trim",
    "fill": 0.94,
    "anchor": "feet",
-   "baseline": 34,
+   "baseline": 136,
    "min_island": 2
   },
   "guide_portrait": {

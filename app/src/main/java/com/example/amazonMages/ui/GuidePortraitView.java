@@ -12,6 +12,8 @@ import com.example.androidstudio2dgamedevelopment.R;
 
 /** Keeps the stage fixed while switching between the closed and open speaking frames. */
 final class GuidePortraitView extends View {
+    private static final float WAIST_CROP = .45f;
+    private static final float FRAME_SIDE_MARGIN = .08f;
     private final ResourceManager resources;
     private final Rect source = new Rect();
     private final RectF target = new RectF();
@@ -51,11 +53,12 @@ final class GuidePortraitView extends View {
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (portrait == null || frameWidth == 0) return;
-        int h = portrait.getHeight();
-        float scale = Math.min(getWidth() / (float) frameWidth, getHeight() / (float) h);
-        float w = frameWidth * scale, height = h * scale;
-        float left = (getWidth() - w) * .5f, top = getHeight() - height;
-        source.set(frame * frameWidth, 0, (frame + 1) * frameWidth, h);
+        int margin = Math.round(frameWidth * FRAME_SIDE_MARGIN);
+        source.set(frame * frameWidth + margin, 0, (frame + 1) * frameWidth - margin,
+            Math.round(portrait.getHeight() * WAIST_CROP));
+        float scale = Math.min(getWidth() / (float) source.width(), getHeight() / (float) source.height());
+        float w = source.width() * scale, height = source.height() * scale;
+        float left = (getWidth() - w) * .25f, top = getHeight() - height;
         target.set(left, top, left + w, top + height);
         canvas.drawBitmap(portrait, source, target, paint);
     }

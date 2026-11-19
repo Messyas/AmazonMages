@@ -36,7 +36,7 @@ def preserve_white_fabric(atlas, spec):
         cloth = (alpha >= 128) & (green >= 128) & (blue >= red - 8) & (green >= red - 6)
         coverage = cloth.reshape(ch, SUPER, cw, SUPER).mean(axis=(1, 3))
         target = logical[row * ch:(row + 1) * ch, col * cw:(col + 1) * cw]
-        below_face = np.arange(ch)[:, None] >= 11
+        below_face = np.arange(ch)[:, None] >= round(ch * 0.31)
         edge = (coverage >= .16) & below_face & (target[..., 3] == 255)
         target[edge, :3] = hex_to_rgb("#C5D9E0")
         target[edge & (coverage >= .4), :3] = hex_to_rgb("#F7FAF5")
@@ -45,7 +45,7 @@ def preserve_white_fabric(atlas, spec):
 
 def blue_walk(atlas, cell_height):
     pixels = np.array(atlas)
-    after_face = (np.arange(pixels.shape[0]) % cell_height >= 23)[:, None]
+    after_face = (np.arange(pixels.shape[0]) % cell_height >= round(cell_height * 0.64))[:, None]
     visible_outfit = (pixels[..., 3] > 0) & after_face
     original = pixels[..., :3].copy()
     for light, blue in BLUE_OUTFIT.items():

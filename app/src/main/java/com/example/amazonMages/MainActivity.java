@@ -721,7 +721,6 @@ public class MainActivity extends Activity {
 
     @Override protected void onPause() {
         resumed = false;
-        if (guideDialog != null) guideDialog.pauseSpeech();
         if (game != null) game.pause();
         if (audio != null) audio.pause();
         super.onPause();

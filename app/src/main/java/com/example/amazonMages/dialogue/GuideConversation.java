@@ -25,6 +25,7 @@ public final class GuideConversation {
     ));
     private final List<DialogueLine> lines = new ArrayList<>();
     private int introIndex;
+    private DialogueLine pendingReply;
 
     public List<DialogueLine> lines() { return Collections.unmodifiableList(lines); }
     public boolean hasIntroLine() { return introIndex < INTRO.lines.size(); }
@@ -43,8 +44,17 @@ public final class GuideConversation {
         String text = question.trim();
         if (text.isEmpty()) return null;
         introIndex = INTRO.lines.size();
-        add(player(text));
-        return add(reply(text));
+        pendingReply = reply(text);
+        return add(player(text));
+    }
+
+    public boolean hasReply() { return pendingReply != null; }
+
+    public DialogueLine nextReply() {
+        if (pendingReply == null) return null;
+        DialogueLine line = pendingReply;
+        pendingReply = null;
+        return add(line);
     }
 
     private DialogueLine add(DialogueLine line) {

@@ -19,11 +19,12 @@ import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 import com.example.amazonMages.dialogue.DialogueLine;
 import com.example.amazonMages.dialogue.GuideConversation;
 import com.example.amazonMages.gamepanel.AtlasMenuButtonDrawable;
@@ -34,23 +35,20 @@ import com.example.androidstudio2dgamedevelopment.R;
 public final class GuideChatDialog extends Dialog {
     private final GuideConversation conversation;
     private final java.util.function.Consumer<Boolean> skinSelected;
-    private final ScrollView historyScroll;
-    private final LinearLayout history;
+    private final ScrollView lineScroll;
+    private final TextView lineText;
     private final GuidePortraitView portrait;
     private final ImageView hero;
     private final TextView speakerLabel;
     private final Button skinButton;
     private final Button nextButton;
-    private final Button voiceButton;
     private final EditText question;
+    private final LinearLayout composer;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable speechFrame = this::tickSpeech;
     private DialogueLine speaking;
-    private TextView speakingText;
     private long speechStarted;
     private int visibleCharacters;
-    private GuideVoice voice;
-    private boolean voiceEnabled, voicePlaying, voiceRequested;
     private boolean blue;
 
     public GuideChatDialog(Activity activity, GuideConversation conversation,
@@ -61,72 +59,74 @@ public final class GuideChatDialog extends Dialog {
         this.skinSelected = skinSelected;
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
-        LinearLayout root = new LinearLayout(getContext());
-        root.setOrientation(LinearLayout.HORIZONTAL);
-        root.setPadding(dp(12), dp(10), dp(12), dp(10));
-        root.setBackground(new AtlasPanelDrawable(getContext()));
+        FrameLayout root = new FrameLayout(getContext());
         root.setFocusableInTouchMode(true);
 
-        LinearLayout profile = column();
-        profile.setPadding(0, 0, dp(8), 0);
-        root.addView(profile, new LinearLayout.LayoutParams(0, -1, .42f));
-        speakerLabel = text("Iara e você", 16, 0xFFFFE8A1);
-        speakerLabel.setGravity(Gravity.CENTER);
-        speakerLabel.setTypeface(Typeface.DEFAULT_BOLD);
-        profile.addView(speakerLabel);
         LinearLayout portraits = new LinearLayout(getContext());
-        portraits.setGravity(Gravity.BOTTOM);
-        profile.addView(portraits, new LinearLayout.LayoutParams(-1, 0, 1f));
+        portraits.setPadding(0, dp(56), 0, 0);
+        root.addView(portraits, new FrameLayout.LayoutParams(-1, -1));
         portrait = new GuidePortraitView(getContext());
-        portraits.addView(portrait, new LinearLayout.LayoutParams(0, -1, .61f));
+        portraits.addView(portrait, new LinearLayout.LayoutParams(0, -1, .38f));
+        portraits.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, .24f));
         hero = new ImageView(getContext());
         hero.setContentDescription("Seu personagem");
         hero.setImageResource(R.drawable.portrait_player);
         hero.setScaleType(ImageView.ScaleType.FIT_END);
-        portraits.addView(hero, new LinearLayout.LayoutParams(0, -1, .39f));
+        portraits.addView(hero, new LinearLayout.LayoutParams(0, -1, .38f));
+
+        LinearLayout foreground = column();
+        foreground.setPadding(dp(12), dp(8), dp(12), dp(8));
+        root.addView(foreground, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout controls = new LinearLayout(getContext());
+        foreground.addView(controls);
         skinButton = button("");
-        profile.addView(skinButton, new LinearLayout.LayoutParams(-1, dp(43)));
+        controls.addView(skinButton, new LinearLayout.LayoutParams(-2, dp(48)));
         skinButton.setOnClickListener(v -> toggleSkin());
         updateSkin();
-
-        LinearLayout chat = column();
-        root.addView(chat, new LinearLayout.LayoutParams(0, -1, .58f));
-        LinearLayout header = new LinearLayout(getContext());
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        chat.addView(header);
-        TextView title = text("Conversa com a guia", 16, 0xFFFFE8A1);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        header.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
+        controls.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1f));
         Button close = button("Fechar");
-        header.addView(close, new LinearLayout.LayoutParams(dp(84), dp(43)));
+        controls.addView(close, new LinearLayout.LayoutParams(dp(84), dp(48)));
         close.setOnClickListener(v -> dismiss());
 
-        historyScroll = new ScrollView(getContext());
-        historyScroll.setFillViewport(true);
-        historyScroll.setBackground(panel(0xFF11251C));
-        history = column();
-        history.setPadding(dp(8), dp(6), dp(8), dp(6));
-        historyScroll.addView(history);
-        chat.addView(historyScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        LinearLayout stage = new LinearLayout(getContext());
+        stage.setGravity(Gravity.CENTER_VERTICAL);
+        stage.setPadding(0, dp(12), 0, dp(20));
+        foreground.addView(stage, new LinearLayout.LayoutParams(-1, 0, 1f));
+        stage.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, .25f));
 
-        LinearLayout scene = new LinearLayout(getContext());
-        chat.addView(scene);
+        LinearLayout card = column();
+        card.setBackground(new AtlasPanelDrawable(getContext()));
+        card.setPadding(dp(16), dp(14), dp(16), dp(12));
+        stage.addView(card, new LinearLayout.LayoutParams(0, -1, .50f));
+        stage.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, .25f));
+
+        speakerLabel = text("", 17, 0xFFFFE8A1);
+        speakerLabel.setTypeface(Typeface.DEFAULT_BOLD);
+        card.addView(speakerLabel);
+
+        lineScroll = new ScrollView(getContext());
+        lineScroll.setFillViewport(true);
+        card.addView(lineScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        lineText = text("", 16, 0xFFFFF3D5);
+        lineText.setGravity(Gravity.CENTER_VERTICAL);
+        lineText.setPadding(0, dp(4), 0, dp(4));
+        lineScroll.addView(lineText);
+        lineText.setOnClickListener(v -> advanceScene());
+
+        LinearLayout actions = new LinearLayout(getContext());
+        card.addView(actions);
+        Button questions = button("Perguntar");
+        addAction(actions, questions);
+        questions.setOnClickListener(v -> showTopics(questions));
         nextButton = button("Continuar");
-        scene.addView(nextButton, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        addAction(actions, nextButton);
         nextButton.setOnClickListener(v -> advanceScene());
-        voiceButton = button("Ativar voz");
-        scene.addView(voiceButton, new LinearLayout.LayoutParams(dp(103), dp(40)));
-        voiceButton.setOnClickListener(v -> toggleVoice());
 
-        LinearLayout topics = new LinearLayout(getContext());
-        chat.addView(topics);
-        addTopic(topics, "Início", "Como começo?");
-        addTopic(topics, "Combate", "Como funciona o combate?");
-        addTopic(topics, "Mapa", "Como uso o mapa?");
-
-        LinearLayout composer = new LinearLayout(getContext());
+        composer = new LinearLayout(getContext());
         composer.setGravity(Gravity.CENTER_VERTICAL);
-        chat.addView(composer);
+        composer.setVisibility(View.GONE);
+        foreground.addView(composer);
         question = new EditText(getContext());
         question.setSingleLine(true);
         question.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
@@ -139,6 +139,9 @@ public final class GuideChatDialog extends Dialog {
         question.setPadding(dp(8), 0, dp(8), 0);
         question.setImeOptions(EditorInfo.IME_ACTION_SEND | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         composer.addView(question, new LinearLayout.LayoutParams(0, dp(44), 1f));
+        Button cancel = button("Cancelar");
+        composer.addView(cancel, new LinearLayout.LayoutParams(-2, dp(48)));
+        cancel.setOnClickListener(v -> closeComposer());
         Button send = button("Enviar");
         composer.addView(send, new LinearLayout.LayoutParams(dp(84), dp(44)));
         send.setOnClickListener(v -> sendQuestion());
@@ -149,8 +152,7 @@ public final class GuideChatDialog extends Dialog {
         });
         setContentView(root);
         root.requestFocus();
-        renderHistory();
-        updateSceneButton();
+        showLine(lastLine(), false);
     }
 
     @Override protected void onStart() {
@@ -159,42 +161,66 @@ public final class GuideChatDialog extends Dialog {
     }
 
     @Override protected void onStop() {
-        pauseSpeech();
-        if (voice != null) {
-            voice.close();
-            voice = null;
-        }
-        voiceEnabled = false;
+        finishSpeech();
         super.onStop();
-    }
-
-    public void pauseSpeech() {
-        voiceRequested = false;
-        finishSpeech(true);
     }
 
     @Override public void show() {
         super.show();
         Window window = getWindow();
         if (window == null) return;
-        android.util.DisplayMetrics m = getContext().getResources().getDisplayMetrics();
         window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
             | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-        window.setLayout(Math.min(dp(780), m.widthPixels - dp(24)), (int) (m.heightPixels * .89f));
+        window.setLayout(-1, -1);
     }
 
-    private void addTopic(LinearLayout row, String label, String prompt) {
-        Button topic = button(label);
-        row.addView(topic, new LinearLayout.LayoutParams(0, dp(40), 1f));
-        topic.setOnClickListener(v -> ask(prompt));
+    private void addAction(LinearLayout row, Button button) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        if (row.getChildCount() > 0) params.leftMargin = dp(8);
+        row.addView(button, params);
+    }
+
+    private void showTopics(View anchor) {
+        PopupMenu menu = new PopupMenu(getContext(), anchor);
+        addTopic(menu, "Como come?o?");
+        addTopic(menu, "Como funciona o combate?");
+        addTopic(menu, "Como uso o mapa?");
+        menu.getMenu().add("Escrever pergunta…").setOnMenuItemClickListener(item -> {
+            composer.setVisibility(View.VISIBLE);
+            question.requestFocus();
+            question.post(() -> {
+                if (question.hasFocus()) keyboard().showSoftInput(question, 0);
+            });
+            return true;
+        });
+        menu.show();
+    }
+
+    private void addTopic(PopupMenu menu, String prompt) {
+        menu.getMenu().add(prompt).setOnMenuItemClickListener(item -> {
+            closeComposer();
+            ask(prompt);
+            return true;
+        });
+    }
+
+    private android.view.inputmethod.InputMethodManager keyboard() {
+        return getContext().getSystemService(android.view.inputmethod.InputMethodManager.class);
+    }
+
+    private void closeComposer() {
+        keyboard().hideSoftInputFromWindow(question.getWindowToken(), 0);
+        question.clearFocus();
+        composer.setVisibility(View.GONE);
     }
 
     private void sendQuestion() {
         String value = question.getText().toString().trim();
         if (value.isEmpty()) return;
         question.setText("");
+        closeComposer();
         ask(value);
     }
 
@@ -204,21 +230,20 @@ public final class GuideChatDialog extends Dialog {
 
     private void advanceScene() {
         if (speaking != null && visibleCharacters < speaking.text.length()) {
-            finishSpeech(true);
+            finishSpeech();
             return;
         }
-        play(conversation.hasIntroLine() ? conversation.nextIntroLine() : conversation.replayIntro());
+        if (conversation.hasReply()) play(conversation.nextReply());
+        else play(conversation.hasIntroLine() ? conversation.nextIntroLine() : conversation.replayIntro());
     }
 
     private void play(DialogueLine line) {
         if (line == null) return;
-        finishSpeech(true);
+        finishSpeech();
         speaking = line;
         visibleCharacters = 0;
         speechStarted = SystemClock.uptimeMillis();
-        renderHistory();
-        updateSceneButton();
-        if (voiceEnabled) read(line);
+        showLine(line, true);
         main.post(speechFrame);
     }
 
@@ -226,36 +251,39 @@ public final class GuideChatDialog extends Dialog {
         if (speaking == null) return;
         long elapsed = SystemClock.uptimeMillis() - speechStarted;
         int count = Math.min(speaking.text.length(), (int) (elapsed / 23));
-        if (speakingText != null && count != visibleCharacters) {
+        if (count != visibleCharacters) {
             visibleCharacters = count;
-            speakingText.setText(speaking.text.substring(0, count));
-            scrollHistoryToEnd();
-            updateSceneButton();
+            lineText.setText(speaking.text.substring(0, count));
         }
-        if (count >= speaking.text.length() && !voicePlaying) {
-            finishSpeech(false);
+        if (count >= speaking.text.length()) {
+            finishSpeech();
             return;
         }
         boolean mouthOpen = elapsed % 390 >= 110 && elapsed % 390 < 265;
-        showSpeaker(speaking, mouthOpen, true);
+        showSpeaker(speaking, mouthOpen);
         main.postDelayed(speechFrame, 32);
     }
 
-    private void finishSpeech(boolean stopVoice) {
+    private void finishSpeech() {
         main.removeCallbacks(speechFrame);
-        if (stopVoice && voice != null) voice.stop();
-        voicePlaying = false;
-        if (speaking != null && speakingText != null) speakingText.setText(speaking.text);
+        if (speaking != null) lineText.setText(speaking.text);
         speaking = null;
-        speakingText = null;
-        showSpeaker(lastLine(), false, false);
-        scrollHistoryToEnd();
+        showSpeaker(lastLine(), false);
+        updateSceneButton();
+    }
+
+    private void showLine(DialogueLine line, boolean animate) {
+        speakerLabel.setText(line == null ? "" : line.speakerId);
+        lineText.setText(animate || line == null ? "" : line.text);
+        lineScroll.scrollTo(0, 0);
+        showSpeaker(line, false);
         updateSceneButton();
     }
 
     private void updateSceneButton() {
-        if (speaking != null && visibleCharacters < speaking.text.length()) nextButton.setText("Mostrar fala");
-        else nextButton.setText(conversation.hasIntroLine() ? "Continuar" : "Rever diálogo");
+        if (speaking != null) nextButton.setText("Mostrar fala");
+        else if (conversation.hasReply() || conversation.hasIntroLine()) nextButton.setText("Continuar");
+        else nextButton.setText("Rever diálogo");
     }
 
     private DialogueLine lastLine() {
@@ -263,102 +291,21 @@ public final class GuideChatDialog extends Dialog {
         return lines.isEmpty() ? null : lines.get(lines.size() - 1);
     }
 
-    private void showSpeaker(DialogueLine line, boolean mouthOpen, boolean playing) {
-        boolean guideSpeaking = line != null && isGuide(line);
-        portrait.pose(guideSpeaking ? line.expression : "neutral", blue, guideSpeaking && mouthOpen);
-        portrait.setAlpha(playing && !guideSpeaking ? .68f : 1f);
-        hero.setAlpha(playing && guideSpeaking ? .68f : 1f);
-        hero.setTranslationY(playing && !guideSpeaking && mouthOpen ? -dp(2) : 0);
-        speakerLabel.setText(line == null ? "Iara e você" : line.speakerId);
-    }
-
-    private static boolean isGuide(DialogueLine line) {
-        return GuideConversation.NAME.equals(line.speakerId);
-    }
-
-    private void toggleVoice() {
-        if (voiceEnabled) {
-            voiceEnabled = voicePlaying = false;
-            if (voice != null) voice.stop();
-            voiceButton.setText("Ativar voz");
-            return;
-        }
-        if (voice != null) {
-            enableVoice();
-            return;
-        }
-        voiceButton.setEnabled(false);
-        voiceRequested = true;
-        voice = new GuideVoice(getContext(), ready -> {
-            voiceButton.setEnabled(true);
-            if (!ready) {
-                if (voice != null) voice.close();
-                voice = null;
-                if (voiceRequested && isShowing()) {
-                    Toast.makeText(getContext(), "Nenhuma voz offline em português está instalada.", Toast.LENGTH_SHORT).show();
-                }
-            } else if (voiceRequested && isShowing()) enableVoice();
-            voiceRequested = false;
-        });
-    }
-
-    private void enableVoice() {
-        voiceEnabled = true;
-        voiceButton.setText("Desligar voz");
-        DialogueLine line = speaking != null ? speaking : lastLine();
-        if (line == null) return;
-        if (speaking == null) {
-            speaking = line;
-            visibleCharacters = line.text.length();
-            speechStarted = SystemClock.uptimeMillis() - visibleCharacters * 23L;
-            main.post(speechFrame);
-        }
-        read(line);
-    }
-
-    private void read(DialogueLine line) {
-        voicePlaying = voice != null && voice.speak(line.text, isGuide(line), () -> voicePlaying = false);
-    }
-
-    private void renderHistory() {
-        history.removeAllViews();
-        speakingText = null;
-        java.util.List<DialogueLine> lines = conversation.lines();
-        for (int index = 0; index < lines.size(); index++) {
-            DialogueLine line = lines.get(index);
-            boolean guide = isGuide(line);
-            LinearLayout bubble = column();
-            bubble.setPadding(dp(8), dp(4), dp(8), dp(6));
-            bubble.setBackground(panel(guide ? 0xFF254233 : 0xFF38432E));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-            params.bottomMargin = dp(5);
-            if (guide) params.rightMargin = dp(20); else params.leftMargin = dp(20);
-            TextView speaker = text(line.speakerId, 12, 0xFFEAD69D);
-            speaker.setTypeface(Typeface.DEFAULT_BOLD);
-            bubble.addView(speaker);
-            if (index == lines.size() - 1 && speaking == line) {
-                speakingText = text("", 14, 0xFFF1EDD9);
-                bubble.addView(speakingText);
-            } else bubble.addView(text(line.text, 14, 0xFFF1EDD9));
-            history.addView(bubble, params);
-        }
-        showSpeaker(lastLine(), false, speaking != null);
-        scrollHistoryToEnd();
-    }
-
-    private void scrollHistoryToEnd() {
-        historyScroll.post(() -> historyScroll.scrollTo(0, history.getHeight()));
+    private void showSpeaker(DialogueLine line, boolean mouthOpen) {
+        boolean guideSpeaking = line != null && GuideConversation.NAME.equals(line.speakerId);
+        portrait.setVisibility(guideSpeaking ? View.VISIBLE : View.INVISIBLE);
+        hero.setVisibility(line != null && !guideSpeaking ? View.VISIBLE : View.INVISIBLE);
+        if (guideSpeaking) portrait.pose(line.expression, blue, mouthOpen);
     }
 
     private void updateSkin() {
-        portrait.pose("neutral", blue, false);
         skinButton.setText(blue ? "Visual: Azul" : "Visual: Branco");
     }
 
     private void toggleSkin() {
         blue = !blue;
         updateSkin();
-        showSpeaker(lastLine(), false, speaking != null);
+        showSpeaker(lastLine(), false);
         skinSelected.accept(blue);
     }
 

@@ -15,8 +15,14 @@ import com.example.androidstudio2dgamedevelopment.R;
 /** The guide follows a walking route wholly inside the sanctuary. */
 public final class SanctuaryGuide extends GameObject {
     public static final double TALK_DISTANCE = 176;
-    private static final int FRAME_WIDTH = 64;
-    private static final int FRAME_HEIGHT = 72;
+    private static final int FRAME_WIDTH = 128;
+    private static final int FRAME_HEIGHT = 144;
+    private static final float HALF_WIDTH = 55f;
+    private static final float SPRITE_TOP = -116f;
+    private static final float SPRITE_BOTTOM = 7f;
+    private static final float MARKER_TOP = SPRITE_TOP - 19f;
+    private static final float MARKER_BOTTOM = SPRITE_TOP - 2f;
+    private static final float MARKER_HALF_WIDTH = 38f;
     private static final double WALK_STEP = 1.65;
     private static final double[][] ROUTE = {{133, 26}, {234, 1}, {291, 86}, {187, 164}, {82, 132}};
 
@@ -38,7 +44,7 @@ public final class SanctuaryGuide extends GameObject {
         ResourceManager resources = ResourceManager.shared(context);
         whiteSprites = resources.bitmap(R.drawable.guide_walk, false);
         blueSprites = resources.bitmap(R.drawable.guide_walk_blue, false);
-        pixels.setFilterBitmap(false);
+        pixels.setFilterBitmap(true);
         marker.setTextAlign(Paint.Align.CENTER);
         marker.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         marker.setTextSize(14f);
@@ -63,7 +69,10 @@ public final class SanctuaryGuide extends GameObject {
         double zoom = view.getZoom();
         double px = width * .5 + (view.gameToDisplayCoordinatesX(positionX) - width * .5) * zoom;
         double py = height * .5 + (view.gameToDisplayCoordinatesY(positionY) - height * .5) * zoom;
-        return Math.abs(x - px) <= 28 * zoom && y >= py - 58 * zoom && y <= py + 32 * zoom;
+        double offsetY = (y - py) / zoom;
+        double halfWidth = offsetY < SPRITE_TOP ? MARKER_HALF_WIDTH : HALF_WIDTH;
+        return Math.abs(x - px) <= halfWidth * zoom
+            && offsetY >= MARKER_TOP && offsetY <= SPRITE_BOTTOM;
     }
 
     @Override public void update() {
@@ -97,8 +106,10 @@ public final class SanctuaryGuide extends GameObject {
     @Override public void draw(Canvas canvas, GameDisplay view) {
         Bitmap atlas = blue ? blueSprites : whiteSprites;
         Rect visible = view.getGameRect();
-        if (atlas == null || positionX < visible.left - 38 || positionX > visible.right + 38
-                || positionY < visible.top - 32 || positionY > visible.bottom + 58) return;
+        if (atlas == null || positionX + HALF_WIDTH < visible.left
+                || positionX - HALF_WIDTH > visible.right
+                || positionY + SPRITE_BOTTOM < visible.top
+                || positionY + MARKER_TOP > visible.bottom) return;
         int step = walkTicks == 0 ? 0 : (walkTicks / 10) % 4;
         int col = step == 1 ? 1 : step == 3 ? 2 : 0;
         int row = facing.ordinal();
@@ -106,13 +117,14 @@ public final class SanctuaryGuide extends GameObject {
             (col + 1) * FRAME_WIDTH, (row + 1) * FRAME_HEIGHT);
         float x = Math.round(view.gameToDisplayCoordinatesX(positionX));
         float y = Math.round(view.gameToDisplayCoordinatesY(positionY));
-        destination.set(x - FRAME_WIDTH / 2f, y - 40, x + FRAME_WIDTH / 2f, y + 32);
+        destination.set(x - HALF_WIDTH, y + SPRITE_TOP, x + HALF_WIDTH, y + SPRITE_BOTTOM);
         canvas.drawBitmap(atlas, frame, destination, pixels);
         if (isNearby()) {
             marker.setColor(0xED14271E);
-            canvas.drawRoundRect(x - 38, y - 58, x + 38, y - 41, 4, 4, marker);
+            canvas.drawRoundRect(x - MARKER_HALF_WIDTH, y + MARKER_TOP,
+                x + MARKER_HALF_WIDTH, y + MARKER_BOTTOM, 4, 4, marker);
             marker.setColor(0xFFFFEDAD);
-            canvas.drawText("Conversar", x, y - 45, marker);
+            canvas.drawText("Conversar", x, y + MARKER_BOTTOM - 4, marker);
         }
     }
 }
