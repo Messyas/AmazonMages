@@ -49,9 +49,101 @@
   },
   "smooth": {
    "smooth": true
+  },
+  "boitata_anim": {
+   "source_cell": [768, 768],
+   "downsample": 8,
+   "scale": 2,
+   "fit": "cell",
+   "palette": "boitata",
+   "alpha_thr": 0.5,
+   "outline_bias": 0.2,
+   "despeckle": true,
+   "min_island": 3
   }
  },
  "assets": {
+  "boitata_awaken": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["stone", "moss", "ember", "ivory"]
+  },
+  "boitata_eyes": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["stone", "moss", "ember", "ivory"]
+  },
+  "boitata_orbit": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["blue_scales", "blue_fire", "ivory"]
+  },
+  "boitata_bite": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["blue_scales", "blue_fire", "ivory"],
+   "min_island": 6
+  },
+  "boitata_cast": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["blue_scales", "blue_fire", "ivory"],
+   "min_island": 6
+  },
+  "boitata_encircle": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["blue_scales", "blue_fire", "ivory"]
+  },
+  "boitata_recover": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["blue_scales", "blue_fire", "ivory"]
+  },
+  "boitata_phase_shift": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1
+  },
+  "boitata_defeat": {
+   "kind": "boitata_anim",
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["blue_scales", "blue_fire", "ivory"]
+  },
+  "boitata_fireball": {
+   "kind": "boitata_anim",
+   "source_cell": [192, 192],
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["blue_scales", "blue_fire"],
+   "min_island": 1
+  },
+  "boitata_loot": {
+   "kind": "boitata_anim",
+   "source_cell": [192, 192],
+   "cols": 3,
+   "rows": 1,
+   "fit": "trim",
+   "shared": false,
+   "fill": 0.9,
+   "ramps": ["stone", "moss", "ember", "ivory", "venom"],
+   "min_island": 1
+  },
+  "boitata_arena_props": {
+   "kind": "boitata_anim",
+   "source_cell": [512, 512],
+   "cols": 3,
+   "rows": 1,
+   "ramps": ["stone", "moss", "ember"]
+  },
   "player_idle": {
    "kind": "anim",
    "cols": 4,

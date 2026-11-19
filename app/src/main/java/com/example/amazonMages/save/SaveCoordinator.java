@@ -52,11 +52,14 @@ public final class SaveCoordinator {
             if (row.selected) weapons.select(row.weaponSlot);
         }
         pickups.clear();
+        int temporaryCount = 0;
         for (WorldPickupEntity row : ground) {
             ItemDefinition item = registry.get(row.itemId);
-            if (pickups.size() >= 64) break;
             if (item == null || row.quantity < 1 || row.remainingTicks < 1 || !Double.isFinite(row.x) || !Double.isFinite(row.y)
                 || row.x < 0 || row.y < 0) continue;
+            boolean permanent = ItemCatalog.boitataLootFrame(item.id) >= 0;
+            if (!permanent && temporaryCount >= 64) continue;
+            if (!permanent) temporaryCount++;
             int index = pickups.size();
             double x = legacy ? geometry.spawn.worldX() + (index % 8 - 3.5) * 80 : row.x;
             double y = legacy ? geometry.spawn.worldY() + 400 + (index / 8 - 3.5) * 80 : row.y;
@@ -64,7 +67,8 @@ public final class SaveCoordinator {
             pickups.create().add(TransformComponent.class, new TransformComponent(safe.x, safe.y))
                 .add(ColliderComponent.class, new ColliderComponent(13))
                 .add(PickupComponent.class, new PickupComponent(item.id, Math.min(row.quantity, item.maxStack)))
-                .add(LifetimeComponent.class, new LifetimeComponent(Math.min(36000, row.remainingTicks)));
+                .add(LifetimeComponent.class, new LifetimeComponent(
+                    permanent ? LifetimeComponent.PERMANENT : Math.min(36000, row.remainingTicks)));
         }
     }
 

@@ -31,6 +31,8 @@ public final class AttributesPanel {
     private final RectF[][] nodeRects = new RectF[3][3];
     private final RectF[] attrPlusRects = new RectF[KEYS.length];
 
+    private float treeSplitX;
+
     private PixelUiKit fallbackUiKit;
     private SkillTree skillTree;
     private String selectedNodeId = "golpe_triplo";
@@ -58,7 +60,9 @@ public final class AttributesPanel {
         open = !open;
         if (open && skillTree != null) activeTab = 0;
     }
-    public void close() { open = false; }
+    public void close() {
+        open = false;
+    }
     public void selectTab(int tab) {
         if (tab == 0 || tab == 1) activeTab = tab;
     }
@@ -86,7 +90,8 @@ public final class AttributesPanel {
             for (int b = 0; b < BRANCHES.length; b++) {
                 List<SkillTree.Node> branchNodes = skillTree.nodesForBranch(BRANCHES[b]);
                 for (int t = 0; t < branchNodes.size() && t < 3; t++) {
-                    if (nodeRects[b][t].contains(x, y)) {
+                    RectF r = nodeRects[b][t];
+                    if (r.contains(x, y)) {
                         selectedNodeId = branchNodes.get(t).id;
                         return false;
                     }
@@ -102,7 +107,10 @@ public final class AttributesPanel {
             return true;
         }
         for (int i = 0; i < attrPlusRects.length; i++) {
-            if (attrPlusRects[i].contains(x, y)) return stats.allocate(KEYS[i]);
+            RectF r = attrPlusRects[i];
+            if (r.contains(x, y)) {
+                return stats.allocate(KEYS[i]);
+            }
         }
         return false;
     }
@@ -153,8 +161,7 @@ public final class AttributesPanel {
     }
 
     private void drawSkillTreeView(Canvas canvas, PixelUiKit ui, PlayerProgression stats) {
-        float splitX = panelRect.left + panelRect.width() * .60f;
-        ui.drawDividerV(canvas, splitX, tabTreeRect.bottom + 8f, panelRect.bottom - 12f);
+        ui.drawDividerV(canvas, treeSplitX, tabTreeRect.bottom + 8f, panelRect.bottom - 12f);
 
         for (int b = 0; b < BRANCHES.length; b++) {
             SkillTree.Branch branch = BRANCHES[b];
@@ -162,7 +169,7 @@ public final class AttributesPanel {
             RectF first = nodeRects[b][0];
             int branchColor = b == 0 ? 0xFFF4AE8A : b == 1 ? 0xFF9EE6A8 : 0xFF7CC4F0;
             ui.drawTextShadow(canvas, branch.label.toUpperCase(Locale.ROOT),
-                first.left - 4f, first.top - 6f, Math.max(10f, panelRect.height() * .026f),
+                first.left + 2f, first.top - 4f, Math.max(10f, panelRect.height() * .029f),
                 branchColor, true, Paint.Align.LEFT);
 
             // Pixel-bordered horizontal wooden/gold branch connectors between Tier 1 -> 2 -> 3
@@ -170,9 +177,10 @@ public final class AttributesPanel {
                 RectF cur = nodeRects[b][t];
                 RectF nxt = nodeRects[b][t + 1];
                 boolean activeLink = skillTree.rank(branchNodes.get(t).id) > 0;
-                float cy = cur.centerY();
-                float linkLeft = cur.right - 2f;
-                float linkRight = nxt.left + 2f;
+                float medSize = nodeMedallionSize(cur);
+                float cy = cur.top + medSize * .5f;
+                float linkLeft = cur.centerX() + medSize * .36f;
+                float linkRight = nxt.centerX() - medSize * .36f;
                 shapePaint.setColor(0xFF0B1A12);
                 canvas.drawRect(linkLeft, cy - 5f, linkRight, cy + 5f, shapePaint);
                 shapePaint.setColor(activeLink ? 0xFFC99A2E : 0xFF2E3B2A);
@@ -199,7 +207,7 @@ public final class AttributesPanel {
         int medallionState = medallionStateFor(sel, rank, stats);
 
         float cx = inspectorRect.centerX();
-        float medSize = Math.min(inspectorRect.width() * .30f, inspectorRect.height() * .23f);
+        float medSize = Math.min(inspectorRect.width() * .30f, inspectorRect.height() * .18f);
         RectF medRect = new RectF(cx - medSize * .5f, inspectorRect.top + 12f,
             cx + medSize * .5f, inspectorRect.top + 12f + medSize);
         ui.drawSkillMedallion(canvas, medRect, medallionState, selIdx, false);
@@ -210,7 +218,7 @@ public final class AttributesPanel {
 
         // Rank progress bar
         float barW = inspectorRect.width() * .56f;
-        float barH = Math.max(22f, Math.min(30f, inspectorRect.height() * .050f));
+        float barH = Math.max(14f, Math.min(26f, inspectorRect.height() * .050f));
         barRect.set(cx - barW * .5f, titleY + 10f, cx + barW * .5f, titleY + 10f + barH);
         ui.drawBar(canvas, barRect, rank / (float) Math.max(1, sel.maxRank), rank >= sel.maxRank ? 1 : 0);
         float rankSize = Math.max(10.5f, inspectorRect.height() * .033f);
@@ -257,7 +265,7 @@ public final class AttributesPanel {
         boolean selected = node.id.equals(selectedNodeId);
         int state = medallionStateFor(node, rank, stats);
 
-        float medSize = Math.min(slotRect.width(), slotRect.height() * .74f);
+        float medSize = nodeMedallionSize(slotRect);
         RectF medRect = new RectF(slotRect.centerX() - medSize * .5f, slotRect.top,
             slotRect.centerX() + medSize * .5f, slotRect.top + medSize);
         ui.drawSkillMedallion(canvas, medRect, state, iconIndex, selected);
@@ -275,6 +283,10 @@ public final class AttributesPanel {
         int rankColor = state == 3 ? 0xFFF2D36B : state == 2 ? 0xFF9BF06A : state == 1 ? 0xFF8BE065 : 0xFF7D8C78;
         ui.drawTextShadow(canvas, rankLabel, medRect.right - 2f, medRect.bottom - 2f,
             Math.max(9.5f, labelSize * 1.05f), rankColor, true, Paint.Align.RIGHT);
+    }
+
+    private float nodeMedallionSize(RectF slot) {
+        return Math.max(1f, Math.min(slot.width() * .90f, slot.height() * .81f));
     }
 
     private void drawAttributesView(Canvas canvas, PixelUiKit ui, PlayerProgression stats, boolean hasTabs) {
@@ -347,8 +359,7 @@ public final class AttributesPanel {
     }
 
     private void computeLayout(int width, int height) {
-        float panelRight = Math.min(width * .905f, width - Math.max(150f, width * .10f));
-        panelRect.set(width * .045f, height * .08f, panelRight, height * .95f);
+        panelRect.set(width * .026f, height * .065f, width * .974f, height * .967f);
         float pw = panelRect.width(), ph = panelRect.height();
         float closeSize = Math.max(38f, Math.min(52f, ph * .09f));
         closeRect.set(panelRect.right - closeSize - 10f, panelRect.top + 8f,
@@ -361,16 +372,16 @@ public final class AttributesPanel {
         tabTreeRect.set(panelRect.left + 16f, tabTop, panelRect.left + 16f + tabW, tabTop + tabH);
         tabAttrRect.set(tabTreeRect.right + 10f, tabTop, tabTreeRect.right + 10f + tabW, tabTop + tabH);
 
-        float splitX = panelRect.left + pw * .60f;
-        float bodyTop = tabTreeRect.bottom + 24f;
+        treeSplitX = panelRect.left + pw * .65f;
+        float bodyTop = tabTreeRect.bottom + 9f;
         float bodyBottom = panelRect.bottom - 14f;
-        float treeLeft = panelRect.left + 20f;
-        float treeRight = splitX - 14f;
+        float treeLeft = panelRect.left + 12f;
+        float treeRight = treeSplitX - 12f;
         float laneH = (bodyBottom - bodyTop) / 3f;
-        float gapX = Math.max(14f, (treeRight - treeLeft) * .06f);
+        float gapX = Math.min(14f, (treeRight - treeLeft) * .026f);
         float nodeW = (treeRight - treeLeft - gapX * 2f) / 3f;
         for (int b = 0; b < 3; b++) {
-            float laneTop = bodyTop + b * laneH + 14f;
+            float laneTop = bodyTop + b * laneH + Math.max(12f, ph * .031f);
             float laneBottom = bodyTop + (b + 1) * laneH - 4f;
             for (int t = 0; t < 3; t++) {
                 float nl = treeLeft + t * (nodeW + gapX);
@@ -378,8 +389,8 @@ public final class AttributesPanel {
             }
         }
 
-        inspectorRect.set(splitX + 10f, tabTreeRect.bottom + 10f, panelRect.right - 16f, panelRect.bottom - 14f);
-        float btnH = Math.max(42f, Math.min(54f, inspectorRect.height() * .11f));
+        inspectorRect.set(treeSplitX + 10f, tabTreeRect.bottom + 10f, panelRect.right - 14f, panelRect.bottom - 14f);
+        float btnH = Math.max(30f, Math.min(54f, inspectorRect.height() * .13f));
         float insBtnW = Math.min(280f, inspectorRect.width() - 28f);
         float insCx = inspectorRect.centerX();
         respecRect.set(insCx - insBtnW * .5f, inspectorRect.bottom - btnH - 10f,
@@ -395,8 +406,8 @@ public final class AttributesPanel {
         float attrRight = panelRect.left + pw * .53f - 12f;
         float rowTop = (skillTree == null ? panelRect.top + 64f : tabTreeRect.bottom + 36f);
         float availH = bottomCloseRect.top - 12f - rowTop;
-        float rowHeight = Math.max(24f, availH / KEYS.length);
-        float stepSize = Math.max(24f, Math.min(38f, rowHeight - 4f));
+        float rowHeight = Math.max(1f, availH / KEYS.length);
+        float stepSize = Math.max(1f, Math.min(38f, rowHeight - 2f));
         for (int i = 0; i < KEYS.length; i++) {
             float cy = rowTop + i * rowHeight + rowHeight * .5f;
             attrPlusRects[i].set(attrRight - stepSize, cy - stepSize * .5f, attrRight, cy + stepSize * .5f);

@@ -140,4 +140,24 @@ public class WorldDefinitionTest {
         double y = (root.start.row + root.end.row) / 2 * 64;
         assertFalse(world.isWalkable(x, y, 16));
     }
+
+    @Test public void sanctuaryZoneHasZeroDangerAndBastionsHaveSolidCollision() {
+        assertTrue(world.isInsideSanctuary(world.spawn.worldX(), world.spawn.worldY()));
+        assertEquals(0.0, world.dangerFactorAt(world.spawn.worldX(), world.spawn.worldY()), 0.001);
+
+        // Calm inner ring
+        double calmDanger = world.dangerFactorAt((96 + 18) * 64, 100 * 64);
+        assertTrue(calmDanger >= 0.35 && calmDanger <= 0.60);
+
+        // Outer chaotic borders
+        double borderDanger = world.dangerFactorAt((96 + 70) * 64, 100 * 64);
+        assertTrue(borderDanger >= 0.90 && borderDanger <= 1.35);
+
+        // Center courtyard is walkable while bastion towers block movement
+        assertTrue(world.isWalkable(world.spawn.worldX(), world.spawn.worldY(), 32));
+        assertFalse(world.isWalkable(88.5 * 64, (94.0 - 0.8) * 64, 16));
+        assertFalse(world.isWalkable(103.5 * 64, (94.0 - 0.8) * 64, 16));
+        assertFalse(world.isWalkable(88.5 * 64, (106.5 - 0.8) * 64, 16));
+        assertFalse(world.isWalkable(103.5 * 64, (106.5 - 0.8) * 64, 16));
+    }
 }

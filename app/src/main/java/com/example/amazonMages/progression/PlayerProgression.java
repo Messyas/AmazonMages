@@ -27,7 +27,8 @@ public final class PlayerProgression {
     }
 
     public static long experienceToNextLevel(int level) {
-        return 100L * Math.max(1, level);
+        int safeLvl = Math.max(1, level);
+        return 150L + (safeLvl - 1) * 95L + (long) (safeLvl - 1) * (safeLvl - 1) * 16L;
     }
 
     /** XP can grant multiple levels, but never awards XP from events automatically. */

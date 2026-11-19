@@ -104,6 +104,7 @@ public class Enemy extends Circle {
     public int getMaximumHealth() { return template == null ? config.maxHealth : template.maxHealth; }
     public double getHealthRatio() { return Math.max(0, health) / (double) getMaximumHealth(); }
     public int getMeleeDamage() { return meleeDamage; }
+    public boolean isTargetable() { return !isDead(); }
     public boolean isFlying() { return template == null || template.flying; }
     public boolean isStunned() { return stunTicks > 0; }
 
@@ -268,7 +269,8 @@ public class Enemy extends Circle {
 
     public void receiveHit(DamageEvent hit) {
         if (deathTicks >= 0 || hit.amount <= 0) return;
-        preciseHealth = Math.max(0, preciseHealth - DamageResolver.resolve(hit, combatStats, null));
+        preciseHealth = Math.max(minimumHealthAfterHit(),
+            preciseHealth - DamageResolver.resolve(hit, combatStats, null));
         health = (int) Math.ceil(preciseHealth);
         hurtFlashTicks = 6;
         if (template != null) phase = Math.max(phase, template.phaseFor(health));
@@ -277,6 +279,18 @@ public class Enemy extends Circle {
             deathTicks = 0;
             animation.react(GhostAnimation.DEATH);
         } else animation.react(GhostAnimation.HURT);
+    }
+
+    protected double minimumHealthAfterHit() { return 0; }
+
+    protected void restoreFullHealth() {
+        preciseHealth = getMaximumHealth();
+        health = getMaximumHealth();
+        phase = 0;
+        deathTicks = -1;
+        hurtFlashTicks = 0;
+        stunTicks = 0;
+        posture.restore(100);
     }
 
     public boolean finishedDeath() {

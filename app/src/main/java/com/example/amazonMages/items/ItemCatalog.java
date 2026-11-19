@@ -6,6 +6,9 @@ import static com.example.amazonMages.effects.GameplayEffect.Kind.*;
 
 /** Stable IDs are part of the save format. */
 public final class ItemCatalog {
+    public static final String BOITATA_SKIN = "pele_boitata";
+    public static final String BOITATA_FANG = "dente_venenoso";
+    public static final String BOITATA_EYE = "olho_boitata";
     public static final WeaponDefinition STAFF = new WeaponDefinition("Cajado do Pantano",
         WeaponType.INTRINSIC, new DamageEvent(1, 10, DamageType.MAGIC));
     private ItemCatalog() {}
@@ -19,7 +22,17 @@ public final class ItemCatalog {
             .register(new ItemDefinition("elixir", "Elixir da Castanheira", "Cura 4 de vida e fortalece a vitalidade.", 10, null, new GameplayEffect(HEAL, 4, 0, DamageType.MAGIC)))
             .register(new ItemDefinition("bomba_coco", "Bomba de Pororoca", "Explode onda arcana de 240px e recarrega o Especial.", 15, null, new GameplayEffect(BOOST, .15, 120, DamageType.MAGIC)))
             .register(new ItemDefinition("tonico", "Tonico de Tupa", "+30% velocidade/defesa por 10s e +30 Mana.", 10, null, new GameplayEffect(BOOST, .30, 600, DamageType.MAGIC)))
-            .register(new ItemDefinition("runa_ancestral", "Runa da Floresta", "Use para ganhar +1 Ponto de Habilidade permanente!", 10, null, new GameplayEffect(BOOST, .20, 180, DamageType.MAGIC)));
+            .register(new ItemDefinition("runa_ancestral", "Runa da Floresta", "Use para ganhar +1 Ponto de Habilidade permanente!", 10, null, new GameplayEffect(BOOST, .20, 180, DamageType.MAGIC)))
+            .register(new ItemDefinition(BOITATA_SKIN, "Pele de Boitatá", "Escamas resistentes ao calor. Material de criação.", 20, null))
+            .register(new ItemDefinition(BOITATA_FANG, "Dente Venenoso", "Presa que conserva uma gota de veneno. Material de criação.", 20, null))
+            .register(new ItemDefinition(BOITATA_EYE, "Olho de Boitatá", "Globo ocular que ainda brilha como brasa. Material de criação.", 20, null));
+    }
+
+    public static int boitataLootFrame(String id) {
+        if (BOITATA_SKIN.equals(id)) return 0;
+        if (BOITATA_FANG.equals(id)) return 1;
+        if (BOITATA_EYE.equals(id)) return 2;
+        return -1;
     }
     public static String weaponId(WeaponDefinition weapon) {
         if (weapon == WeaponLoadout.COCONUT) return "coco";

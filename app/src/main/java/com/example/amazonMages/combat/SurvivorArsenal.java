@@ -78,6 +78,10 @@ public final class SurvivorArsenal {
         return result;
     }
 
+    public void onManualShotFired() {
+        coconutCooldown = Math.max(coconutCooldown, 18);
+    }
+
     public void reduceAllCooldowns(int ticks) {
         int t = Math.max(0, ticks);
         coconutCooldown = Math.max(0, coconutCooldown - t);
@@ -131,12 +135,12 @@ public final class SurvivorArsenal {
             if (coconutCooldown > 0) coconutCooldown--;
             if (coconutCooldown <= 0 && hasTarget) {
                 int count = coconutLevel >= 5 ? 4 : coconutLevel >= 3 ? 3 : coconutLevel >= 2 ? 2 : 1;
-                double dmg = (1.2 + (coconutLevel - 1) * 0.3) * physMult;
+                double dmg = (0.95 + (coconutLevel - 1) * 0.3) * physMult;
                 autoCoconutVolley++;
                 lastVolleyExplosive = activeExplosiveRadius() > 0 && autoCoconutVolley % 3 == 0;
                 sink.fireCoconutFan(count, dmg);
-                int baseCd = Math.max(15, 30 - (coconutLevel - 1) * 4);
-                coconutCooldown = Math.max(10, (int) Math.round(baseCd / castSpeed));
+                int baseCd = coconutLevel == 1 ? 48 : Math.max(16, 32 - (coconutLevel - 2) * 5);
+                coconutCooldown = Math.max(12, (int) Math.round(baseCd / castSpeed));
             }
         }
 
@@ -184,9 +188,12 @@ public final class SurvivorArsenal {
     public List<UpgradeOption> generateChoices(Random random) {
         List<UpgradeOption> pool = new ArrayList<>();
         if (coconutLevel < MAX_WEAPON_LEVEL) {
-            pool.add(new UpgradeOption(UpgradeKind.COCONUT, "Dominio dos Cocos",
-                coconutLevel == 1 ? "Dispara 2 cocos em leque automaticamente."
-                    : "Mais cocos, cadencia e dano fisico.",
+            String desc = coconutLevel == 1
+                ? "Dispara 2 cocos e adiciona mira adaptativa."
+                : coconutLevel == 2
+                ? "Dispara 3 cocos em leque com auto-mira 360 graus."
+                : "Mais cocos, cadencia acelerada e dano fisico.";
+            pool.add(new UpgradeOption(UpgradeKind.COCONUT, "Dominio dos Cocos", desc,
                 "Nv. " + coconutLevel + " -> " + (coconutLevel + 1), 7));
         }
         if (leafLevel < MAX_WEAPON_LEVEL) {

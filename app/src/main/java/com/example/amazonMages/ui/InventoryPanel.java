@@ -42,6 +42,14 @@ public final class InventoryPanel {
     private final RectF showcaseRect = new RectF();
     private final RectF[] ingredientRects = {new RectF(), new RectF(), new RectF()};
 
+    // Reusable scroll panes for inventory grid and craft recipes
+    private final PixelScrollPane bagScrollPane = new PixelScrollPane();
+    private final PixelScrollPane craftScrollPane = new PixelScrollPane();
+    private final RectF bagViewport = new RectF();
+    private final RectF craftViewport = new RectF();
+    private float bagContentHeight;
+    private float craftContentHeight;
+
     private PixelUiKit fallbackUiKit;
     private SkillTree skillTree;
     private int activeTab = 0; // 0 = Mochila, 1 = Alquimia (Craft)
@@ -72,7 +80,12 @@ public final class InventoryPanel {
     public boolean isOpen() { return open; }
     public void open() { open = true; activeTab = 0; }
     public void openCraft() { open = true; activeTab = 1; }
-    public void close() { open = false; cauldronBurstTicks = 0; }
+    public void close() {
+        open = false;
+        cauldronBurstTicks = 0;
+        bagScrollPane.reset();
+        craftScrollPane.reset();
+    }
     public void selectTab(int tab) { if (tab == 0 || tab == 1) activeTab = tab; }
     public int activeTab() { return activeTab; }
 
@@ -87,6 +100,76 @@ public final class InventoryPanel {
         int made = crafting.craft(selectedRecipe(), bag, registry);
         if (made > 0) cauldronBurstTicks = 50;
         return made;
+    }
+
+    /** Full touch dispatcher supporting gesture scrolling, tabs, slots and buttons. */
+    public int onTouch(android.view.MotionEvent event, int w, int h) {
+        if (!open) return ACTION_NONE;
+        layout(w, h);
+        float x = event.getX();
+        float y = event.getY();
+
+        // Dispatch scroll gesture first
+        if (activeTab == 0) {
+            if (bagScrollPane.onTouchEvent(event, bagViewport, bagContentHeight)) {
+                return ACTION_NONE;
+            }
+        } else {
+            if (craftScrollPane.onTouchEvent(event, craftViewport, craftContentHeight)) {
+                return ACTION_NONE;
+            }
+        }
+
+        if (event.getActionMasked() != android.view.MotionEvent.ACTION_UP &&
+            event.getActionMasked() != android.view.MotionEvent.ACTION_DOWN) {
+            return ACTION_NONE;
+        }
+
+        // On tap (ACTION_DOWN or ACTION_UP without drag)
+        if (event.getActionMasked() == android.view.MotionEvent.ACTION_UP) {
+            if (closeRect.contains(x, y) || !panelRect.contains(x, y)) {
+                close();
+                return ACTION_CLOSE;
+            }
+            if (tabBagRect.contains(x, y)) {
+                activeTab = 0;
+                return ACTION_NONE;
+            }
+            if (tabCraftRect.contains(x, y)) {
+                activeTab = 1;
+                return ACTION_NONE;
+            }
+            if (activeTab == 0) {
+                if (bagViewport.contains(x, y)) {
+                    float sy = bagScrollPane.getScrollY();
+                    for (int i = 0; i < itemSlotRects.length; i++) {
+                        RectF r = itemSlotRects[i];
+                        if (x >= r.left && x <= r.right && (y + sy) >= r.top && (y + sy) <= r.bottom) {
+                            selected = i;
+                            return ACTION_NONE;
+                        }
+                    }
+                }
+                if (useRect.contains(x, y) && selected().effect != null) return ACTION_USE;
+                for (int s = 0; s < weaponSlotRects.length; s++) {
+                    if (weaponSlotRects[s].contains(x, y)) return s;
+                }
+                return ACTION_NONE;
+            }
+
+            if (craftViewport.contains(x, y)) {
+                float sy = craftScrollPane.getScrollY();
+                for (int i = 0; i < recipeRowRects.length; i++) {
+                    RectF row = recipeRowRects[i];
+                    if (x >= row.left && x <= row.right && (y + sy) >= row.top && (y + sy) <= row.bottom) {
+                        selectedRecipe = i;
+                        return ACTION_NONE;
+                    }
+                }
+            }
+            if (craftBtnRect.contains(x, y)) return ACTION_CRAFT;
+        }
+        return ACTION_NONE;
     }
 
     /** -4: craft selected recipe, -2: close, -1: use, 0..3: equip weapon slot, -3: selection/consumed. */
@@ -106,21 +189,25 @@ public final class InventoryPanel {
             return ACTION_NONE;
         }
         if (activeTab == 0) {
+            float sy = bagScrollPane.getScrollY();
             for (int i = 0; i < itemSlotRects.length; i++) {
-                if (itemSlotRects[i].contains(x, y)) {
+                RectF r = itemSlotRects[i];
+                if (x >= r.left && x <= r.right && (y + sy) >= r.top && (y + sy) <= r.bottom) {
                     selected = i;
                     return ACTION_NONE;
                 }
             }
-            if (useRect.contains(x, y)) return ACTION_USE;
+            if (useRect.contains(x, y) && selected().effect != null) return ACTION_USE;
             for (int s = 0; s < weaponSlotRects.length; s++) {
                 if (weaponSlotRects[s].contains(x, y)) return s;
             }
             return ACTION_NONE;
         }
 
+        float sy = craftScrollPane.getScrollY();
         for (int i = 0; i < recipeRowRects.length; i++) {
-            if (recipeRowRects[i].contains(x, y)) {
+            RectF row = recipeRowRects[i];
+            if (x >= row.left && x <= row.right && (y + sy) >= row.top && (y + sy) <= row.bottom) {
                 selectedRecipe = i;
                 return ACTION_NONE;
             }
@@ -164,6 +251,7 @@ public final class InventoryPanel {
 
     private void drawBagTab(Canvas c, PixelUiKit ui, Inventory bag, WeaponLoadout weapons, String notice, float splitX) {
         int s = ui.scale();
+        bagScrollPane.begin(c, bagViewport);
         for (int i = 0; i < items.length; i++) {
             ItemDefinition item = items[i];
             int qty = bag.count(item.id);
@@ -177,6 +265,8 @@ public final class InventoryPanel {
             ui.drawTextShadow(c, badge, r.right - 3f * s, r.bottom - 3f * s,
                 Math.max(10f, r.height() * .24f), badgeColor, true, Paint.Align.RIGHT);
         }
+        bagScrollPane.end(c);
+        bagScrollPane.drawScrollbar(c, ui, bagViewport, bagContentHeight);
 
         float hotbarTop = weaponSlotRects[0].top;
         ui.drawDividerH(c, panelRect.left + 16f, splitX - 10f, hotbarTop - 16f);
@@ -211,7 +301,8 @@ public final class InventoryPanel {
         float textY = iconBox.bottom + titleSize * 1.25f;
         ui.drawTextShadow(c, sel.name, cx, textY, titleSize, 0xFFFFE082, true, Paint.Align.CENTER);
 
-        String cat = sel.weapon == null ? "Consumivel"
+        boolean material = sel.weapon == null && sel.effect == null;
+        String cat = material ? "Material" : sel.weapon == null ? "Consumível"
             : sel.effect != null ? "Arma & Municao" : "Arma";
         float catSize = Math.max(10.5f, showcaseRect.height() * .036f);
         textY += catSize * 1.40f;
@@ -229,11 +320,14 @@ public final class InventoryPanel {
         }
 
         boolean canUse = sel.effect != null && selQty > ("coco".equals(sel.id) ? 1 : 0);
-        ui.drawButton(c, useRect, sel.effect == null ? "SO EQUIPAVEL" : "USAR ITEM", canUse ? 0 : 2);
+        if (!material) {
+            ui.drawButton(c, useRect, sel.effect == null ? "SO EQUIPAVEL" : "USAR ITEM", canUse ? 0 : 2);
+        }
     }
 
     private void drawCraftTab(Canvas c, PixelUiKit ui, Inventory bag, String notice, float splitX) {
         List<CraftingSystem.Recipe> recipes = crafting.recipes();
+        craftScrollPane.begin(c, craftViewport);
         for (int i = 0; i < recipes.size(); i++) {
             CraftingSystem.Recipe r = recipes.get(i);
             RectF row = recipeRowRects[i];
@@ -265,6 +359,8 @@ public final class InventoryPanel {
             ui.drawTextShadow(c, tag, textLeft, row.centerY() + titleSize * 1.05f,
                 Math.max(9.5f, titleSize * .84f), tagColor, ready, Paint.Align.LEFT);
         }
+        craftScrollPane.end(c);
+        craftScrollPane.drawScrollbar(c, ui, craftViewport, craftContentHeight);
 
         // Right Altar of Alchemy
         showcaseRect.set(splitX + 10f, tabCraftRect.bottom + 10f, panelRect.right - 16f, panelRect.bottom - 14f);
@@ -357,11 +453,12 @@ public final class InventoryPanel {
         // Bag grid (3 cols) + bottom weapon hotbar slots
         float hotbarH = Math.min(68f, (bodyBottom - bodyTop) * .24f);
         float gridBottom = bodyBottom - hotbarH - 22f;
+        bagViewport.set(leftMargin, bodyTop, leftRight, gridBottom);
+
         int cols = 3;
         int rows = (items.length + cols - 1) / cols;
         float gap = 6f;
-        float cell = Math.min((leftRight - leftMargin - gap * (cols - 1)) / cols,
-            (gridBottom - bodyTop - gap * (rows - 1)) / rows);
+        float cell = (leftRight - leftMargin - gap * (cols - 1)) / cols;
         float gridW = cols * cell + (cols - 1) * gap;
         float gridLeft = leftMargin + (leftRight - leftMargin - gridW) * .5f;
         for (int i = 0; i < items.length; i++) {
@@ -370,6 +467,7 @@ public final class InventoryPanel {
             float st = bodyTop + r * (cell + gap);
             itemSlotRects[i].set(sl, st, sl + cell, st + cell);
         }
+        bagContentHeight = rows * (cell + gap);
 
         float slotGap = 6f;
         float wSize = Math.min(hotbarH, (leftRight - leftMargin - slotGap * 3f) / 4f);
@@ -389,13 +487,15 @@ public final class InventoryPanel {
         useRect.set(insCx - btnW * .5f, panelRect.bottom - btnH - 22f, insCx + btnW * .5f, panelRect.bottom - 22f);
         craftBtnRect.set(insCx - btnW * .5f, panelRect.bottom - btnH - 22f, insCx + btnW * .5f, panelRect.bottom - 22f);
 
-        // Craft recipe list on left
+        // Craft recipe list on left with dedicated scroll viewport
+        craftViewport.set(leftMargin, bodyTop, leftRight, bodyBottom);
         int rCount = recipeRowRects.length;
         float rowGap = 6f;
-        float rowH = (bodyBottom - bodyTop - rowGap * (rCount - 1)) / rCount;
+        float rowH = Math.max(42f, (bodyBottom - bodyTop - rowGap * 3f) / 4f);
         for (int i = 0; i < rCount; i++) {
             float rt = bodyTop + i * (rowH + rowGap);
-            recipeRowRects[i].set(leftMargin, rt, leftRight, rt + rowH);
+            recipeRowRects[i].set(leftMargin, rt, leftRight - 10f, rt + rowH);
         }
+        craftContentHeight = rCount * (rowH + rowGap);
     }
 }

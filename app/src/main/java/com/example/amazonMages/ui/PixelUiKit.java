@@ -55,24 +55,26 @@ public final class PixelUiKit {
     private static final int[] PERF_X = {0, 4, 12, 16};
     private static final int[] PERF_Y = {0, 4, 12, 16};
 
-    private final Bitmap panel;
-    private final Bitmap panelTitle;
-    private final Bitmap button;
-    private final Bitmap closeBtn;
+    private final Context context;
+    private Bitmap panel;
+    private Bitmap panelTitle;
+    private Bitmap button;
+    private Bitmap closeBtn;
     private final Bitmap slot;
-    private final Bitmap tab;
-    private final Bitmap dividerH;
-    private final Bitmap dividerV;
-    private final Bitmap barFrame;
-    private final Bitmap barFill;
-    private final Bitmap stepper;
+    private Bitmap tab;
+    private Bitmap dividerH;
+    private Bitmap dividerV;
+    private Bitmap barFrame;
+    private Bitmap barFill;
+    private Bitmap stepper;
     private final Bitmap icons;
-    private final Bitmap cursorSelect;
+    private Bitmap cursorSelect;
     private final Bitmap perfOverlay;
-    private final Bitmap skillMedallion;
-    private final Bitmap skillIcons;
+    private Bitmap skillMedallion;
+    private Bitmap skillIcons;
     private final Bitmap craftIcons;
-    private final Bitmap craftCauldron;
+    private final Bitmap boitataLootIcons;
+    private Bitmap craftCauldron;
     private final Bitmap pickupIcons;
     private final Bitmap weaponIcons;
 
@@ -91,25 +93,13 @@ public final class PixelUiKit {
     private final float[] dy = new float[4];
 
     public PixelUiKit(Context context) {
+        this.context = context.getApplicationContext();
         ResourceManager res = ResourceManager.shared(context);
-        panel = res.bitmap(R.drawable.ui_panel, false);
-        panelTitle = res.bitmap(R.drawable.ui_panel_title, false);
-        button = res.bitmap(R.drawable.ui_button, false);
-        closeBtn = res.bitmap(R.drawable.ui_close, false);
         slot = res.bitmap(R.drawable.ui_slot, false);
-        tab = res.bitmap(R.drawable.ui_tab, false);
-        dividerH = res.bitmap(R.drawable.ui_divider_h, false);
-        dividerV = res.bitmap(R.drawable.ui_divider_v, false);
-        barFrame = res.bitmap(R.drawable.ui_bar_frame, false);
-        barFill = res.bitmap(R.drawable.ui_bar_fill, false);
-        stepper = res.bitmap(R.drawable.ui_stepper, false);
         icons = res.bitmap(R.drawable.ui_icons, false);
-        cursorSelect = res.bitmap(R.drawable.ui_cursor_select, false);
         perfOverlay = res.bitmap(R.drawable.ui_perf_overlay, false);
-        skillMedallion = res.bitmap(R.drawable.ui_skill_medallion, false);
-        skillIcons = res.bitmap(R.drawable.ui_skill_icons, false);
         craftIcons = res.bitmap(R.drawable.ui_craft_icons, false);
-        craftCauldron = res.bitmap(R.drawable.ui_craft_cauldron, false);
+        boitataLootIcons = res.bitmap(R.drawable.boitata_loot, false);
         pickupIcons = res.bitmap(R.drawable.emerald_pickups, false);
         weaponIcons = res.bitmap(R.drawable.hud_weapon_icons, false);
 
@@ -125,6 +115,42 @@ public final class PixelUiKit {
         pixelFontRegular = font != null ? font : Typeface.create("monospace", Typeface.NORMAL);
         pixelFontBold = Typeface.create(pixelFontRegular, Typeface.BOLD);
         textPaint.setTypeface(pixelFontRegular);
+    }
+
+    public synchronized void ensureModalBitmaps() {
+        if (panel != null) return;
+        ResourceManager res = ResourceManager.shared(context);
+        panel = res.bitmap(R.drawable.ui_panel, false);
+        panelTitle = res.bitmap(R.drawable.ui_panel_title, false);
+        button = res.bitmap(R.drawable.ui_button, false);
+        closeBtn = res.bitmap(R.drawable.ui_close, false);
+        tab = res.bitmap(R.drawable.ui_tab, false);
+        dividerH = res.bitmap(R.drawable.ui_divider_h, false);
+        dividerV = res.bitmap(R.drawable.ui_divider_v, false);
+        barFrame = res.bitmap(R.drawable.ui_bar_frame, false);
+        barFill = res.bitmap(R.drawable.ui_bar_fill, false);
+        stepper = res.bitmap(R.drawable.ui_stepper, false);
+        cursorSelect = res.bitmap(R.drawable.ui_cursor_select, false);
+        skillMedallion = res.bitmap(R.drawable.ui_skill_medallion, false);
+        skillIcons = res.bitmap(R.drawable.ui_skill_icons, false);
+        craftCauldron = res.bitmap(R.drawable.ui_craft_cauldron, false);
+    }
+
+    public synchronized void releaseModalBitmaps() {
+        panel = null;
+        panelTitle = null;
+        button = null;
+        closeBtn = null;
+        tab = null;
+        dividerH = null;
+        dividerV = null;
+        barFrame = null;
+        barFill = null;
+        stepper = null;
+        cursorSelect = null;
+        skillMedallion = null;
+        skillIcons = null;
+        craftCauldron = null;
     }
 
     public int scale() { return scale; }
@@ -193,6 +219,7 @@ public final class PixelUiKit {
     }
 
     public void drawPanel(Canvas c, RectF r) {
+        ensureModalBitmaps();
         nineSlice(c, panel, 0, PANEL_X, PANEL_Y, 10 * scale, r, 255);
     }
 
@@ -212,6 +239,7 @@ public final class PixelUiKit {
     }
 
     public void drawTitleRibbon(Canvas c, float centerX, float top, float width, float height, String title) {
+        ensureModalBitmaps();
         tmp.set(centerX - width * 0.5f, top, centerX + width * 0.5f, top + height);
         int capY = Math.round(Math.min(5f * scale, height * 0.27f));
         nineSlice(c, panelTitle, 0, TITLE_X, TITLE_Y, 10 * scale, capY, tmp, 255);
@@ -221,6 +249,7 @@ public final class PixelUiKit {
     }
 
     public void drawTab(Canvas c, RectF r, int uiIconIdx, int craftIconIdx, String label, boolean active) {
+        ensureModalBitmaps();
         int frame = active ? 0 : 1;
         int capY = Math.round(Math.min(5f * scale, r.height() * 0.25f));
         nineSlice(c, tab, frame * 40, TAB_X, TAB_Y, 8 * scale, capY, r, 255);
@@ -255,6 +284,7 @@ public final class PixelUiKit {
 
     /** state: 0=normal, 1=pressed, 2=disabled */
     public void drawButton(Canvas c, RectF r, String label, int state, int textColorOverride) {
+        ensureModalBitmaps();
         int clamped = Math.max(0, Math.min(2, state));
         int capX = Math.round(Math.min(9f * scale, r.width() * 0.22f));
         int capY = Math.round(Math.min(4f * scale, r.height() * 0.24f));
@@ -269,6 +299,7 @@ public final class PixelUiKit {
     }
 
     public void drawCloseButton(Canvas c, RectF r, boolean pressed) {
+        ensureModalBitmaps();
         if (closeBtn == null) return;
         int frame = pressed ? 1 : 0;
         src.set(frame * 20, 0, (frame + 1) * 20, 20);
@@ -286,6 +317,7 @@ public final class PixelUiKit {
     }
 
     public void drawCursor(Canvas c, RectF r) {
+        ensureModalBitmaps();
         if (cursorSelect == null) return;
         int f = (int) ((System.currentTimeMillis() / 280) % 2);
         src.set(f * 28, 0, (f + 1) * 28, 28);
@@ -296,6 +328,7 @@ public final class PixelUiKit {
 
     /** medallionState: 0=locked, 1=available, 2=unlocked, 3=maxed */
     public void drawSkillMedallion(Canvas c, RectF r, int medallionState, int skillIconIndex, boolean cursorSelected) {
+        ensureModalBitmaps();
         if (skillMedallion != null) {
             int m = Math.max(0, Math.min(3, medallionState));
             src.set(m * 28, 0, (m + 1) * 28, 28);
@@ -308,6 +341,7 @@ public final class PixelUiKit {
     }
 
     public void drawStepper(Canvas c, RectF r, boolean enabled) {
+        ensureModalBitmaps();
         if (stepper == null) return;
         int frame = enabled ? 0 : 2;
         src.set(frame * 20, 0, (frame + 1) * 20, 20);
@@ -316,6 +350,7 @@ public final class PixelUiKit {
 
     /** tone: 0=green, 1=gold, 2=amber */
     public void drawBar(Canvas c, RectF r, float ratio, int tone) {
+        ensureModalBitmaps();
         float clampedRatio = Math.max(0f, Math.min(1f, ratio));
         float capX = Math.min(12f * scale, r.width() * 0.22f);
         float capY = Math.min(3f * scale, r.height() * 0.26f);
@@ -333,6 +368,7 @@ public final class PixelUiKit {
     }
 
     public void drawDividerH(Canvas c, float left, float right, float centerY) {
+        ensureModalBitmaps();
         if (dividerH == null || right <= left) return;
         int s = Math.max(1, scale - 1);
         float h = 6f * s;
@@ -354,6 +390,7 @@ public final class PixelUiKit {
     }
 
     public void drawDividerV(Canvas c, float centerX, float top, float bottom) {
+        ensureModalBitmaps();
         if (dividerV == null || bottom <= top) return;
         int s = Math.max(1, scale - 1);
         float w = 6f * s;
@@ -385,6 +422,7 @@ public final class PixelUiKit {
     }
 
     public void drawSkillIcon(Canvas c, int index, float cx, float cy, float size, int alpha) {
+        ensureModalBitmaps();
         if (skillIcons == null) return;
         int idx = Math.max(0, Math.min(8, index));
         src.set(idx * 20, 0, (idx + 1) * 20, 20);
@@ -405,6 +443,7 @@ public final class PixelUiKit {
     }
 
     public void drawCauldron(Canvas c, boolean activeBurst, float cx, float cy, float size) {
+        ensureModalBitmaps();
         if (craftCauldron == null) return;
         int frame = activeBurst ? 1 : 0;
         src.set(frame * 48, 0, (frame + 1) * 48, 48);
@@ -435,6 +474,15 @@ public final class PixelUiKit {
 
     /** Renders any registered catalog item ID using ui_craft_icons or emerald_pickups. */
     public void drawItemIcon(Canvas c, String itemId, float cx, float cy, float size, int alpha) {
+        int lootFrame = com.example.amazonMages.items.ItemCatalog.boitataLootFrame(itemId);
+        if (lootFrame >= 0 && boitataLootIcons != null) {
+            src.set(lootFrame * 48, 0, (lootFrame + 1) * 48, 48);
+            dst.set(cx - size * .5f, cy - size * .5f, cx + size * .5f, cy + size * .5f);
+            pixelPaint.setAlpha(alpha);
+            c.drawBitmap(boitataLootIcons, src, dst, pixelPaint);
+            pixelPaint.setAlpha(255);
+            return;
+        }
         if ("elixir".equals(itemId)) { drawCraftIcon(c, CRAFT_ICON_ELIXIR, cx, cy, size, alpha); return; }
         if ("bomba_coco".equals(itemId)) { drawCraftIcon(c, CRAFT_ICON_BOMB, cx, cy, size, alpha); return; }
         if ("tonico".equals(itemId)) { drawCraftIcon(c, CRAFT_ICON_TONIC, cx, cy, size, alpha); return; }

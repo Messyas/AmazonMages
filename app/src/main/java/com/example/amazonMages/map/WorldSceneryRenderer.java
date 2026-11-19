@@ -17,9 +17,13 @@ final class WorldSceneryRenderer {
     private final WorldDefinition world;
     private final Bitmap treesSheet, castanheira, maloca, temple, theater, house, ruin, burnedTree;
     private final Bitmap flowersSheet, bushSheet, rockSheet;
+    private final Bitmap sanctuaryNw, sanctuaryNe, sanctuarySw, sanctuarySe, sanctuarySigil;
+    private final Bitmap boitataProps;
     private final Paint bitmapPaint = new Paint();
+    private final Paint auraPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Rect src = new Rect();
     private final RectF target = new RectF();
+    private final Paint arenaPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final List<Placement> visible = new ArrayList<>();
     private final List<Placement> pool = new ArrayList<>();
     private double playerX, playerY;
@@ -45,6 +49,12 @@ final class WorldSceneryRenderer {
         flowersSheet = sprites.resourceBitmap(R.drawable.obj_flowers);
         bushSheet = sprites.resourceBitmap(R.drawable.obj_bush);
         rockSheet = sprites.resourceBitmap(R.drawable.obj_rock);
+        sanctuaryNw = sprites.resourceBitmap(R.drawable.emerald_struct_sanctuary_nw);
+        sanctuaryNe = sprites.resourceBitmap(R.drawable.emerald_struct_sanctuary_ne);
+        sanctuarySw = sprites.resourceBitmap(R.drawable.emerald_struct_sanctuary_sw);
+        sanctuarySe = sprites.resourceBitmap(R.drawable.emerald_struct_sanctuary_se);
+        sanctuarySigil = sprites.resourceBitmap(R.drawable.emerald_sanctuary_sigil);
+        boitataProps = sprites.resourceBitmap(R.drawable.boitata_arena_props);
         bitmapPaint.setFilterBitmap(false);
         bitmapPaint.setAntiAlias(false);
         bitmapPaint.setDither(false);
@@ -56,6 +66,7 @@ final class WorldSceneryRenderer {
         visible.clear();
         cursor = 0;
         Rect view = display.getGameRect();
+        if (arenaVisible(view)) addArenaProps(view);
 
         for (WorldDefinition.Point anchor : world.startingTrees) {
             addTreeFrame(0, anchor.worldX(), anchor.worldY() + 18, view);
@@ -137,6 +148,18 @@ final class WorldSceneryRenderer {
             } else if (building.family.equals("burned_tree")) {
                 image = burnedTree;
                 width = small ? 112f : 160f;
+            } else if (building.family.equals("sanctuary_bastion_nw")) {
+                image = sanctuaryNw;
+                width = 168f;
+            } else if (building.family.equals("sanctuary_bastion_ne")) {
+                image = sanctuaryNe;
+                width = 168f;
+            } else if (building.family.equals("sanctuary_bastion_sw")) {
+                image = sanctuarySw;
+                width = 168f;
+            } else if (building.family.equals("sanctuary_bastion_se")) {
+                image = sanctuarySe;
+                width = 168f;
             } else {
                 image = ruin;
                 width = small ? 112f : 160f;
@@ -146,6 +169,37 @@ final class WorldSceneryRenderer {
                 building.base.worldX(), building.base.worldY() + 18, width, height, true, view);
         }
         visible.sort(Comparator.comparingDouble(p -> p.baseY));
+    }
+
+    private boolean arenaVisible(Rect view) {
+        BoitataArena arena = world.boitataArena;
+        double extent = arena.radius + 220;
+        return arena.x + extent > view.left && arena.x - extent < view.right
+            && arena.y + extent > view.top && arena.y - extent < view.bottom;
+    }
+
+    private void addArenaProps(Rect view) {
+        if (boitataProps == null) return;
+        BoitataArena arena = world.boitataArena;
+        for (int i = 0; i < 32; i++) {
+            double angle = i * Math.PI / 16 - Math.PI / 2;
+            double fromGate = Math.min(i, 32 - i) * Math.PI / 16;
+            if (fromGate <= BoitataArena.GATE_HALF_ANGLE) continue;
+            addSheet(boitataProps, 0, 0, 128, 128, arena.x + Math.cos(angle) * arena.radius,
+                arena.y + Math.sin(angle) * arena.radius + 34, 118, 86, true, view);
+        }
+        for (int side = -1; side <= 1; side += 2) {
+            addSheet(boitataProps, 128, 0, 128, 128,
+                arena.x + side * Math.sin(BoitataArena.GATE_HALF_ANGLE) * arena.radius,
+                arena.y - Math.cos(BoitataArena.GATE_HALF_ANGLE) * arena.radius + 38,
+                118, 118, true, view);
+        }
+        for (int i = 0; i < 7; i++) {
+            double angle = i * .86 - .27;
+            double radius = arena.radius + 52 + (i % 3) * 22;
+            addSheet(boitataProps, 256, 0, 128, 128, arena.x + Math.cos(angle) * radius,
+                arena.y + Math.sin(angle) * radius + 20, 102, 94, true, view);
+        }
     }
 
     private void addTreeFrame(int frame, double x, double y, Rect view) {
@@ -176,7 +230,71 @@ final class WorldSceneryRenderer {
     }
 
     void drawGround(Canvas canvas, GameDisplay display) {
-        // Castanheira now renders cleanly in depth-sorted GBA pixel art via prepare()/drawUntil().
+        if (arenaVisible(display.getGameRect())) drawArenaGround(canvas, display);
+        if (sanctuarySigil != null) {
+            float sx = (float) display.gameToDisplayCoordinatesX(world.spawn.worldX());
+            float sy = (float) display.gameToDisplayCoordinatesY(world.spawn.worldY());
+            float r = 128f;
+            target.set(sx - r, sy - r, sx + r, sy + r);
+            src.set(0, 0, sanctuarySigil.getWidth(), sanctuarySigil.getHeight());
+            canvas.drawBitmap(sanctuarySigil, src, target, bitmapPaint);
+        }
+        drawSanctuaryAura(canvas, display);
+    }
+
+    private void drawArenaGround(Canvas canvas, GameDisplay display) {
+        BoitataArena arena = world.boitataArena;
+        float x = (float) display.gameToDisplayCoordinatesX(arena.x);
+        float y = (float) display.gameToDisplayCoordinatesY(arena.y);
+        float radius = (float) arena.radius;
+        float gate = (float) Math.toDegrees(BoitataArena.GATE_HALF_ANGLE);
+        target.set(x - radius, y - radius, x + radius, y + radius);
+        arenaPaint.setStyle(Paint.Style.STROKE);
+        arenaPaint.setStrokeWidth((float) BoitataArena.WALL_HALF_WIDTH * 2);
+        arenaPaint.setColor(0xFF24272A);
+        canvas.drawArc(target, -90 + gate, 360 - 2 * gate, false, arenaPaint);
+        arenaPaint.setStrokeWidth(17);
+        arenaPaint.setColor(0xFF505050);
+        canvas.drawArc(target, -90 + gate, 360 - 2 * gate, false, arenaPaint);
+        arenaPaint.setStrokeWidth(2);
+        for (int i = 0; i < 22; i++) {
+            double angle = i * 2.399963;
+            float distance = radius * (.23f + (i % 8) * .085f);
+            float px = x + (float) Math.cos(angle) * distance;
+            float py = y + (float) Math.sin(angle) * distance;
+            arenaPaint.setColor(i % 4 == 0 ? 0xD0A24B29 : 0xB65A392F);
+            float width = 12 + i % 5 * 5;
+            canvas.drawLine(px - width, py + 7, px, py, arenaPaint);
+            canvas.drawLine(px, py, px + width * .65f, py + 6, arenaPaint);
+        }
+    }
+
+    private void drawSanctuaryAura(Canvas canvas, GameDisplay display) {
+        long time = System.currentTimeMillis();
+        float sx = (float) display.gameToDisplayCoordinatesX(world.spawn.worldX());
+        float sy = (float) display.gameToDisplayCoordinatesY(world.spawn.worldY());
+        float radiusPx = (float) (WorldDefinition.SAFE_RADIUS * WorldDefinition.TILE_SIZE);
+        float pulse = (float) (Math.sin(time / 420.0) * 4.0);
+
+        // Glowing emerald leaf magic boundary ring
+        auraPaint.setStyle(Paint.Style.STROKE);
+        auraPaint.setStrokeWidth(3.5f);
+        auraPaint.setColor(0x803DC45E);
+        canvas.drawCircle(sx, sy, radiusPx + pulse, auraPaint);
+
+        auraPaint.setStrokeWidth(1.5f);
+        auraPaint.setColor(0xC09BF06A);
+        canvas.drawCircle(sx, sy, radiusPx + pulse * 0.5f, auraPaint);
+
+        // Orbiting/floating leaf rune motes around perimeter
+        auraPaint.setStyle(Paint.Style.FILL);
+        auraPaint.setColor(0xD0FFF1B0);
+        for (int i = 0; i < 8; i++) {
+            double angle = (time / 1800.0) + (i * Math.PI / 4.0);
+            float lx = sx + (float) (Math.cos(angle) * (radiusPx + pulse));
+            float ly = sy + (float) (Math.sin(angle) * (radiusPx + pulse));
+            canvas.drawCircle(lx, ly, 3.5f, auraPaint);
+        }
     }
 
     void drawUntil(Canvas canvas, GameDisplay display, double maxBaseY) {

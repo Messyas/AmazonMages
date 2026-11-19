@@ -64,6 +64,7 @@ public final class WorldForagingSystem {
         int transmuted = 0;
         for (Entity e : all) {
             PickupComponent pickup = e.get(PickupComponent.class);
+            if (ItemCatalog.boitataLootFrame(pickup.itemId) >= 0) continue;
             TransformComponent pos = e.get(TransformComponent.class);
             ColliderComponent col = e.get(ColliderComponent.class);
             ItemDefinition def = registry.get(pickup.itemId);
@@ -82,10 +83,13 @@ public final class WorldForagingSystem {
         List<Entity> all = pickupWorld.with(PickupComponent.class, TransformComponent.class);
         Entity worst = null;
         double worstScore = -1.0;
+        int temporaryCount = 0;
         for (Entity e : all) {
             TransformComponent pos = e.get(TransformComponent.class);
             double dist = Math.hypot(pos.x - playerX, pos.y - playerY);
             LifetimeComponent life = e.get(LifetimeComponent.class);
+            if (life != null && life.isPermanent()) continue;
+            temporaryCount++;
             double agePenalty = life == null ? 0.0 : (36000 - life.remainingTicks) * 0.05;
             double score = dist + agePenalty;
             if (score > worstScore) {
@@ -93,7 +97,7 @@ public final class WorldForagingSystem {
                 worst = e;
             }
         }
-        if (worst != null) pickupWorld.destroy(worst.id());
+        if (temporaryCount >= MAX_GROUND_PICKUPS && worst != null) pickupWorld.destroy(worst.id());
     }
 
     private static String chooseNeededItem(int health, int maxHealth, Inventory inventory,

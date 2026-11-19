@@ -9,6 +9,7 @@ import com.example.amazonMages.ecs.ProjectileWorld;
 import com.example.amazonMages.combat.DamageEvent;
 import com.example.amazonMages.combat.DamageType;
 import com.example.amazonMages.gameobject.Circle;
+import com.example.amazonMages.gameobject.BoitataBoss;
 import com.example.amazonMages.gameobject.Enemy;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.Spell;
@@ -28,10 +29,13 @@ public final class EnemyManager {
     private final com.example.amazonMages.ecs.HostileProjectileWorld projectiles = new com.example.amazonMages.ecs.HostileProjectileWorld();
     private final List<Entity> impacts = new ArrayList<>();
     private final AttackDirector attacks = new AttackDirector();
+    private final SpatialGrid spatialGrid = new SpatialGrid();
+    private final int[] queryBuffer = new int[MAX_ENEMIES + 32];
     private final Context context;
     private final Player player;
     private final Tilemap tilemap;
     private final Random random = new Random();
+    private BoitataBoss boitata;
 
     public interface KillListener { void onEnemyDefeated(String eventId); }
     public interface DropListener { void onDefeat(EnemyTemplate template, double x, double y); }
@@ -73,6 +77,7 @@ public final class EnemyManager {
     /** Bosses are explicit or timed wave encounters, never added as normal ambient mobs. */
     public Enemy spawnEncounter(EnemyTemplate template, double x, double y) {
         if (enemies.size() >= MAX_ENEMIES + 2 || template == null || !template.isBossEncounter() ||
+            template == EnemyTemplates.BOITATA ||
             !Double.isFinite(x) || !Double.isFinite(y)) return null;
         for (Enemy enemy : enemies) {
             if (!enemy.isDead() && enemy.getTemplate() != null &&
@@ -88,9 +93,18 @@ public final class EnemyManager {
         return enemy;
     }
 
+    public void placeBoitata() {
+        if (boitata != null || tilemap == null) return;
+        boitata = new BoitataBoss(context, player, tilemap.world().boitataArena, (x, y) -> {
+            if (parryListener != null) parryListener.onParrySuccess(x, y);
+        });
+        enemies.add(boitata);
+    }
+
     public Enemy activeBoss() {
+        if (boitata != null && boitata.showHud()) return boitata;
         for (Enemy enemy : enemies) {
-            if (!enemy.isDead() && enemy.getTemplate() != null &&
+            if (enemy != boitata && !enemy.isDead() && enemy.getTemplate() != null &&
                 enemy.getTemplate().isBossEncounter()) return enemy;
         }
         return null;
@@ -101,15 +115,19 @@ public final class EnemyManager {
         tick++;
         attacks.beginTick(tick);
 
-        if (tilemap != null) {
-            int spawnCount = waves.step(enemies.size());
+        boolean inBoitataArena = tilemap != null
+            && tilemap.world().boitataArena.contains(player.getPositionX(), player.getPositionY());
+        if (tilemap != null && !inBoitataArena) {
+            double danger = tilemap.world().dangerFactorAt(player.getPositionX(), player.getPositionY());
+            int spawnCount = waves.step(enemies.size(), danger);
             if (spawnCount > 0) {
                 WorldDefinition.Region region = tilemap.world().regionAt(player.getPositionX(), player.getPositionY());
-                for (int i = 0; i < spawnCount && enemies.size() < waves.targetCap(); i++) {
+                for (int i = 0; i < spawnCount && enemies.size() < waves.targetCap(danger); i++) {
                     EnemyTemplate next = waves.pickAmbient(region, random);
                     double[] pos = tilemap.randomWalkableSpawn(
                         player.getPositionX(), player.getPositionY(), random, 500, 780, next.flying);
-                    if (pos != null) {
+                    if (pos != null && !tilemap.world().isInsideSanctuary(pos[0], pos[1])
+                            && !tilemap.world().boitataArena.contains(pos[0], pos[1])) {
                         EnemyPersonality personality = next == EnemyTemplates.ACID_GHOST
                             ? EnemyPersonality.random(random)
                             : EnemyPersonality.AGGRESSIVE;
@@ -123,21 +141,91 @@ public final class EnemyManager {
             if (timedBoss != null) {
                 double[] pos = tilemap.randomWalkableSpawn(
                     player.getPositionX(), player.getPositionY(), random, 460, 620, timedBoss.flying);
-                if (pos != null) spawnEncounter(timedBoss, pos[0], pos[1]);
+                if (pos != null && !tilemap.world().isInsideSanctuary(pos[0], pos[1])
+                        && !tilemap.world().boitataArena.contains(pos[0], pos[1])) spawnEncounter(timedBoss, pos[0], pos[1]);
             }
         }
 
-        // Social acid ghosts select nearby unfused ghosts of the same species.
-        for (Enemy enemy : enemies) {
+        Iterator<Enemy> iterator = enemies.iterator();
+        while (iterator.hasNext()) {
+            Enemy enemy = iterator.next();
+            if (enemy == boitata) {
+                // Update after iteration so a parry can safely dispatch combat events.
+                if (boitata.finishedDeath()) {
+                    iterator.remove();
+                    boitata = null;
+                }
+                continue;
+            }
+            double distance = Math.hypot(
+                enemy.getPositionX() - player.getPositionX(),
+                enemy.getPositionY() - player.getPositionY());
+            boolean isBoss = enemy.getTemplate() != null && enemy.getTemplate().isBossEncounter();
+            boolean enteredArena = tilemap != null
+                && tilemap.world().boitataArena.contains(enemy.getPositionX(), enemy.getPositionY());
+            if (enemy.finishedDeath() || (!isBoss && (distance > DESPAWN_DISTANCE || enteredArena))) {
+                iterator.remove();
+                continue;
+            }
+            if (isBoss && enteredArena) {
+                double dx = enemy.getPositionX() - tilemap.world().boitataArena.x;
+                double dy = enemy.getPositionY() - tilemap.world().boitataArena.y;
+                double angle = Math.hypot(dx, dy) > 1 ? Math.atan2(dy, dx) : -Math.PI / 2;
+                double edge = tilemap.world().boitataArena.radius + 115;
+                WorldDefinition.Position safe = tilemap.world().safePosition(
+                    tilemap.world().boitataArena.x + Math.cos(angle) * edge,
+                    tilemap.world().boitataArena.y + Math.sin(angle) * edge, enemy.getRadius());
+                enemy.setPosition(safe.x, safe.y);
+            }
+            int period = distance < 850 ? 1 : distance < 1200 ? 4 : 16;
+            if ((tick + enemy.getUpdateOffset()) % period == 0) {
+                enemy.update(period);
+                if (tilemap != null) {
+                    if (!tilemap.world().inside(enemy.getPositionX() / 64, enemy.getPositionY() / 64)) {
+                        WorldDefinition.Position safe = tilemap.world().safePosition(
+                            enemy.getPositionX(), enemy.getPositionY(), enemy.getRadius());
+                        enemy.setPosition(safe.x, safe.y);
+                    }
+                    if (tilemap.world().isInsideSanctuary(enemy.getPositionX(), enemy.getPositionY())) {
+                        double spawnX = tilemap.world().spawn.worldX();
+                        double spawnY = tilemap.world().spawn.worldY();
+                        double dx = enemy.getPositionX() - spawnX;
+                        double dy = enemy.getPositionY() - spawnY;
+                        double dist = Math.hypot(dx, dy);
+                        double safeR = WorldDefinition.SAFE_RADIUS * 64.0;
+                        if (dist < 0.1) { dx = 1.0; dy = 0.0; dist = 1.0; }
+                        enemy.setPosition(spawnX + (dx / dist) * (safeR + 12.0),
+                                         spawnY + (dy / dist) * (safeR + 12.0));
+                        enemy.applyImpulse((dx / dist) * 8.0, (dy / dist) * 8.0);
+                    }
+                }
+            }
+        }
+
+        // Rebuild zero-allocation spatial hash grid for O(1) neighborhood queries.
+        spatialGrid.clear();
+        int enemyCount = enemies.size();
+        for (int i = 0; i < enemyCount; i++) {
+            Enemy e = enemies.get(i);
+            if (e != boitata && !e.isDead()) spatialGrid.insert(i, e.getPositionX(), e.getPositionY());
+        }
+        if (boitata != null && !boitata.finishedDeath()) boitata.update(1);
+
+        // Social acid ghosts select nearby unfused ghosts using spatial grid lookup.
+        for (int i = 0; i < enemyCount; i++) {
+            Enemy enemy = enemies.get(i);
             Enemy target = null;
             boolean isAcidGhost = enemy.getTemplate() == null || "acid_ghost".equals(enemy.getTemplate().id);
             if (isAcidGhost && enemy.getPersonality() == EnemyPersonality.SOCIAL && !enemy.isFused()
                     && !enemy.isDead() && enemy.getRank() == EnemyRank.NORMAL) {
                 double best = 320;
-                for (Enemy other : enemies) {
+                int candidates = spatialGrid.queryRadius(enemy.getPositionX(), enemy.getPositionY(), 320, queryBuffer);
+                for (int k = 0; k < candidates; k++) {
+                    int otherIdx = queryBuffer[k];
+                    if (otherIdx == i || otherIdx >= enemyCount) continue;
+                    Enemy other = enemies.get(otherIdx);
                     boolean otherGhost = other.getTemplate() == null || "acid_ghost".equals(other.getTemplate().id);
-                    if (!otherGhost || enemy == other || other.isFused() || other.isDead()
-                            || other.getRank() != EnemyRank.NORMAL) continue;
+                    if (!otherGhost || other.isFused() || other.isDead() || other.getRank() != EnemyRank.NORMAL) continue;
                     double distance = Math.hypot(enemy.getPositionX() - other.getPositionX(),
                         enemy.getPositionY() - other.getPositionY());
                     if (distance < best) { best = distance; target = other; }
@@ -146,34 +234,15 @@ public final class EnemyManager {
             enemy.setGroupTarget(target);
         }
 
-        Iterator<Enemy> iterator = enemies.iterator();
-        while (iterator.hasNext()) {
-            Enemy enemy = iterator.next();
-            double distance = Math.hypot(
-                enemy.getPositionX() - player.getPositionX(),
-                enemy.getPositionY() - player.getPositionY());
-            boolean isBoss = enemy.getTemplate() != null && enemy.getTemplate().isBossEncounter();
-            if (enemy.finishedDeath() || (!isBoss && distance > DESPAWN_DISTANCE)) {
-                iterator.remove();
-                continue;
-            }
-            int period = distance < 850 ? 1 : distance < 1200 ? 4 : 16;
-            if ((tick + enemy.getUpdateOffset()) % period == 0) {
-                enemy.update(period);
-                if (tilemap != null && !tilemap.world().inside(enemy.getPositionX() / 64, enemy.getPositionY() / 64)) {
-                    WorldDefinition.Position safe = tilemap.world().safePosition(
-                        enemy.getPositionX(), enemy.getPositionY(), enemy.getRadius());
-                    enemy.setPosition(safe.x, safe.y);
-                }
-            }
-        }
-
-        // Soft separation keeps Vampire Survivors hordes readable without stacking on 1 pixel.
-        int n = enemies.size();
-        for (int i = 0; i < n; i++) {
+        // Soft separation via spatial grid: turns O(N^2) horde collision into O(N) local cell checks.
+        for (int i = 0; i < enemyCount; i++) {
             Enemy a = enemies.get(i);
-            if (a.isDead()) continue;
-            for (int j = i + 1; j < n; j++) {
+            if (a == boitata || a.isDead()) continue;
+            double maxSep = a.getRadius() * 2.2;
+            int candidates = spatialGrid.queryRadius(a.getPositionX(), a.getPositionY(), maxSep, queryBuffer);
+            for (int k = 0; k < candidates; k++) {
+                int j = queryBuffer[k];
+                if (j <= i || j >= enemyCount) continue;
                 Enemy b = enemies.get(j);
                 if (b.isDead()) continue;
                 double dx = b.getPositionX() - a.getPositionX();
@@ -191,13 +260,16 @@ public final class EnemyManager {
             }
         }
 
-        // Fuse nearby unfused social acid ghosts once.
+        // Fuse nearby unfused social acid ghosts once using local spatial query.
         for (int i = 0; i < enemies.size(); i++) {
             Enemy first = enemies.get(i);
             boolean firstGhost = first.getTemplate() == null || "acid_ghost".equals(first.getTemplate().id);
             if (!firstGhost || first.isFused() || first.isDead() || first.getRank() != EnemyRank.NORMAL
                     || first.getPersonality() != EnemyPersonality.SOCIAL) continue;
-            for (int j = i + 1; j < enemies.size(); j++) {
+            int candidates = spatialGrid.queryRadius(first.getPositionX(), first.getPositionY(), 52, queryBuffer);
+            for (int k = 0; k < candidates; k++) {
+                int j = queryBuffer[k];
+                if (j <= i || j >= enemies.size()) continue;
                 Enemy second = enemies.get(j);
                 boolean secondGhost = second.getTemplate() == null || "acid_ghost".equals(second.getTemplate().id);
                 if (!secondGhost || second.isFused() || second.isDead() || second.getRank() != EnemyRank.NORMAL) continue;
@@ -213,7 +285,7 @@ public final class EnemyManager {
         // Melee contact check with Parry Riposte support.
         double px = player.getPositionX(), py = player.getPositionY(), pr = player.getRadius();
         for (Enemy enemy : enemies) {
-            if (enemy.isDead() || enemy.isStunned()) continue;
+            if (inBoitataArena || enemy.isDead() || enemy.isStunned() || enemy.getMeleeDamage() <= 0) continue;
             double dx = enemy.getPositionX() - px, dy = enemy.getPositionY() - py;
             double dist = Math.hypot(dx, dy);
             if (dist < pr + enemy.getRadius() - 5) {
@@ -233,7 +305,7 @@ public final class EnemyManager {
         // Rotating priority prevents the same ranged enemy from monopolizing the firing budget.
         int size = enemies.size();
         int start = attacks.firstCandidate(size);
-        if (attacks.canFire(tick, projectiles.count())) {
+        if (!inBoitataArena && attacks.canFire(tick, projectiles.count())) {
             for (int offset = 0; offset < size; offset++) {
                 int index = (start + offset) % size;
                 Enemy enemy = enemies.get(index);
@@ -247,7 +319,8 @@ public final class EnemyManager {
             }
         }
 
-        if (projectiles.update(player) && parryListener != null) {
+        if (inBoitataArena) projectiles.clear();
+        else if (projectiles.update(player) && parryListener != null) {
             parryListener.onParrySuccess(player.getPositionX() + player.getAttackDirectionX() * 48,
                 player.getPositionY() + player.getAttackDirectionY() * 48);
         }
@@ -256,11 +329,15 @@ public final class EnemyManager {
     /** ECS projectile collision with optional piercing support. */
     public void collideWithPlayerProjectiles(ProjectileWorld world) {
         for (Enemy enemy : enemies) {
-            if (enemy.isDead()) continue;
-            world.overlappingInto(enemy.getPositionX(), enemy.getPositionY(), enemy.getRadius(), impacts);
+            if (!enemy.isTargetable()) continue;
+            double queryRadius = enemy == boitata ? boitata.hitQueryRadius() : enemy.getRadius();
+            world.overlappingInto(enemy.getPositionX(), enemy.getPositionY(), queryRadius, impacts);
             for (Entity projectile : impacts) {
-                if (enemy.isDead()) break;
+                if (!enemy.isTargetable()) break;
                 Spell spell = projectile.get(ProjectileComponent.class).spell;
+                if (enemy == boitata && !boitata.overlapsHit(spell.getPositionX(), spell.getPositionY(), spell.getRadius())) {
+                    continue;
+                }
                 if (spell.alreadyHit(enemy.uid)) continue;
                 spell.markHit(enemy.uid);
                 if (spell.consumePierce()) {
@@ -287,14 +364,18 @@ public final class EnemyManager {
         Iterator<Enemy> enemyIterator = enemies.iterator();
         while (enemyIterator.hasNext()) {
             Enemy enemy = enemyIterator.next();
-            if (enemy.isDead()) continue;
+            if (!enemy.isTargetable()) continue;
             Iterator<Spell> shotIterator = spells.iterator();
             while (shotIterator.hasNext()) {
                 Spell spell = shotIterator.next();
-                if (Circle.isColliding(spell, enemy)) {
+                boolean hits = enemy == boitata
+                    ? boitata.overlapsHit(spell.getPositionX(), spell.getPositionY(), spell.getRadius())
+                    : Circle.isColliding(spell, enemy);
+                if (hits) {
                     shotIterator.remove();
                     enemy.receiveHit(spell.getHit());
-                    if (enemy.isDead()) { reportDefeat(enemy); break; }
+                    if (enemy.isDead()) reportDefeat(enemy);
+                    if (!enemy.isTargetable()) break;
                 }
             }
         }
@@ -312,8 +393,17 @@ public final class EnemyManager {
     /** Shared radial damage helper for orbital orbs, lightning strikes, and parry shockwaves. */
     public int applyAreaDamage(double x, double y, double radius, DamageEvent hit, double knockbackSpeed, int stunTicks) {
         int hits = 0;
-        for (Enemy enemy : enemies) {
-            if (enemy.isDead()) continue;
+        if (boitata != null && boitata.isTargetable() && boitata.overlapsHit(x, y, radius)) {
+            boitata.receiveHit(hit);
+            if (boitata.isDead()) reportDefeat(boitata);
+            hits++;
+        }
+        int candidates = spatialGrid.queryRadius(x, y, radius + 48.0, queryBuffer);
+        for (int k = 0; k < candidates; k++) {
+            int idx = queryBuffer[k];
+            if (idx >= enemies.size()) continue;
+            Enemy enemy = enemies.get(idx);
+            if (enemy == boitata || !enemy.isTargetable()) continue;
             double dx = enemy.getPositionX() - x;
             double dy = enemy.getPositionY() - y;
             double distance = Math.hypot(dx, dy);
@@ -341,11 +431,12 @@ public final class EnemyManager {
                                    DamageEvent pulseHit, int rootTicks) {
         int affected = 0;
         for (Enemy enemy : enemies) {
-            if (enemy.isDead()) continue;
+            if (!enemy.isTargetable()) continue;
             double dx = vx - enemy.getPositionX();
             double dy = vy - enemy.getPositionY();
             double dist = Math.hypot(dx, dy);
-            if (dist < radius + enemy.getRadius()) {
+            boolean hits = enemy == boitata ? boitata.overlapsHit(vx, vy, radius) : dist < radius + enemy.getRadius();
+            if (hits) {
                 affected++;
                 if (dist > 14.0 && pullSpeed > 0) {
                     double step = Math.min(pullSpeed, dist * 0.35);
@@ -365,7 +456,7 @@ public final class EnemyManager {
         Enemy best = null;
         double bestDist = maxRange;
         for (Enemy enemy : enemies) {
-            if (enemy.isDead()) continue;
+            if (!enemy.isTargetable()) continue;
             double d = Math.hypot(enemy.getPositionX() - x, enemy.getPositionY() - y);
             if (d < bestDist) { bestDist = d; best = enemy; }
         }
@@ -376,7 +467,7 @@ public final class EnemyManager {
         Enemy best = null;
         int bestHp = -1;
         for (Enemy enemy : enemies) {
-            if (enemy.isDead()) continue;
+            if (!enemy.isTargetable()) continue;
             double d = Math.hypot(enemy.getPositionX() - x, enemy.getPositionY() - y);
             if (d <= maxRange && enemy.getHealth() > bestHp) {
                 bestHp = enemy.getHealth();
@@ -388,21 +479,29 @@ public final class EnemyManager {
 
     public void draw(Canvas canvas, GameDisplay display) {
         for (Enemy enemy : enemies) enemy.draw(canvas, display);
-        projectiles.draw(canvas, display);
+        drawProjectiles(canvas, display);
     }
 
     public void addActorsTo(List<com.example.amazonMages.gameobject.GameObject> target) {
         target.addAll(enemies);
     }
-    public void drawProjectiles(Canvas canvas, GameDisplay display) { projectiles.draw(canvas, display); }
+    public void drawArenaWarnings(Canvas canvas, GameDisplay display) {
+        if (boitata != null) boitata.drawWarning(canvas, display);
+    }
+
+    public void drawProjectiles(Canvas canvas, GameDisplay display) {
+        projectiles.draw(canvas, display);
+        if (boitata != null) boitata.drawFireballs(canvas, display);
+    }
 
     /** Clears hostile projectiles and creates breathing room when player revives at their spot. */
     public void onPlayerRespawn() {
         projectiles.clear();
+        if (boitata != null) boitata.resetAttempt();
         double px = player.getPositionX();
         double py = player.getPositionY();
         for (Enemy enemy : enemies) {
-            if (enemy.isDead()) continue;
+            if (enemy == boitata || enemy.isDead()) continue;
             double dx = enemy.getPositionX() - px;
             double dy = enemy.getPositionY() - py;
             double dist = Math.hypot(dx, dy);
@@ -413,9 +512,30 @@ public final class EnemyManager {
         }
     }
 
+    /** Clears hostile projectiles and purges any enemy trespassing on the Sanctuary grounds. */
+    public void onPlayerRespawnAtSanctuary(double sanctuaryX, double sanctuaryY, double safeRadius) {
+        projectiles.clear();
+        if (boitata != null) boitata.resetAttempt();
+        double pushRadius = safeRadius + 64.0;
+        for (Enemy enemy : enemies) {
+            if (enemy == boitata || enemy.isDead()) continue;
+            double dx = enemy.getPositionX() - sanctuaryX;
+            double dy = enemy.getPositionY() - sanctuaryY;
+            double dist = Math.hypot(dx, dy);
+            if (dist < pushRadius) {
+                double angle = dist < 0.001 ? Math.random() * Math.PI * 2 : Math.atan2(dy, dx);
+                enemy.setPosition(sanctuaryX + Math.cos(angle) * (pushRadius + 48.0),
+                                  sanctuaryY + Math.sin(angle) * (pushRadius + 48.0));
+                enemy.stun(40);
+            }
+        }
+    }
+
     /** Debug only: removes active enemies and projectiles without kill rewards. */
     public void clearForDebug() {
         enemies.clear();
+        boitata = null;
+        spatialGrid.clear();
         projectiles.clear();
     }
 
@@ -425,7 +545,8 @@ public final class EnemyManager {
     }
 
     public boolean spawnDebugSpecies(EnemyTemplate template, double x, double y) {
-        if (!Double.isFinite(x) || !Double.isFinite(y) || enemies.size() >= MAX_ENEMIES || template == null) return false;
+        if (!Double.isFinite(x) || !Double.isFinite(y) || enemies.size() >= MAX_ENEMIES
+                || template == null || template == EnemyTemplates.BOITATA) return false;
         if (tilemap != null) {
             WorldDefinition.Position safe = tilemap.world().safePosition(x, y, 32);
             x = safe.x; y = safe.y;
@@ -437,5 +558,8 @@ public final class EnemyManager {
     }
 
     public int getEnemyCount() { return enemies.size(); }
-    public int getProjectileCount() { return projectiles.count(); }
+    public boolean isBoitataFalling() { return boitata != null && boitata.isDead() && !boitata.finishedDeath(); }
+    public int getProjectileCount() {
+        return projectiles.count() + (boitata == null ? 0 : boitata.projectileCount());
+    }
 }

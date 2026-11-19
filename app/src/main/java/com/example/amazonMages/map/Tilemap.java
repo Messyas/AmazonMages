@@ -21,10 +21,11 @@ public final class Tilemap {
     private static final int CHUNK = 8, PIXELS = CHUNK * 64;
     private static final int CHUNK_BUDGET = 36 * 1024 * 1024;
     private final WorldDefinition world;
+    private final SpriteSheet sprites;
     private final WorldTerrainCache terrain;
     private final WorldTerrainPainter painter;
     private final WorldSceneryRenderer scenery;
-    private final Bitmap overview;
+    private Bitmap overview;
     private final Object cacheLock = new Object();
     private final Set<Long> pending = new HashSet<>();
     private final LruCache<Long, Bitmap> chunks = new LruCache<Long, Bitmap>(CHUNK_BUDGET) {
@@ -46,17 +47,25 @@ public final class Tilemap {
 
     public Tilemap(SpriteSheet sprites) { this(sprites, new WorldDefinition()); }
     public Tilemap(SpriteSheet sprites, WorldDefinition world) {
+        this.sprites = sprites;
         this.world = world;
         terrain = new WorldTerrainCache(world);
         painter = new WorldTerrainPainter(sprites, terrain);
         scenery = new WorldSceneryRenderer(sprites, world);
-        overview = sprites.resourceBitmap(R.drawable.world_overview_v1);
         builder.allowCoreThreadTimeOut(true);
         ripple.setColor(0x88b4e6f8);
         ripple.setStrokeWidth(2);
     }
     public WorldDefinition world() { return world; }
-    public Bitmap overview() { return overview; }
+    public synchronized Bitmap overview() {
+        if (overview == null || overview.isRecycled()) {
+            overview = sprites.resourceBitmap(R.drawable.world_overview_v1);
+        }
+        return overview;
+    }
+    public synchronized void releaseOverview() {
+        overview = null;
+    }
     public void update() { ticks = ticks == Integer.MAX_VALUE ? 0 : ticks + 1; }
     public int cachedTerrainBytes() { synchronized (cacheLock) { return chunks.size(); } }
     private static long key(int row, int col) { return ((long) row << 32) | (col & 0xffffffffL); }
@@ -173,5 +182,6 @@ public final class Tilemap {
             closed = true; builder.shutdownNow(); pending.clear(); chunks.evictAll();
         }
         terrain.clear();
+        releaseOverview();
     }
 }

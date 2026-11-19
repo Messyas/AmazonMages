@@ -12,6 +12,7 @@ import com.example.amazonMages.combat.XpCrystalPool;
 import com.example.amazonMages.ecs.*;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.GameObject;
+import com.example.amazonMages.items.ItemCatalog;
 import com.example.amazonMages.map.Tilemap;
 import com.example.amazonMages.resources.ResourceManager;
 import com.example.androidstudio2dgamedevelopment.R;
@@ -48,6 +49,7 @@ final class GameRenderer {
     private final RectF dst = new RectF();
     private Bitmap pickupsSheet;
     private Bitmap craftIconsSheet;
+    private Bitmap boitataLootSheet;
     private Bitmap orbsSheet;
     private Bitmap lightningSheet;
     private Bitmap vortexSheet;
@@ -77,6 +79,7 @@ final class GameRenderer {
         ResourceManager res = ResourceManager.shared(context);
         pickupsSheet = res.bitmap(R.drawable.emerald_pickups, false);
         craftIconsSheet = res.bitmap(R.drawable.ui_craft_icons, false);
+        boitataLootSheet = res.bitmap(R.drawable.boitata_loot, false);
         orbsSheet = res.bitmap(R.drawable.emerald_vfx_orbs, false);
         lightningSheet = res.bitmap(R.drawable.emerald_vfx_lightning, false);
         vortexSheet = res.bitmap(R.drawable.emerald_vfx_vortex, false);
@@ -91,6 +94,7 @@ final class GameRenderer {
         animTicks++;
         tiles.draw(canvas, display);
         drawGroundCombatFx(canvas);
+        enemies.drawArenaWarnings(canvas, display);
         drawXpCrystals(canvas);
         drawWorldPickups(canvas);
 
@@ -151,12 +155,19 @@ final class GameRenderer {
     private void drawWorldPickups(Canvas canvas) {
         pickups.queryInto(visiblePickups, PickupComponent.class, TransformComponent.class);
         for (Entity entity : visiblePickups) {
+            LifetimeComponent lifetime = entity.get(LifetimeComponent.class);
+            if (lifetime != null && !lifetime.isVisible()) continue;
             TransformComponent position = entity.get(TransformComponent.class);
             float sx = (float) display.gameToDisplayCoordinatesX(position.x);
             float sy = (float) display.gameToDisplayCoordinatesY(position.y);
             String pickupId = entity.get(PickupComponent.class).itemId;
             int craftIdx = craftIconFor(pickupId);
-            if (craftIdx >= 0 && craftIconsSheet != null) {
+            int boitataIdx = ItemCatalog.boitataLootFrame(pickupId);
+            if (boitataIdx >= 0 && boitataLootSheet != null) {
+                src.set(boitataIdx * 48, 0, (boitataIdx + 1) * 48, 48);
+                dst.set(sx - 22f, sy - 22f, sx + 22f, sy + 22f);
+                canvas.drawBitmap(boitataLootSheet, src, dst, pixelPaint);
+            } else if (craftIdx >= 0 && craftIconsSheet != null) {
                 src.set(craftIdx * 20, 0, (craftIdx + 1) * 20, 20);
                 dst.set(sx - 15f, sy - 15f, sx + 15f, sy + 15f);
                 canvas.drawBitmap(craftIconsSheet, src, dst, pixelPaint);

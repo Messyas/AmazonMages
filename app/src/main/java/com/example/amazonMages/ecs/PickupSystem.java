@@ -16,7 +16,8 @@ public final class PickupSystem {
         collision.overlappingInto(world,x,y,radius,hits);
         for (Entity entity : hits) {
             PickupComponent pickup = entity.get(PickupComponent.class);
-            if (pickup == null) continue;
+            LifetimeComponent life = entity.get(LifetimeComponent.class);
+            if (pickup == null || (life != null && !life.isVisible())) continue;
             int accepted = inventory.add(pickup.itemId, pickup.quantity);
             if (accepted < pickup.quantity) blocked=true;
             if (accepted > 0) {

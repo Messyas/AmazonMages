@@ -42,14 +42,14 @@ public class GameOver {
         ui.drawTextShadow(canvas, "James esgotou suas forcas...", cx, titleY + titleSize * 0.45f,
             subSize, 0xFFF4EBC8, false, Paint.Align.CENTER);
 
-        float btnWidth = Math.min(pw * 0.72f, 340f);
+        float btnWidth = Math.min(pw * 0.88f, 380f);
         float btnHeight = Math.max(ph * 0.22f, 48f);
         buttonBounds.set(cx - btnWidth * 0.5f, panelBounds.top + ph * 0.54f,
             cx + btnWidth * 0.5f, panelBounds.top + ph * 0.54f + btnHeight);
-        ui.drawButton(canvas, buttonBounds, "RENASCER AQUI", 0, 0xFFFFF1B0);
+        ui.drawButton(canvas, buttonBounds, "RENASCER NO SANTUARIO", 0, 0xFFFFF1B0);
 
         float hintSize = Math.min(w, h) * 0.025f;
-        ui.drawTextShadow(canvas, "Toque no botao para continuar de onde parou",
+        ui.drawTextShadow(canvas, "A aura de folha ancestral reconstrói suas forças no centro",
             cx, buttonBounds.bottom + hintSize * 1.45f, hintSize, 0xFFB8C99A, false, Paint.Align.CENTER);
     }
 

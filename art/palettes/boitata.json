@@ -1,0 +1,14 @@
+{
+ "_comment": "Restricted palette for Boitata and the burned arena. The blue and ember ramps are paired for phase variants.",
+ "always": ["ink"],
+ "ramps": {
+  "ink": ["#11161C", "#1B221D"],
+  "stone": ["#292B2E", "#444548", "#625F5C", "#89817B", "#ABA399"],
+  "moss": ["#29352A", "#3F5034", "#52633A", "#687748", "#8A9257"],
+  "ember": ["#331E1B", "#523025", "#81462A", "#B66332", "#DB873D", "#AF321D", "#E95120", "#FF891F", "#FFC043", "#FFF0A4"],
+  "ivory": ["#7F604C", "#B68D68", "#DDBB8C", "#FFF2D3", "#FFFDF4"],
+  "venom": ["#273D19", "#516F23", "#8DAF35", "#C4E85C"],
+  "blue_scales": ["#111F51", "#172D70", "#23408B", "#2259B4", "#2974E3", "#428BEC", "#5489BA"],
+  "blue_fire": ["#08489F", "#0967DB", "#168FFF", "#35B8FF", "#56E2FF", "#8FEDFC", "#B9F0FF", "#DDF9FF"]
+ }
+}

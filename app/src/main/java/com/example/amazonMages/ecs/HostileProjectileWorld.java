@@ -38,6 +38,10 @@ public final class HostileProjectileWorld {
             }
             TransformComponent position = entity.get(TransformComponent.class);
             EnemyProjectile shot = entity.get(Shot.class).view;
+            if (!shot.canTravel(position.x, position.y)) {
+                world.destroy(entity.id());
+                continue;
+            }
             shot.syncPosition(position.x, position.y);
             double radius = player.getRadius() + entity.get(ColliderComponent.class).radius;
             if (!player.isDashing()
@@ -48,8 +52,14 @@ public final class HostileProjectileWorld {
                 if (parried) {
                     anyParried = true;
                 } else {
-                    player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, DamageType.ACID));
-                    if (player.getPreciseHealth() < before) player.getStatusEffects().grantSlow(60, .15);
+                    DamageType type = shot.getDamageType();
+                    if (type == DamageType.ACID || player.canTakeContactDamage()) {
+                        player.receiveHit(new DamageEvent(shot.getDamage(), shot.getDamage() * 12.0, type));
+                        if (player.getPreciseHealth() < before) {
+                            if (type == DamageType.ACID) player.getStatusEffects().grantSlow(60, .15);
+                            else player.grantContactInvulnerability(32);
+                        }
+                    }
                 }
             }
         }

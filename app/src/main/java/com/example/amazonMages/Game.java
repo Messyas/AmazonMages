@@ -18,7 +18,9 @@ import com.example.amazonMages.ecs.TransformComponent;
 import com.example.amazonMages.ecs.ColliderComponent;
 import com.example.amazonMages.ecs.PickupComponent;
 import com.example.amazonMages.ecs.PickupSystem;
+import com.example.amazonMages.ecs.LifetimeComponent;
 import com.example.amazonMages.items.ItemRegistry;
+import com.example.amazonMages.items.ItemCatalog;
 import com.example.amazonMages.items.ItemDefinition;
 import com.example.amazonMages.items.Inventory;
 import com.example.amazonMages.items.ConsumableService;
@@ -50,6 +52,7 @@ import com.example.amazonMages.ai.EnemyManager;
 import com.example.amazonMages.ai.EnemyTemplate;
 import com.example.amazonMages.ai.EnemyTemplates;
 import com.example.amazonMages.gameobject.Enemy;
+import com.example.amazonMages.gameobject.BoitataBoss;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.Spell;
 import com.example.amazonMages.gamepanel.GameOver;
@@ -288,6 +291,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
     private static final String INTRO_QUEST = "first_ghosts";
     private static final String SENTINEL_QUEST = "sentinel_encounter";
+    private static final String BOITATA_ENCOUNTER = "boitata_encounter";
     private final GameEventBus eventBus = new GameEventBus();
     private final World pickupWorld = new World();
     private final com.example.amazonMages.ecs.LifetimeSystem pickupLifetime = new com.example.amazonMages.ecs.LifetimeSystem();
@@ -311,6 +315,15 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final AttributesPanel attributesPanel = new AttributesPanel();
     private final com.example.amazonMages.ui.ExplorationPanel explorationPanel =
         new com.example.amazonMages.ui.ExplorationPanel();
+    private java.util.function.Consumer<Boolean> worldControlsVisibility;
+
+    void setWorldControlsVisibility(java.util.function.Consumer<Boolean> listener) {
+        worldControlsVisibility = listener;
+    }
+
+    private void showWorldControls(boolean visible) {
+        if (worldControlsVisibility != null) worldControlsVisibility.accept(visible);
+    }
     private final com.example.amazonMages.ui.SurvivorUpgradePanel upgradePanel;
     private final com.example.amazonMages.combat.SurvivorArsenal arsenal =
         new com.example.amazonMages.combat.SurvivorArsenal();
@@ -437,6 +450,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             "enemy.acid_ghost.defeated", 3, "unlock.arcane_lore_intro"));
         questJournal.register(new QuestDefinition(SENTINEL_QUEST, "Sentinela do Pantano",
             EnemyTemplates.SWAMP_SENTINEL.defeatEvent, 1, "sentinel.defeated"));
+        questJournal.register(new QuestDefinition(BOITATA_ENCOUNTER, "Boitatá",
+            EnemyTemplates.BOITATA.defeatEvent, 1, "boitata.defeated"));
+        questJournal.offer(BOITATA_ENCOUNTER);
+        questJournal.accept(BOITATA_ENCOUNTER);
         eventBus.subscribe(event -> questJournal.onEvent(event.id));
         eventBus.subscribe(event -> {
             if ("encounter.swamp_sentinel.requested".equals(event.id)) {
@@ -444,10 +461,8 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                     questJournal.offer(SENTINEL_QUEST); questJournal.accept(SENTINEL_QUEST);
                 }
                 if (questJournal.state(SENTINEL_QUEST) == QuestState.ACTIVE) {
-                    com.example.amazonMages.map.WorldDefinition.Site arena = world.arena("arena_forest");
-                    double bx = arena != null ? arena.center.worldX() : world.spawn.worldX() - 320;
-                    double by = arena != null ? arena.center.worldY() : world.spawn.worldY() + 320;
-                    startBossEncounter(EnemyTemplates.SWAMP_SENTINEL, bx, by);
+                    int tileSize = com.example.amazonMages.map.WorldDefinition.TILE_SIZE;
+                    startBossEncounter(EnemyTemplates.SWAMP_SENTINEL, 58 * tileSize, 124 * tileSize);
                 }
             }
         });
@@ -456,13 +471,28 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         });
         pickupSystem.setListener((item,id,quantity) -> eventBus.publish(new GameEvent("item."+item+".collected",id)));
         enemyManager.setDropListener((template, x, y) -> {
+            if (template == EnemyTemplates.BOITATA) {
+                dropBoitataLoot(x, y);
+                return;
+            }
             int xp = template == null ? 15 : template.experienceReward;
             int tier = template == null ? 0 : template.xpTier;
+            double danger = tilemap.world().dangerFactorAt(x, y);
+            if (danger >= 0.90) {
+                xp = (int) Math.round(xp * 1.35);
+            }
             xpCrystals.spawn(x, y, xp, tier);
             com.example.amazonMages.items.DropTable.forEnemy(template == null ? "acid_ghost" : template.id)
                 .roll(coconutRandom, (item, quantity) -> spawnPickup(item, quantity, x, y));
+            if (danger >= 1.05 && coconutRandom.nextFloat() < 0.25f) {
+                com.example.amazonMages.items.DropTable.forEnemy(template == null ? "acid_ghost" : template.id)
+                    .roll(coconutRandom, (item, quantity) -> spawnPickup(item, quantity, x, y));
+            }
         });
-        enemyManager.setDetailedKillListener((event,id) -> eventBus.publish(new GameEvent(event, id)));
+        enemyManager.setDetailedKillListener((event, id) -> {
+            eventBus.publish(new GameEvent(event, id));
+            if (EnemyTemplates.BOITATA.defeatEvent.equals(event)) saveNow();
+        });
         enemyManager.setParryListener(this::onParryRiposte);
 
         setFocusable(true);
@@ -478,6 +508,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                     gameDisplay.DISPLAY_RECT.width(), gameDisplay.DISPLAY_RECT.height());
             }
             questJournal.restore(quests);
+            if (questJournal.state(BOITATA_ENCOUNTER) == QuestState.ACTIVE) enemyManager.placeBoitata();
             skillTree.restore(quests);
             progression.restore(stats);
             lastObservedLevel = progression.level;
@@ -545,9 +576,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             return true;
         }
         if (explorationPanel.isOpen()) {
-            if (event.getActionMasked() == MotionEvent.ACTION_DOWN &&
-                explorationPanel.touch(event.getX(), event.getY(), getWidth(), getHeight())) {
-                if (!explorationPanel.isOpen()) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+            explorationPanel.onTouch(event, getWidth(), getHeight());
+            if (!explorationPanel.isOpen()) {
+                showWorldControls(true);
+                states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
             }
             return true;
         }
@@ -605,6 +637,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             }
             if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_ATTRIBUTES) {
                 attributesPanel.toggle();
+                showWorldControls(false);
                 states.modal(com.example.amazonMages.state.GameStateManager.State.ATTRIBUTES);
                 resetInput();
                 return true;
@@ -618,6 +651,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
                 return true;
             } else if (nav == com.example.amazonMages.gamepanel.ForestHud.NAV_MAP) {
                 explorationPanel.openMap();
+                showWorldControls(false);
                 states.modal(com.example.amazonMages.state.GameStateManager.State.INVENTORY);
                 resetInput();
                 return true;
@@ -637,7 +671,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 if (attributesPanel.touch(event.getX(), event.getY(), getWidth(), getHeight(), progression)) {
                     applyProgressionEffects();
-                    if (!attributesPanel.isOpen()) states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+                    if (!attributesPanel.isOpen()) {
+                        showWorldControls(true);
+                        states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+                    }
                     saveNow();
                 }
             }
@@ -732,13 +769,16 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             + inventory.count("bencao") + inventory.count("elixir")
             + inventory.count("tonico") + inventory.count("bomba_coco")
             + Math.max(0, inventory.count("coco") - 1);
+        boolean dashUnlocked = skillTree.rank("passo_curupira") > 0 || progression.level >= 2;
+        boolean specialUnlocked = progression.level >= 3 || skillTree.rank("furia_castanheira") > 0;
         forestHud.draw(canvas, getWidth(), getHeight(), player, progression, weapons,
             weapons.specialCooldown() == 0 && progression.mana >= 30 && weapons.current() != null,
             player.getParryCooldownTicks(), hasDeveloperChat(),
             enemyManager.waveDirector().survivalTicks(),
             enemyManager.waveDirector().waveNumber(),
             enemyManager.getKillCount(), hudBanner,
-            inventory.count("coco"), quickItemCount);
+            inventory.count("coco"), quickItemCount,
+            dashUnlocked, specialUnlocked);
         forestHud.drawAimKnob(canvas, aimStick.getKnobX(), aimStick.getKnobY(),
             aimStick.getKnobRadius() * 2f);
         drawBossHud(canvas);
@@ -835,6 +875,13 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
         weapons.update();
         progression.regenerateMana();
+        if (tilemap != null && tilemap.world().isInsideSanctuary(player.getPositionX(), player.getPositionY())) {
+            int ticks = enemyManager.waveDirector().survivalTicks();
+            if (ticks % 300 == 0 && player.getHealthPoint() < player.getMaximumHealth()) {
+                player.setHealthPoint(player.getHealthPoint() + 1);
+            }
+            progression.mana = Math.min(progression.maxMana, progression.mana + 0.04);
+        }
         updateCoconutStorm();
         updatePororocaVortex();
         updateCurupiraEmbers();
@@ -849,11 +896,27 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         if (announcement != null) showBanner(announcement, 150);
         if (player.getHealthPoint() <= 0) { resetInput(); states.gameOver(); return; }
 
-        // Vampire Survivors smart auto-aim when player is not actively dragging the manual aim stick.
+        // Vampire Survivors smart auto-aim:
+        // Level 1: front-facing only (manual stick or player direction).
+        // Level 2: adaptive forward arc.
+        // Level 3+: omni 360-degree auto-aim against nearest target.
         Enemy nearestTarget = enemyManager.findNearestEnemy(player.getPositionX(), player.getPositionY(), 640);
-        if (!aimStick.getIsPressed() && nearestTarget != null) {
-            player.aim(nearestTarget.getPositionX() - player.getPositionX(),
-                nearestTarget.getPositionY() - player.getPositionY());
+        if (!aimStick.getIsPressed()) {
+            if (arsenal.coconutLevel() >= 3 && nearestTarget != null) {
+                player.aim(nearestTarget.getPositionX() - player.getPositionX(),
+                    nearestTarget.getPositionY() - player.getPositionY());
+            } else if (arsenal.coconutLevel() == 2 && nearestTarget != null) {
+                double dx = nearestTarget.getPositionX() - player.getPositionX();
+                double dy = nearestTarget.getPositionY() - player.getPositionY();
+                double dot = dx * player.getDirectionX() + dy * player.getDirectionY();
+                if (dot > 0) {
+                    player.aim(dx, dy);
+                } else {
+                    player.aim(player.getDirectionX(), player.getDirectionY());
+                }
+            } else {
+                player.aim(player.getDirectionX(), player.getDirectionY());
+            }
         }
         arsenal.update(player.getPositionX(), player.getPositionY(),
             nearestTarget != null || aimStick.getIsPressed(), progression,
@@ -884,6 +947,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
 
         // Manual quick-shots support 3-hit combos and Charged Aim release volleys.
         while (input.consumeShot()) {
+            arsenal.onManualShotFired();
             int heldTicks = input.consumeLastHoldTicks();
             boolean charged = heldTicks >= skillTree.chargeTicksRequired();
             if (charged || weapons.basic(progression.castSpeed())) {
@@ -913,7 +977,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         projectileWorld.update();
         enemyManager.collideWithPlayerProjectiles(projectileWorld);
 
-        if (progression.level > lastObservedLevel && !upgradePanel.isOpen()) {
+        if (progression.level > lastObservedLevel && !upgradePanel.isOpen() && !enemyManager.isBoitataFalling()) {
             int gained = progression.level - lastObservedLevel;
             lastObservedLevel = progression.level;
             resetInput();
@@ -940,12 +1004,25 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             inventoryNoticeTicks = 90;
             return;
         }
+        placePickup(itemId, quantity, x, y, new LifetimeComponent(36000));
+    }
+
+    private void dropBoitataLoot(double x, double y) {
+        String[] items = {ItemCatalog.BOITATA_SKIN, ItemCatalog.BOITATA_FANG, ItemCatalog.BOITATA_EYE};
+        for (int i = 0; i < items.length; i++) {
+            placePickup(items[i], 1, x + (i - 1) * 57, y + 26,
+                new LifetimeComponent(LifetimeComponent.PERMANENT, BoitataBoss.DEFEAT_TICKS));
+        }
+        progression.gainExperience(EnemyTemplates.BOITATA.experienceReward);
+    }
+
+    private void placePickup(String itemId, int quantity, double x, double y, LifetimeComponent life) {
         com.example.amazonMages.map.WorldDefinition.Position safe = tilemap.world().safePosition(x, y, 13);
         pickupWorld.create()
             .add(TransformComponent.class, new TransformComponent(safe.x, safe.y))
             .add(ColliderComponent.class, new ColliderComponent(13))
             .add(PickupComponent.class, new PickupComponent(itemId, quantity))
-            .add(com.example.amazonMages.ecs.LifetimeComponent.class, new com.example.amazonMages.ecs.LifetimeComponent(36000));
+            .add(LifetimeComponent.class, life);
     }
 
     private void applyProgressionEffects() {
@@ -990,12 +1067,17 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         double dx = sourceX - player.getPositionX(), dy = sourceY - player.getPositionY();
         double len = Math.hypot(dx, dy);
         double baseAngle = len > 0.01 ? Math.atan2(dy, dx) : Math.atan2(player.getAttackDirectionY(), player.getAttackDirectionX());
-        for (int i = -1; i <= 1; i++) {
-            double a = baseAngle + i * 0.22;
+        if (arsenal.parryLevel() >= 2) {
+            for (int i = -1; i <= 1; i++) {
+                double a = baseAngle + i * 0.22;
+                projectileWorld.spawn(new Spell(getContext(), player, false,
+                    progression.magicMultiplier() * 1.4, Math.cos(a), Math.sin(a), 4));
+            }
+        } else {
             projectileWorld.spawn(new Spell(getContext(), player, false,
-                progression.magicMultiplier() * 1.4, Math.cos(a), Math.sin(a), 4));
+                progression.magicMultiplier() * 1.5, Math.cos(baseAngle), Math.sin(baseAngle), 3));
         }
-        showBanner("PARRY ARCANO! +MANA", 90);
+        showBanner("PARRY DE FOLHA! +MANA", 80);
         sound("coconut_storm_hit");
     }
 
@@ -1005,6 +1087,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void activateEquippedSpecial() {
+        if (progression.level < 3 && skillTree.rank("furia_castanheira") <= 0) {
+            showBanner("ESPECIAL BLOQUEADO (Requer Nv. 3 ou Furia)", 45);
+            return;
+        }
         if (progression.mana < 30 || weapons.current() == null) return;
         if (!weapons.castEquippedSpecial()) return;
         player.playAction(com.example.amazonMages.graphics.AnimationAction.SPECIAL);
@@ -1047,6 +1133,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void activatePlayerDash() {
+        if (skillTree.rank("passo_curupira") <= 0 && progression.level < 2) {
+            showBanner("DASH BLOQUEADO (Requer Nv. 2 ou Passo do Curupira)", 45);
+            return;
+        }
         if (!player.beginDash()) return;
         sound("attack");
         if (skillTree.hasCurupiraTrail()) {
@@ -1149,8 +1239,10 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         forestHud.drawBossBar(canvas, left, top, width, (float) boss.getHealthRatio());
         hudPaint.setColor(0xFFFFFFFF);
         hudPaint.setTextSize(15 * getResources().getDisplayMetrics().density);
-        canvas.drawText(boss.getTemplate().displayName + " - Fase " + (boss.getPhase() + 1),
-            left, top - 12, hudPaint);
+        String phase = boss instanceof BoitataBoss
+            ? (boss.getPhase() == 0 ? "Chamas de brasa" : "Fogo azul")
+            : "Fase " + (boss.getPhase() + 1);
+        canvas.drawText(boss.getTemplate().displayName + "  ·  " + phase, left, top - 12, hudPaint);
     }
 
     private boolean isDebuggable() {
@@ -1192,14 +1284,22 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     /** Explicit save action used by the in-game pause menu. */
     public synchronized void saveNow() { saveCoordinator.save(); }
 
-    /** Revives the player at their current location with full health and mana. */
+    /** Revives the player in the Sanctuary courtyard safe zone with full health and mana. */
     public synchronized void respawnPlayer() {
         player.setHealthPoint(player.getMaximumHealth());
         progression.mana = progression.maxMana;
-        enemyManager.onPlayerRespawn();
+        double spawnX = tilemap.world().spawn.worldX();
+        double spawnY = tilemap.world().spawn.worldY();
+        player.restorePosition(spawnX, spawnY);
+        gameDisplay.update();
+        tilemap.prefetchAround(spawnX, spawnY,
+            gameDisplay.DISPLAY_RECT.width(), gameDisplay.DISPLAY_RECT.height());
+        enemyManager.onPlayerRespawnAtSanctuary(spawnX, spawnY,
+            com.example.amazonMages.map.WorldDefinition.SAFE_RADIUS * 64.0);
         states.revive();
         states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
         resetInput();
+        showBanner("RENASCIDO NO SANTUARIO DAS FOLHAS!", 120);
         saveNow();
     }
 

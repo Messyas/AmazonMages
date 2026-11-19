@@ -38,4 +38,8 @@ public final class EnemyTemplates {
         "ancient_wraith", "Espectro Ancestral", EnemyRank.BOSS,
         new EnemyConfig(1300, 650, 250, 100, 132, 420, Math.toRadians(6), 110, 20, 80, 48),
         110, 3, 3, 54, 350, "enemy.ancient_wraith.defeated", "wraith", 2, true, .7, .35);
+
+    public static final EnemyTemplate BOITATA = new EnemyTemplate(
+        "boitata", "Boitatá", EnemyRank.BOSS, EnemyConfig.acidGhost(),
+        144, 2, 0, 62, 460, "enemy.boitata.defeated", "boitata", 2, false, .40);
 }

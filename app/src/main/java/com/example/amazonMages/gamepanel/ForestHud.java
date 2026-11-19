@@ -81,9 +81,19 @@ public final class ForestHud {
                      int parryCooldownTicks, boolean developerChatAvailable,
                      int survivalTicks, int waveNumber, int killCount, String bannerText,
                      int coconutCount, int quickItemCount) {
+        draw(c, width, height, player, progression, weapons, specialAvailable,
+            parryCooldownTicks, developerChatAvailable, survivalTicks, waveNumber,
+            killCount, bannerText, coconutCount, quickItemCount, true, true);
+    }
+
+    public void draw(Canvas c, int width, int height, Player player, PlayerProgression progression,
+                     WeaponLoadout weapons, boolean specialAvailable,
+                     int parryCooldownTicks, boolean developerChatAvailable,
+                     int survivalTicks, int waveNumber, int killCount, String bannerText,
+                     int coconutCount, int quickItemCount, boolean dashUnlocked, boolean specialUnlocked) {
         float statusRight = drawStatus(c, width, player, progression);
         drawHotbar(c, width, height, weapons, coconutCount);
-        drawActions(c, width, height, player, weapons, specialAvailable, parryCooldownTicks, quickItemCount);
+        drawActions(c, width, height, player, weapons, specialAvailable, parryCooldownTicks, quickItemCount, dashUnlocked, specialUnlocked);
         boolean pendingSkill = progression != null && (progression.skillPoints > 0 || progression.attributePoints > 0);
         float navLeft = drawNavigation(c, width, developerChatAvailable, pendingSkill);
         drawSurvivorStrip(c, width, statusRight, navLeft, survivalTicks, waveNumber, killCount, bannerText);
@@ -174,7 +184,8 @@ public final class ForestHud {
     }
 
     private void drawActions(Canvas c, int width, int height, Player player, WeaponLoadout weapons,
-                             boolean specialAvailable, int parryCooldownTicks, int quickItemCount) {
+                             boolean specialAvailable, int parryCooldownTicks, int quickItemCount,
+                             boolean dashUnlocked, boolean specialUnlocked) {
         int s = pixelScale;
         float qx = width * .53f, qy = height * .86f;
         drawButton(c, qx, qy, 34, ICON_POTION, quickItemCount <= 0);
@@ -183,18 +194,21 @@ public final class ForestHud {
         }
 
         drawParryButton(c, width * .64f, height * .86f, parryCooldownTicks);
-        drawDashButton(c, width * .71f, height * .68f, player);
-        drawButton(c, width * .77f, height * .86f, 38, ICON_SPECIAL, !specialAvailable);
+        drawDashButton(c, width * .71f, height * .68f, player, dashUnlocked);
+        drawButton(c, width * .77f, height * .86f, 38, ICON_SPECIAL, !specialAvailable || !specialUnlocked);
         drawButton(c, width * .88f, height * .58f, 38, ICON_SWAP, false);
     }
 
-    private void drawDashButton(Canvas c, float cx, float cy, Player player) {
+    private void drawDashButton(Canvas c, float cx, float cy, Player player, boolean unlocked) {
         int s = pixelScale;
         int cd = player.getDashCooldownTicks();
         int max = Math.max(1, player.getDashCooldownMax());
         float extent = 34 * s;
-        sprite(c, buttons, (cd > 0 ? 2 : 0) * 32, 0, 32, 32,
+        int state = !unlocked ? 2 : (cd > 0 ? 2 : 0);
+        sprite(c, buttons, state * 32, 0, 32, 32,
             cx - extent / 2, cy - extent / 2, extent, extent);
+        int prevAlpha = paint.getAlpha();
+        if (!unlocked) paint.setAlpha(120);
         if (dashIcon != null) {
             src.set(64, 0, 128, 64);
             dst.set(cx - 10 * s, cy - 10 * s, cx + 10 * s, cy + 10 * s);
@@ -202,7 +216,8 @@ public final class ForestHud {
         } else {
             sprite(c, icons, ICON_SWAP * 16, 0, 16, 16, cx - 8 * s, cy - 8 * s, 16 * s, 16 * s);
         }
-        if (cd > 0) {
+        paint.setAlpha(prevAlpha);
+        if (unlocked && cd > 0) {
             float radius = 19 * s;
             paint.setStyle(Paint.Style.STROKE);
             paint.setStrokeWidth(Math.max(2 * density, 2.2f * s));

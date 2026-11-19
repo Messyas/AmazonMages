@@ -463,6 +463,11 @@ public class MainActivity extends Activity {
             zoomDrawable.setZoomLabel(formatZoom(zoom));
             gamePreferences.edit().putInt("camera_zoom_factor", (int) Math.round(zoom)).apply();
         });
+        game.setWorldControlsVisibility(visible -> {
+            int visibility = visible ? View.VISIBLE : View.INVISIBLE;
+            pauseButton.setVisibility(visibility);
+            zoomButton.setVisibility(visibility);
+        });
         setContentView(root);
         if (resumed) game.resume();
     }
@@ -633,8 +638,12 @@ public class MainActivity extends Activity {
 
     private void styleDialog(AlertDialog dialog) {
         dialog.setOnShowListener(ignored -> {
-            if (dialog.getWindow() != null)
+            if (dialog.getWindow() != null) {
                 dialog.getWindow().setBackgroundDrawable(menuPanelBackground());
+                android.view.WindowManager.LayoutParams windowParams = dialog.getWindow().getAttributes();
+                windowParams.dimAmount = 0f;
+                dialog.getWindow().setAttributes(windowParams);
+            }
             TextView title = dialog.findViewById(androidx.appcompat.R.id.alertTitle);
             if (title != null) {
                 title.setTextColor(Color.rgb(255, 241, 176));

@@ -13,7 +13,16 @@ public final class WorldDefinition {
     public static final int COLUMNS = 192, ROWS = 192, TILE_SIZE = 64;
     public static final int CENTER = 96, RADIUS = 88, REVISION = 2;
     public static final long DEFAULT_SEED = 20261027L;
-    public static final double SAFE_RADIUS = 7.5;
+    public static final double SAFE_RADIUS = 8.5;
+    private static final Terrain[] TERRAIN_BY_ID = new Terrain[16];
+    static {
+        for (Terrain t : Terrain.values()) {
+            if (t.id >= 0 && t.id < TERRAIN_BY_ID.length) TERRAIN_BY_ID[t.id] = t;
+        }
+    }
+
+    private final byte[] tileCache = new byte[ROWS * COLUMNS];
+    private boolean tileCachePopulated;
 
     public enum Terrain {
         WATER(0, false), LAVA(1, false), GROUND(2, true), GRASS(3, true),
@@ -112,6 +121,7 @@ public final class WorldDefinition {
     public final long detailSeed;
     public final Point spawn = p(96, 100);
     public final List<Site> landmarks, arenas, discoveries;
+    public final BoitataArena boitataArena;
     public final List<Building> buildings;
     public final List<Route> routes;
     public final List<Root> roots;
@@ -144,9 +154,11 @@ public final class WorldDefinition {
         List<Site> reserved = new ArrayList<>();
         reserved.add(site("arena_storm", "Clareira das Tempestades", 42, 44, Region.INDIGENOUS, 7.5));
         reserved.add(site("arena_ancient", "Pátio Ancestral", 150, 44, Region.ANCIENT, 7.5));
-        reserved.add(site("arena_forest", "Clareira da Mata", 42, 148, Region.DEAD_FOREST, 7.5));
+        Site burnedArena = site(BoitataArena.SITE_ID, "Arena do Boitatá", 42, 148, Region.DEAD_FOREST, 7.5);
+        reserved.add(burnedArena);
         reserved.add(site("arena_river", "Praça do Porto", 150, 148, Region.MODERN, 7.5));
         arenas = Collections.unmodifiableList(reserved);
+        boitataArena = new BoitataArena(burnedArena);
 
         List<Building> structures = new ArrayList<>();
         structures.add(building("central_trunk", "castanheira_trunk", 96, 92, 3.6, 2.5));
@@ -182,7 +194,7 @@ public final class WorldDefinition {
             Point arena = arenas.get(i).center;
             if (i == 0) paths.add(route(3.0, region, p(48, 52), arena));
             else if (i == 1) paths.add(route(3.0, region, p(144, 52), arena));
-            else if (i == 2) paths.add(route(3.0, region, p(48, 142), arena));
+            else if (i == 2) paths.add(route(3.0, region, p(46, 138), p(42, 138), p(42, 143)));
             else paths.add(route(3.0, region, p(144, 142), arena));
         }
 
@@ -242,6 +254,36 @@ public final class WorldDefinition {
 
         addRegionalBuildings(structures, landmarks.get(4), "city_house", 5);
         addRegionalBuildings(structures, landmarks.get(2), "ruin", 4);
+
+        // 4 open ruined bastions framing the central leaf-magic sanctuary courtyard around spawn (96, 100)
+        structures.add(building("sanctuary_bastion_nw", "sanctuary_bastion_nw", 88.5, 94.0, 2.4, 1.8));
+        structures.add(building("sanctuary_bastion_ne", "sanctuary_bastion_ne", 103.5, 94.0, 2.4, 1.8));
+        structures.add(building("sanctuary_bastion_sw", "sanctuary_bastion_sw", 88.5, 106.5, 2.4, 1.8));
+        structures.add(building("sanctuary_bastion_se", "sanctuary_bastion_se", 103.5, 106.5, 2.4, 1.8));
+
+        // Build flat fast 36 KB terrain cache for O(1) tile queries across all 60 Hz simulation hot loops
+        for (int r = 0; r < ROWS; r++) {
+            for (int c = 0; c < COLUMNS; c++) {
+                tileCache[r * COLUMNS + c] = (byte) sampleTileProcedural(r, c).id;
+            }
+        }
+        tileCachePopulated = true;
+    }
+
+    public boolean isInsideSanctuary(double worldX, double worldY) {
+        return Math.hypot(worldX - spawn.worldX(), worldY - spawn.worldY()) <= SAFE_RADIUS * TILE_SIZE;
+    }
+
+    public double dangerFactorAt(double worldX, double worldY) {
+        if (isInsideSanctuary(worldX, worldY)) return 0.0;
+        double distTiles = Math.hypot(worldX / TILE_SIZE - CENTER, worldY / TILE_SIZE - CENTER);
+        if (distTiles < 26.0) {
+            return 0.35 + (distTiles / 26.0) * 0.20; // 0.35 .. 0.55 (calm central ring)
+        }
+        if (distTiles < 54.0) {
+            return 0.55 + ((distTiles - 26.0) / 28.0) * 0.35; // 0.55 .. 0.90 (mid-distance)
+        }
+        return 0.90 + Math.min(0.45, ((distTiles - 54.0) / 34.0) * 0.45); // 0.90 .. 1.35 (chaotic borders)
     }
 
     public Site landmark(String id) { return find(landmarks, id); }
@@ -250,6 +292,7 @@ public final class WorldDefinition {
     public Region regionAt(double x, double y) {
         double col = x / TILE_SIZE, row = y / TILE_SIZE;
         if (!inside(col, row)) return Region.OUTSIDE;
+        if (boitataArena.distance(x, y) < boitataArena.radius + 96) return Region.DEAD_FOREST;
         if (distance(col, row, CENTER, CENTER) < 22) return Region.CENTRAL;
         if (distance(col, row, 58, 134) < 24) return Region.DEAD_FOREST;
         for (Site site : landmarks) {
@@ -258,8 +301,16 @@ public final class WorldDefinition {
         return Region.FOREST;
     }
 
-    /** Pure sampling: fixed geometry first, seed-dependent forest details last. */
     public Terrain sampleTile(int row, int col) {
+        if (row < 0 || col < 0 || row >= ROWS || col >= COLUMNS) return Terrain.BORDER;
+        if (tileCachePopulated) {
+            return TERRAIN_BY_ID[tileCache[row * COLUMNS + col] & 0xFF];
+        }
+        return sampleTileProcedural(row, col);
+    }
+
+    /** Pure sampling: fixed geometry first, seed-dependent forest details last. */
+    public Terrain sampleTileProcedural(int row, int col) {
         if (row < 0 || col < 0 || row >= ROWS || col >= COLUMNS) return Terrain.BORDER;
         double x = col + .5, y = row + .5;
         if (!inside(x, y)) return Terrain.BORDER;
@@ -272,6 +323,9 @@ public final class WorldDefinition {
         }
         Terrain river = riverAt(x, y);
         if (river != null) return road <= 2.2 ? Terrain.BRIDGE : river;
+        if (boitataArena.distance(x * TILE_SIZE, y * TILE_SIZE) < boitataArena.radius + TILE_SIZE) {
+            return y < 143 && road <= 1.6 ? Terrain.PATH : Terrain.BURNED;
+        }
         if (road <= 1.6) return Terrain.PATH;
         for (Site arena : arenas) {
             if (distance(x, y, arena.center.col, arena.center.row) < arena.radius + 1.0)
@@ -308,6 +362,7 @@ public final class WorldDefinition {
         if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(radius) || radius < 0) return false;
         double col = x / TILE_SIZE, row = y / TILE_SIZE, r = radius / TILE_SIZE;
         if (distance(col, row, CENTER, CENTER) + r >= RADIUS) return false;
+        if (boitataArena.blocks(x, y, radius)) return false;
         for (Building building : buildings) {
             double nearestX = Math.max(building.base.col - building.width / 2,
                 Math.min(col, building.base.col + building.width / 2));
@@ -375,6 +430,10 @@ public final class WorldDefinition {
                 }
             }
         }
+        return new Position(spawn.worldX(), spawn.worldY());
+    }
+
+    public Position spawnPosition() {
         return new Position(spawn.worldX(), spawn.worldY());
     }
 
