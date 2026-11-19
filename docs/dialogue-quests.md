@@ -1,5 +1,21 @@
 # Diálogos, missões e desbloqueios
 
+## Iara, guia do santuário
+
+Iara começa perto do ponto de nascimento e percorre uma rota com pausas dentro do círculo seguro. Ao se aproximar, toque nela ou na indicação **Conversar**. O mundo pausa e a conversa começa com uma cena de boas-vindas alternando entre Iara e o protagonista. **Mostrar fala** revela o texto, **Continuar** avança e **Rever diálogo** reinicia a cena. É possível escrever uma pergunta a qualquer momento. As respostas são locais, e o histórico mantém as últimas 41 falas da sessão.
+
+Os retratos destacam quem está falando. Iara alterna entre cumprimentar, explicar, pensar e avisar, com dois quadros de boca e mão para cada pose. **Ativar voz** usa uma voz offline em português instalada no Android, quando disponível.
+
+O visual branco preserva a referência. A opção azul muda somente a roupa e fica salva nas preferências do jogo. As duas opções têm retrato e caminhada em oito direções.
+
+As fontes HD foram geradas com ImageGen e ficam em `art/hd/guide_walk` e nos arquivos `art/hd/guide_*.png`. As tiras têm três quadros por direção: repouso, passo esquerdo e passo direito. O conversor usa a paleta `sanctuary_guide` e reduz cada quadro a 32 × 36 pixels lógicos antes da ampliação 2×. Os retratos de fala têm dois quadros de 448 × 560 pixels por atlas, da boca fechada à aberta. Para reconstruir os recursos Android:
+
+```powershell
+python tools/pixelize/build_guide.py --install
+```
+
+O restante deste documento registra as etapas anteriores do sistema de diálogos e missões.
+
 ## Estado atual da interface
 
 O atalho global `FALAR (NPC)` e a conversa demonstrativa do Ancião foram removidos: não existe uma entidade NPC posicionada para justificar essa interação. O renderer e os dados de diálogo ficam sem gatilho até haver NPC real com interação por proximidade. O diário continua mostrando as missões por slot.

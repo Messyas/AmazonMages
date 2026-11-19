@@ -26,6 +26,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.SharedPreferences;
 import com.example.amazonMages.audio.GameAudioManager;
 import com.example.amazonMages.ui.MainMenuView;
+import com.example.amazonMages.ui.GuideChatDialog;
 
 import com.example.amazonMages.save.GameSaveRepository;
 import com.example.amazonMages.save.PlayerPositionEntity;
@@ -43,6 +44,7 @@ public class MainActivity extends Activity {
     private boolean resumed;
     private AlertDialog pauseDialog;
     private AlertDialog chatDialog;
+    private GuideChatDialog guideDialog;
     private int menuGeneration;
     private SharedPreferences gamePreferences;
 
@@ -426,6 +428,8 @@ public class MainActivity extends Activity {
 
     private void startGame(int slotId) {
         game = new Game(this, slotId, states);
+        game.setGuideBlue(gamePreferences.getBoolean("guide_blue", false));
+        game.setGuideChatListener(this::showGuideChat);
         game.setAudioManager(audio);
         double initialZoom = savedZoomFactor();
         game.setCameraZoom(initialZoom);
@@ -515,6 +519,21 @@ public class MainActivity extends Activity {
         pauseDialog.getWindow().setLayout(
             Math.min(dp(500), getResources().getDisplayMetrics().widthPixels - dp(48)),
             android.view.WindowManager.LayoutParams.WRAP_CONTENT);
+    }
+
+    private void showGuideChat() {
+        if (game == null || guideDialog != null) return;
+        Game session = game;
+        guideDialog = new GuideChatDialog(this, session.guideConversation(),
+            gamePreferences.getBoolean("guide_blue", false), blue -> {
+                session.setGuideBlue(blue);
+                gamePreferences.edit().putBoolean("guide_blue", blue).apply();
+            });
+        guideDialog.setOnDismissListener(dialog -> {
+            guideDialog = null;
+            if (game == session) session.closeGuideChat();
+        });
+        guideDialog.show();
     }
 
     private void showDevChat() {
@@ -667,6 +686,7 @@ public class MainActivity extends Activity {
     }
 
     private void returnToMenu() {
+        closeGuideDialog();
         if (pauseDialog != null) {
             pauseDialog.setOnDismissListener(null);
             pauseDialog.dismiss();
@@ -701,6 +721,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onPause() {
         resumed = false;
+        if (guideDialog != null) guideDialog.pauseSpeech();
         if (game != null) game.pause();
         if (audio != null) audio.pause();
         super.onPause();
@@ -713,6 +734,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        closeGuideDialog();
         if (game != null) {
             game.pause();
             game.closeSaveRepository();
@@ -725,8 +747,15 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (chatDialog != null) chatDialog.dismiss();
+        if (guideDialog != null) guideDialog.dismiss();
+        else if (chatDialog != null) chatDialog.dismiss();
         else if (game != null) showPauseMenu();
         else showMainMenu();
+    }
+
+    private void closeGuideDialog() {
+        if (guideDialog == null) return;
+        guideDialog.dismiss();
+        guideDialog = null;
     }
 }

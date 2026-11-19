@@ -53,6 +53,8 @@ import com.example.amazonMages.ai.EnemyTemplate;
 import com.example.amazonMages.ai.EnemyTemplates;
 import com.example.amazonMages.gameobject.Enemy;
 import com.example.amazonMages.gameobject.BoitataBoss;
+import com.example.amazonMages.gameobject.SanctuaryGuide;
+import com.example.amazonMages.dialogue.GuideConversation;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.Spell;
 import com.example.amazonMages.gamepanel.GameOver;
@@ -347,6 +349,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
     private final com.example.amazonMages.gamepanel.AimGuide aimGuide =
         new com.example.amazonMages.gamepanel.AimGuide();
     private final Player player;
+    private final SanctuaryGuide guide;
+    private final GuideConversation guideConversation = new GuideConversation();
+    private Runnable guideChatListener;
     private GameLoop gameLoop;
     private volatile boolean activityResumed = false;
     private final EnemyManager enemyManager;
@@ -408,6 +413,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         SpriteAnimator animator = new SpriteAnimator(spriteSheet.getPlayerAnimations());
         com.example.amazonMages.map.WorldDefinition world = new com.example.amazonMages.map.WorldDefinition();
         player = new Player(context, joystick, world.spawn.worldX(), world.spawn.worldY(), 32, animator);
+        guide = new SanctuaryGuide(context, world, player);
         player.setWorldGeometry(world);
         saves = new GameSaveRepository(context, slotId);
         effectTarget = new com.example.amazonMages.effects.PlayerEffectTarget(player, progression);
@@ -429,6 +435,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         tilemap = new Tilemap(spriteSheet, world);
         enemyManager = new EnemyManager(context, player, tilemap);
         renderer = new GameRenderer(tilemap, player, enemyManager, projectileWorld, pickupWorld, gameDisplay);
+        renderer.attachGuide(guide);
         renderer.attachSurvivorFx(context, arsenal, xpCrystals);
         renderer.attachCombatFx(combatFxState);
         // Decode/upload the enemy atlases and build the first map chunks off the game thread.
@@ -550,7 +557,9 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             }
             return true;
         }
-        if (!states.acceptsInput()) return true;
+        if (!states.acceptsInput() || states.state() == com.example.amazonMages.state.GameStateManager.State.DIALOGUE) {
+            return true;
+        }
         if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
             resetInput();
             return true;
@@ -680,7 +689,27 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
             }
             return true;
         }
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN && guideChatListener != null
+                && guide.canTalkAt(event.getX(), event.getY(), gameDisplay, getWidth(), getHeight())) {
+            resetInput();
+            guide.facePlayer();
+            states.modal(com.example.amazonMages.state.GameStateManager.State.DIALOGUE);
+            showWorldControls(false);
+            sound("dialogue");
+            guideChatListener.run();
+            return true;
+        }
         return input.touch(event, getWidth(), getHeight()) || super.onTouchEvent(event);
+    }
+
+    void setGuideChatListener(Runnable listener) { guideChatListener = listener; }
+    GuideConversation guideConversation() { return guideConversation; }
+    synchronized void setGuideBlue(boolean blue) { guide.setBlue(blue); }
+
+    synchronized void closeGuideChat() {
+        states.modal(com.example.amazonMages.state.GameStateManager.State.PLAYING);
+        showWorldControls(true);
+        resetInput();
     }
 
     @Override
@@ -824,6 +853,7 @@ class Game extends SurfaceView implements SurfaceHolder.Callback {
         joystick.update();
         aimStick.update();
         player.update();
+        guide.update();
         if (player.pollAegisBurst()) {
             double burstDmg = 5.0 * Math.max(progression.magicMultiplier(), progression.physicalMultiplier());
             enemyManager.parryShockwave(player.getPositionX(), player.getPositionY(), 190.0, burstDmg, 48);

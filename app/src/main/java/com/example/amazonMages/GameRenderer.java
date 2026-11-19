@@ -12,6 +12,7 @@ import com.example.amazonMages.combat.XpCrystalPool;
 import com.example.amazonMages.ecs.*;
 import com.example.amazonMages.gameobject.Player;
 import com.example.amazonMages.gameobject.GameObject;
+import com.example.amazonMages.gameobject.SanctuaryGuide;
 import com.example.amazonMages.items.ItemCatalog;
 import com.example.amazonMages.map.Tilemap;
 import com.example.amazonMages.resources.ResourceManager;
@@ -57,6 +58,7 @@ final class GameRenderer {
     private SurvivorArsenal arsenal;
     private XpCrystalPool xpCrystals;
     private CombatFxState combatFx;
+    private SanctuaryGuide guide;
     private int animTicks;
 
     GameRenderer(Tilemap tiles, Player player, EnemyManager enemies,
@@ -90,6 +92,8 @@ final class GameRenderer {
         this.combatFx = combatFx;
     }
 
+    void attachGuide(SanctuaryGuide guide) { this.guide = guide; }
+
     void draw(Canvas canvas) {
         animTicks++;
         tiles.draw(canvas, display);
@@ -101,6 +105,7 @@ final class GameRenderer {
         tiles.prepareScenery(display, player.getPositionX(), player.getPositionY());
         actors.clear();
         actors.add(player);
+        if (guide != null) actors.add(guide);
         enemies.addActorsTo(actors);
         actors.sort(java.util.Comparator.comparingDouble(GameObject::getPositionY));
         for (GameObject actor : actors) {

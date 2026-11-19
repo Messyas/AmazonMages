@@ -63,6 +63,39 @@
   }
  },
  "assets": {
+  "guide_walk": {
+   "kind": "anim",
+   "cols": 3,
+   "rows": 8,
+   "source_cell": [256, 288],
+   "downsample": 8,
+   "palette": "sanctuary_guide",
+   "fit": "trim",
+   "fill": 0.94,
+   "anchor": "feet",
+   "baseline": 34,
+   "min_island": 2
+  },
+  "guide_portrait": {
+   "kind": "smooth",
+   "size": [560, 701]
+  },
+  "guide_greet": {
+   "kind": "smooth",
+   "size": [896, 560]
+  },
+  "guide_explain": {
+   "kind": "smooth",
+   "size": [896, 560]
+  },
+  "guide_warn": {
+   "kind": "smooth",
+   "size": [896, 560]
+  },
+  "guide_think": {
+   "kind": "smooth",
+   "size": [896, 560]
+  },
   "boitata_awaken": {
    "kind": "boitata_anim",
    "cols": 3,
